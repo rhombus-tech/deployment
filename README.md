@@ -2,6 +2,38 @@
 
 A deployment-time verification system that combines Proof-Carrying Code (PCC) and Proof-Carrying Data (PCD) to verify crucial safety properties of WASM contracts before deployment.
 
+
+## ❓ Why Beyond Rust's Compiler?
+
+While Rust provides strong safety guarantees and testing helps catch bugs, some properties need mathematical proof:
+
+### Rust Compiler Provides
+- Memory safety through ownership
+- Thread safety via borrowing
+- Type safety
+- Basic resource management
+
+### Testing Provides
+- Functional verification
+- Edge case coverage
+- Integration checks
+- Runtime behavior
+
+### Our System Adds
+- Mathematical proofs of properties
+- Verification of all code paths
+- Guaranteed bounds on resources
+- Proof of invariant preservation
+
+The key difference is **proof vs testing**:
+- Testing shows bugs exist
+- Our system proves bugs can't exist
+- Testing covers some paths
+- Our system verifies all paths
+
+This makes it particularly valuable for critical systems where testing alone isn't enough.
+
+
 ## 📚 Core Concepts
 
 ### Proof-Carrying Code (PCC)
@@ -94,36 +126,6 @@ PCDCircuit:
 - Enables recursive composition
 - Supports zero-knowledge proofs
 ```
-
-## ❓ Why Beyond Rust's Compiler?
-
-While Rust provides strong safety guarantees and testing helps catch bugs, some properties need mathematical proof:
-
-### Rust Compiler Provides
-- Memory safety through ownership
-- Thread safety via borrowing
-- Type safety
-- Basic resource management
-
-### Testing Provides
-- Functional verification
-- Edge case coverage
-- Integration checks
-- Runtime behavior
-
-### Our System Adds
-- Mathematical proofs of properties
-- Verification of all code paths
-- Guaranteed bounds on resources
-- Proof of invariant preservation
-
-The key difference is **proof vs testing**:
-- Testing shows bugs exist
-- Our system proves bugs can't exist
-- Testing covers some paths
-- Our system verifies all paths
-
-This makes it particularly valuable for critical systems where testing alone isn't enough.
 
 
 ## 🛣️ Roadmap
