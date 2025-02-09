@@ -2,73 +2,70 @@
 
 A deployment-time verification system that combines Proof-Carrying Code (PCC) and Proof-Carrying Data (PCD) to verify crucial safety properties of WASM contracts before deployment.
 
+## 💡 Why Rust + Verification?
 
-## ❓ Why Beyond Rust's Compiler?
+Our system provides strong safety guarantees while letting you use the full power of Rust:
 
-While Rust provides strong safety guarantees and testing helps catch bugs, some properties need mathematical proof:
+### Safety Without Sacrifice
+- Type safety verification
+- Resource usage control
+- Linear type guarantees
+All without leaving the Rust ecosystem.
 
-### Rust Compiler Provides
-- Memory safety through ownership
-- Thread safety via borrowing
-- Type safety
-- Basic resource management
+### Benefits Over Restricted Languages
+- Use any Rust library
+- Mature tooling and ecosystem
+- Larger developer pool
+- More expressive power
+- Custom property verification
 
-### Testing Provides
-- Functional verification
-- Edge case coverage
-- Integration checks
-- Runtime behavior
+No need to learn a new language or accept limitations - get safety guarantees while keeping Rust's flexibility.
 
-### Our System Adds
-- Mathematical proofs of properties
-- Verification of all code paths
-- Guaranteed bounds on resources
-- Proof of invariant preservation
+## 🛡️ Safety Properties Verified
 
-The key difference is **proof vs testing**:
-- Testing shows bugs exist
-- Our system proves bugs can't exist
-- Testing covers some paths
-- Our system verifies all paths
+While Rust's compiler provides excellent safety guarantees, our system adds Move-like verification at deployment time:
 
-This makes it particularly valuable for critical systems where testing alone isn't enough.
+### Type Safety Properties
+- **Linear Types**: Verify resources can't be copied or discarded
+- **Type Constraints**: Ensure type rules are followed
+- **Resource Types**: Verify proper resource handling
+- **Type State**: Track type state transitions
 
+### Resource Properties
+- **Resource Tracking**: Verify resources are never duplicated or lost
+- **Usage Patterns**: Ensure resources are properly consumed
+- **Lifecycle Management**: Track resource creation to destruction
+- **Access Control**: Verify proper resource ownership
 
-## 📚 Core Concepts
+### State Properties
+- **State Transitions**: Verify valid state changes
+- **Invariants**: Maintain system invariants
+- **Computation Steps**: Verify computation validity
+- **Safety Rules**: Enforce safety properties
+
+### Protocol Properties
+- **Protocol Rules**: Verify compliance with rules
+- **Safety Properties**: Enforce safety constraints
+- **Computation Validity**: Verify correct behavior
+- **Invariant Preservation**: Maintain system invariants
+
+The system provides Move-like guarantees while allowing full use of Rust's ecosystem and expressiveness.
+
+## 📚 Core Technology
 
 ### Proof-Carrying Code (PCC)
-A formal verification technique where code includes mathematical proofs about its behavior. Used to verify:
+A formal verification technique where code includes mathematical proofs about its behavior[^1]. Used to verify:
 - Specific safety properties (e.g., memory bounds)
 - Resource usage constraints
 - Compliance with protocol rules
 
 ### Proof-Carrying Data (PCD)
-A technique for proving properties about computation steps. Used to verify:
+A technique for proving properties about computation steps[^1]. Used to verify:
 - Each computation step is valid
 - Results maintain required properties
 - Proofs can be verified independently
 
 Together, these provide strong guarantees about both code behavior and data flow.
-
-## 🚀 Key Features
-
-### Memory Safety Verification (PCC)
-- Verify memory access patterns
-- Check allocation bounds
-- Ensure proper cleanup
-- Prevent memory-related vulnerabilities
-
-### Resource Usage Verification
-- Track resource acquisition/release
-- Verify cleanup on all paths
-- Check resource bounds
-- Prevent resource leaks
-
-### State Verification
-- Verify state transition rules
-- Check computation steps
-- Ensure invariants
-- Maintain protocol safety
 
 ## 🚀 Deployment Process
 
@@ -101,57 +98,11 @@ You get one of two outcomes:
 - Explains problems
 - Blocks deployment
 
-### 4. Deployment
-On success:
-- Contract is deployed
-- Verification complete
-- Ready for execution
-
-## 🔬 Technical Details
-
-### Memory Safety Circuit
-```rust
-MemorySafetyCircuit:
-- Tracks memory accesses (offset, size)
-- Verifies allocation bounds
-- Generates safety constraints
-- Prevents memory corruption
-```
-
-### PCD Circuit
-```rust
-PCDCircuit:
-- Verifies state transitions
-- Maintains chain integrity
-- Enables recursive composition
-- Supports zero-knowledge proofs
-```
-
-
 ## 🛣️ Roadmap
 
-### Resource Safety Verification
-```rust
-ResourceSafetyCircuit:
-- Track resource lifecycle
-- Verify cleanup paths
-- Ensure proper handling
-- Prevent leaks
-```
+[Coming soon]
 
-**Implementation Plan:**
-1. Resource tracking system
-2. Safety property verification
-3. Lifecycle verification
-4. Property preservation
-
-### Integration Benefits
-1. **Complete Safety**: Memory and resource guarantees
-2. **Property Verification**: Invariant preservation
-3. **Implementation Safety**: Verified behavior
-4. **Protocol Compliance**: Rule enforcement
-
-## 🔧 Getting Started
+## 🔧 Development
 
 ### Prerequisites
 - Rust toolchain
@@ -162,11 +113,4 @@ ResourceSafetyCircuit:
 cargo build --release
 ```
 
-### Running Tests
-```bash
-cargo test
-```
-
-## 🔗 Related Projects
-- [Arkworks](https://github.com/arkworks-rs) - ZK Circuit Framework
-- [R1CS](https://github.com/scipr-lab/r1cs) - Constraint System
+[^1]: Alessandro Chiesa, ["Proof-Carrying Data"](https://dspace.mit.edu/bitstream/handle/1721.1/61151/698133641-MIT.pdf), MIT PhD Thesis, 2010.
