@@ -1,0 +1,42 @@
+[package]
+name = "verify"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    "common",
+    "pcc",
+    "pcd",
+    "test-wasm",
+]
+
+[dependencies]
+# WASM parsing and analysis
+wasmparser = "0.110.0"
+walrus = "0.19.0"
+
+# Cryptographic proof systems
+ark-ff = "0.4.2"
+ark-ec = "0.4.2"
+ark-std = "0.4.0"
+ark-serialize = "0.4.0"
+ark-relations = "0.4.0"
+ark-bls12-381 = "0.4.0"
+ark-r1cs-std = "0.4.0"
+ark-groth16 = "0.4.0"
+ark-snark = "0.4.0"
+
+# Error handling and utilities
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+
+# Workspace dependencies
+common = { path = "./common" }
+pcc = { path = "./pcc" }
+pcd = { path = "./pcd" }
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+wat = "1.0"  # For parsing WAT in tests

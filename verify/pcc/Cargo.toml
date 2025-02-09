@@ -1,0 +1,21 @@
+[package]
+name = "pcc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+ark-ff = "0.4.0"
+ark-ec = "0.4.0"
+ark-bls12-381 = "0.4.0"
+ark-groth16 = "0.4.0"
+ark-relations = "0.4.0"
+ark-std = { version = "0.4.0", features = ["std"] }
+ark-snark = "0.4.0"
+ark-serialize = "0.4.0"
+anyhow = "1.0"
+thiserror = "1.0"
+wasmparser = "0.110.0"
+
+[dev-dependencies]
+wat = "1.0"

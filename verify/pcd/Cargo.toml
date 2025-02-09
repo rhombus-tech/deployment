@@ -1,0 +1,30 @@
+[package]
+name = "pcd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-ff = { version = "0.3", default-features = false }
+ark-ec = { version = "0.3", default-features = false }
+ark-bls12-381 = { version = "0.3", default-features = false, features = ["curve"] }
+ark-std = { version = "0.3", default-features = false, features = ["std"] }
+ark-relations = { version = "0.3", default-features = false, features = ["std"] }
+ark-r1cs-std = { version = "0.3", default-features = false }
+ark-snark = { version = "0.3", default-features = false }
+ark-groth16 = { version = "0.3", default-features = false }
+ark-serialize = { version = "0.3", default-features = false }
+anyhow = "1.0"
+rand = "0.8"
+
+[features]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-bls12-381/std",
+    "ark-std/std",
+    "ark-relations/std",
+    "ark-serialize/std",
+    "ark-r1cs-std/std",
+    "ark-groth16/std",
+]
