@@ -126,37 +126,6 @@ The key difference is **proof vs testing**:
 This makes it particularly valuable for critical systems where testing alone isn't enough.
 
 
-
-## 🛡️ Safety Properties Verified
-
-While Rust's compiler provides excellent memory safety guarantees, additional properties need verification. Our system verifies:
-
-### Memory Properties
-- **Access Safety**: Verify all accesses are valid
-- **Allocation Safety**: Ensure proper memory management
-- **Cleanup Safety**: Verify proper resource cleanup
-- **Bounds Safety**: Prevent out-of-bounds operations
-
-### Resource Properties
-- **Resource Tracking**: Track acquisition and release
-- **Usage Patterns**: Verify proper usage patterns
-- **Cleanup Verification**: Ensure cleanup on all paths
-- **Bound Checking**: Prevent resource exhaustion
-
-### State Properties
-- **State Transitions**: Verify valid state changes
-- **Invariants**: Maintain system invariants
-- **Computation Steps**: Verify computation validity
-- **Safety Rules**: Enforce safety properties
-
-### Protocol Properties
-- **Protocol Rules**: Verify compliance with rules
-- **Safety Properties**: Enforce safety constraints
-- **Computation Validity**: Verify correct behavior
-- **Invariant Preservation**: Maintain system invariants
-
-The system complements Rust's compile-time checks by proving these properties at deployment time.
-
 ## 🛣️ Roadmap
 
 ### Resource Safety Verification
