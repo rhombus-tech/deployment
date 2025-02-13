@@ -1,6 +1,7 @@
-mod cfg;
-mod types;
-pub use types::{TypeContext, ValueType, FunctionType, BlockType, GlobalType, Stack};
+pub mod types;
+pub use types::{ValueType, BlockType, FunctionType, GlobalType, Stack, TypeContext};
+
+pub mod cfg;
 pub use cfg::{ControlFlowGraph, BasicBlock};
 
 use walrus::{Module, FunctionId, Function};

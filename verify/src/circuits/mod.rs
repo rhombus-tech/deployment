@@ -1,3 +1,7 @@
 pub mod memory_pcd;
+pub use memory_pcd::*;
 
-pub use memory_pcd::MemorySafetyPCDCircuit;
+pub mod type_safety;
+pub use type_safety::*;
+
+mod utils;
