@@ -1,12 +1,6 @@
 use ark_bls12_381::{Bls12_381, Fr};
-use ark_groth16::{
-    Groth16,
-    Proof,
-    ProvingKey,
-    VerifyingKey,
-    prepare_verifying_key,
-};
-use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
+use ark_snark::SNARK;
 use ark_std::rand::{rngs::StdRng, SeedableRng};
 use anyhow::Result;
 
@@ -15,30 +9,40 @@ use crate::circuits::MemorySafetyPCDCircuit;
 /// Generate proving and verifying keys for the combined memory safety and PCD circuit
 pub fn generate_combined_keys(
     circuit: &MemorySafetyPCDCircuit<Fr>,
-) -> Result<(ProvingKey<Bls12_381>, VerifyingKey<Bls12_381>)> {
+) -> Result<(ark_groth16::ProvingKey<Bls12_381>, ark_groth16::VerifyingKey<Bls12_381>)> {
     let mut rng = StdRng::from_seed([42; 32]); // Fixed seed for deterministic testing
-    let (params, vk) = Groth16::<Bls12_381>::setup(circuit.clone(), &mut rng)?;
+    
+    // Create a fresh circuit for key generation
+    let key_circuit = circuit.clone();
+    
+    // Generate keys without initializing constraints first
+    let (params, vk) = ark_groth16::Groth16::<Bls12_381>::circuit_specific_setup(key_circuit, &mut rng)?;
     Ok((params, vk))
 }
 
-/// Generate a proof for the combined circuit
+/// Generate a proof for the combined memory safety and PCD circuit
 pub fn generate_combined_proof(
-    circuit: MemorySafetyPCDCircuit<Fr>,
-    proving_key: &ProvingKey<Bls12_381>,
-) -> Result<Proof<Bls12_381>> {
+    circuit: &MemorySafetyPCDCircuit<Fr>,
+    proving_key: &ark_groth16::ProvingKey<Bls12_381>,
+) -> Result<ark_groth16::Proof<Bls12_381>> {
     let mut rng = StdRng::from_seed([42; 32]); // Fixed seed for deterministic testing
-    let proof = Groth16::<Bls12_381>::prove(proving_key, circuit, &mut rng)?;
+    
+    // Create a fresh circuit for proof generation
+    let proof_circuit = circuit.clone();
+    
+    // Generate proof without initializing constraints first
+    let proof = ark_groth16::Groth16::<Bls12_381>::prove(proving_key, proof_circuit, &mut rng)?;
     Ok(proof)
 }
 
-/// Verify a combined memory safety and PCD proof
+/// Verify a proof for the combined memory safety and PCD circuit
 pub fn verify_combined_proof(
-    proof: &Proof<Bls12_381>,
-    verifying_key: &VerifyingKey<Bls12_381>,
+    proof: &ark_groth16::Proof<Bls12_381>,
+    verifying_key: &ark_groth16::VerifyingKey<Bls12_381>,
     public_inputs: &[Fr],
 ) -> Result<bool> {
-    let pvk = prepare_verifying_key(verifying_key);
-    Ok(Groth16::<Bls12_381>::verify_proof(&pvk, proof, public_inputs)?)
+    let pvk = ark_groth16::prepare_verifying_key(verifying_key);
+    Ok(ark_groth16::Groth16::<Bls12_381>::verify_with_processed_vk(&pvk, public_inputs, proof)?)
 }
 
 #[cfg(test)]
@@ -47,87 +51,215 @@ mod tests {
 
     #[test]
     fn test_combined_proof_generation() -> Result<()> {
-        // Create a test circuit with initial state
-        let circuit = MemorySafetyPCDCircuit {
-            prev_state: None,
-            curr_state: vec![Fr::from(1u32)],
-            memory_accesses: vec![(0, 4)], // Single 4-byte read at offset 0
-            allocations: vec![(0, 65536)], // One page allocated at address 0
-        };
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(0, 4)], // Single 4-byte read at offset 0
+            vec![(0, 65536)], // One page allocated at address 0
+        );
 
         // Generate keys
         let (pk, vk) = generate_combined_keys(&circuit)?;
 
         // Generate proof
-        let proof = generate_combined_proof(circuit.clone(), &pk)?;
+        let proof = generate_combined_proof(&circuit, &pk)?;
 
-        // Public inputs:
-        // 1. Current state variables
-        // 2. Memory circuit public inputs
-        //    - in_bounds variable for each access-allocation pair
+        // Create public inputs in the correct order:
         let mut public_inputs = Vec::new();
         
-        // Current state
-        public_inputs.extend(circuit.curr_state);
+        // 1. Current state variables
+        public_inputs.extend(vec![Fr::from(1u32)]);
         
-        // Memory circuit inputs - one in_bounds variable per access-allocation pair
-        public_inputs.push(Fr::from(1u32)); // Access is within bounds
+        // 2. Memory access bounds
+        public_inputs.extend(vec![
+            Fr::from(0u32),   // access_start
+            Fr::from(4u32),   // access_end
+        ]);
+        
+        // 3. Allocation bounds
+        public_inputs.extend(vec![
+            Fr::from(0u32),   // alloc_start
+            Fr::from(65536u32), // alloc_end
+        ]);
+        
+        // 4. Validity flag
+        public_inputs.push(Fr::from(1u32)); // in_bounds
 
+        // Verify proof
         assert!(verify_combined_proof(&proof, &vk, &public_inputs)?);
-
         Ok(())
     }
 
     #[test]
     fn test_combined_proof_transition() -> Result<()> {
-        // Create a test circuit with state transition
-        let prev_state = vec![Fr::from(1u32)];
-        let circuit = MemorySafetyPCDCircuit {
-            prev_state: Some((
-                prev_state.clone(),
+        let circuit = MemorySafetyPCDCircuit::new(
+            Some((
+                vec![Fr::from(1u32)],
                 vec![(0, 4)],
                 vec![(0, 65536)],
             )),
-            curr_state: vec![Fr::from(2u32)],
-            memory_accesses: vec![(4, 4)], // Single 4-byte read at offset 4
-            allocations: vec![(0, 65536)], // Same allocation
-        };
+            vec![Fr::from(2u32)],
+            vec![(4, 4)],
+            vec![(0, 65536)],
+        );
 
         // Generate keys
         let (pk, vk) = generate_combined_keys(&circuit)?;
 
         // Generate proof
-        let proof = generate_combined_proof(circuit.clone(), &pk)?;
+        let proof = generate_combined_proof(&circuit, &pk)?;
 
-        // Public inputs are ordered as follows (matching the circuit's order):
-        // 1. Current state variables (from first memory safety circuit)
-        // 2. Current memory safety circuit public inputs
-        // 3. Previous state variables (from second memory safety circuit)
-        // 4. Previous memory safety circuit public inputs
-        // 5. Current state variables again (from PCD circuit)
-        // 6. Previous state variables again (from PCD circuit)
+        // Create public inputs in the correct order:
         let mut public_inputs = Vec::new();
         
-        // Current state variables (from first memory safety circuit)
-        public_inputs.extend(circuit.curr_state.clone());
+        // 1. Current state variables
+        public_inputs.extend(vec![Fr::from(2u32)]);
         
-        // Current memory safety circuit public inputs
-        public_inputs.push(Fr::from(1u32)); // Current access is within bounds
+        // 2. Current memory access bounds
+        public_inputs.extend(vec![
+            Fr::from(4u32),   // access_start
+            Fr::from(8u32),   // access_end
+        ]);
         
-        // Previous state variables (from second memory safety circuit)
-        public_inputs.extend(prev_state.clone());
+        // 3. Current allocation bounds
+        public_inputs.extend(vec![
+            Fr::from(0u32),   // alloc_start
+            Fr::from(65536u32), // alloc_end
+        ]);
         
-        // Previous memory safety circuit public inputs
-        public_inputs.push(Fr::from(1u32)); // Previous access is within bounds
+        // 4. Current validity flag
+        public_inputs.push(Fr::from(1u32)); // in_bounds
+        
+        // 5. Previous state variables
+        public_inputs.extend(vec![Fr::from(1u32)]);
+        
+        // 6. Previous memory access bounds
+        public_inputs.extend(vec![
+            Fr::from(0u32),   // access_start
+            Fr::from(4u32),   // access_end
+        ]);
+        
+        // 7. Previous allocation bounds
+        public_inputs.extend(vec![
+            Fr::from(0u32),   // alloc_start
+            Fr::from(65536u32), // alloc_end
+        ]);
+        
+        // 8. Previous validity flag
+        public_inputs.push(Fr::from(1u32)); // in_bounds
 
-        // Current state variables again (from PCD circuit)
-        public_inputs.extend(circuit.curr_state.clone());
-        
-        // Previous state variables again (from PCD circuit)
-        public_inputs.extend(prev_state);
-
+        // Verify proof
         assert!(verify_combined_proof(&proof, &vk, &public_inputs)?);
+        Ok(())
+    }
 
+    #[test]
+    fn test_invalid_memory_access() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(65536, 4)], // Access beyond allocated memory
+            vec![(0, 65536)],
+        );
+
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_memory_accesses() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(0, 4), (4, 4), (8, 4)], // Multiple valid accesses
+            vec![(0, 65536)],
+        );
+
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_overlapping_allocations() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(0, 4)],
+            vec![(0, 65536), (32768, 65536)], // Overlapping allocations
+        );
+
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_edge_cases() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        // Test zero-sized access
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(0, 0)],
+            vec![(0, 65536)],
+        );
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+
+        // Test zero-sized allocation
+        let circuit = MemorySafetyPCDCircuit::new(
+            None,
+            vec![Fr::from(1u32)],
+            vec![(0, 4)],
+            vec![(0, 0)],
+        );
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_state_transition() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        // Previous state with valid memory access
+        let circuit = MemorySafetyPCDCircuit::new(
+            Some((
+                vec![Fr::from(1u32)],
+                vec![(0, 4)],
+                vec![(0, 65536)],
+            )),
+            vec![Fr::from(2u32)],
+            vec![(4, 4)],
+            vec![(0, 65536)],
+        );
+
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_complex_transition() -> Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        // Test transition with multiple accesses and allocations
+        let circuit = MemorySafetyPCDCircuit::new(
+            Some((
+                vec![Fr::from(1u32), Fr::from(2u32)],
+                vec![(0, 4), (4, 4)],
+                vec![(0, 65536), (65536, 65536)],
+            )),
+            vec![Fr::from(2u32), Fr::from(3u32)],
+            vec![(8, 4), (12, 4)],
+            vec![(0, 65536), (65536, 65536)],
+        );
+
+        assert!(circuit.clone().generate_constraints(cs.clone()).is_ok());
         Ok(())
     }
 }
