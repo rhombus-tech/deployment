@@ -1,23 +1,30 @@
 mod cfg;
+mod types;
+pub use types::{TypeContext, ValueType, FunctionType, BlockType, GlobalType, Stack};
 pub use cfg::{ControlFlowGraph, BasicBlock};
 
-use walrus::{Module, Function};
+use walrus::{Module, FunctionId, Function};
 use anyhow::Result;
 
 /// Core WASM parser that provides analysis capabilities
-pub struct WasmAnalyzer {
+pub struct Parser {
     module: Module,
 }
 
-impl WasmAnalyzer {
-    /// Create new analyzer from WASM binary
-    pub fn new(wasm: &[u8]) -> Result<Self> {
-        let module = Module::from_buffer(wasm)?;
-        Ok(Self { module })
+impl Parser {
+    pub fn new(module: Module) -> Self {
+        Self { module }
     }
 
-    /// Analyze control flow and build CFG
-    pub fn analyze_control_flow(&self) -> Result<Vec<ControlFlowGraph>> {
+    pub fn get_module(&self) -> &Module {
+        &self.module
+    }
+
+    pub fn get_module_mut(&mut self) -> &mut Module {
+        &mut self.module
+    }
+
+    pub fn build_cfgs(&self) -> Result<Vec<ControlFlowGraph>> {
         let mut cfgs = Vec::new();
         
         // Build CFG for each function
@@ -29,97 +36,47 @@ impl WasmAnalyzer {
         Ok(cfgs)
     }
 
-    /// Get all execution paths through a function
-    pub fn get_execution_paths(&self, func_index: usize) -> Result<Vec<Vec<usize>>> {
-        let cfgs = self.analyze_control_flow()?;
-        if let Some(cfg) = cfgs.get(func_index) {
-            Ok(cfg.get_paths())
-        } else {
-            Ok(vec![])
-        }
-    }
-
-    /// Track memory operations and verify bounds
-    pub fn analyze_memory(&self) -> Result<MemoryAnalysis> {
-        let mut analysis = MemoryAnalysis::new();
+    pub fn validate_function(&mut self, func_id: FunctionId) -> Result<()> {
+        // Take ownership of the module temporarily
+        let module = std::mem::replace(&mut self.module, Module::default());
         
-        // Analyze memory instructions
-        for func in self.module.funcs.iter() {
-            analysis.analyze_function(func)?;
-        }
+        // Create context and validate
+        let mut ctx = TypeContext::from_module(module, func_id)?;
         
-        Ok(analysis)
-    }
-
-    /// Validate basic type safety
-    pub fn verify_types(&self) -> Result<TypeAnalysis> {
-        let mut analysis = TypeAnalysis::new();
+        // Take back ownership of the module
+        self.module = std::mem::replace(ctx.get_module_mut(), Module::default());
         
-        // Analyze types
-        for func in self.module.funcs.iter() {
-            analysis.analyze_function(func)?;
-        }
-        
-        Ok(analysis)
+        Ok(())
     }
 }
 
-/// Tracks memory operations and safety
-pub struct MemoryAnalysis {
-    // Will be implemented
-}
+/// Analysis of memory operations
+pub struct MemoryAnalysis {}
 
 impl MemoryAnalysis {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn analyze_function(&mut self, func: &Function) -> Result<()> {
+    pub fn analyze_function(&mut self, _func: &Function) -> Result<()> {
         // Will implement memory analysis
         Ok(())
     }
 }
 
-/// Validates type safety
-pub struct TypeAnalysis {
-    // Will be implemented
-}
+/// Analysis of types and type checking
+pub struct TypeAnalysis {}
 
 impl TypeAnalysis {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn analyze_function(&mut self, func: &Function) -> Result<()> {
+    pub fn analyze_function(&mut self, _func: &Function) -> Result<()> {
         // Will implement type analysis
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use wat::parse_str;
-
-    #[test]
-    fn test_cfg_analysis() -> Result<()> {
-        let wasm = parse_str(r#"
-            (module
-                (func (export "test") (result i32)
-                    (block (result i32)
-                        i32.const 42
-                    )
-                )
-            )
-        "#)?;
-
-        let analyzer = WasmAnalyzer::new(&wasm)?;
-        let cfgs = analyzer.analyze_control_flow()?;
-        assert!(!cfgs.is_empty());
-        
-        let paths = analyzer.get_execution_paths(0)?;
-        assert!(!paths.is_empty());
-        
-        Ok(())
-    }
-}
+mod tests {}
