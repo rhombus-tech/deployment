@@ -46,8 +46,8 @@ impl<F: Field> ConstraintSynthesizer<F> for MemorySafetyCircuit<F> {
             for (j, (alloc_addr, alloc_size)) in self.allocations.iter().enumerate() {
                 println!("Checking against allocation {}: addr={}, size={}", j, alloc_addr, alloc_size);
                 
-                let alloc_start = cs.new_input_variable(|| Ok(F::from(*alloc_addr)))?;
-                let alloc_end = cs.new_input_variable(|| Ok(F::from(alloc_addr + alloc_size)))?;
+                let alloc_start = cs.new_witness_variable(|| Ok(F::from(*alloc_addr)))?;
+                let alloc_end = cs.new_witness_variable(|| Ok(F::from(alloc_addr + alloc_size)))?;
 
                 // Create difference variables
                 let start_diff = cs.new_witness_variable(|| {
@@ -70,8 +70,8 @@ impl<F: Field> ConstraintSynthesizer<F> for MemorySafetyCircuit<F> {
                     Ok(F::from(diff))
                 })?;
 
-                // Create a witness for whether this access is within bounds
-                let in_bounds = cs.new_witness_variable(|| {
+                // Create a public input for whether this access is within bounds
+                let in_bounds = cs.new_input_variable(|| {
                     let is_valid = *access_offset >= *alloc_addr && 
                                  (*access_offset + *access_size) <= (*alloc_addr + *alloc_size);
                     println!("in_bounds = {}", is_valid as u32);

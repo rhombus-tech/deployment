@@ -16,17 +16,17 @@ pub struct PCDCircuit<F: PrimeField> {
 
 impl<F: PrimeField> ConstraintSynthesizer<F> for PCDCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        // Create variables for current state
+        // Create variables for current state as public inputs
         let curr_vars: Vec<FpVar<F>> = self.curr_state
             .iter()
-            .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+            .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
             .collect::<Result<_, _>>()?;
 
         // If we have a previous state, enforce transition rules
         if let Some(prev_state) = self.prev_state {
             let prev_vars: Vec<FpVar<F>> = prev_state
                 .iter()
-                .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+                .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
                 .collect::<Result<_, _>>()?;
 
             // Example transition rule: current state must be previous state plus one

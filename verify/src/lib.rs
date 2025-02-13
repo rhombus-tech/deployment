@@ -1,8 +1,9 @@
 pub mod proofs;
-pub mod circuits;
+pub mod parser;
+mod circuits;
 pub mod prover;
 
-pub use circuits::MemorySafetyPCDCircuit;
+pub use parser::WasmAnalyzer;
 pub use prover::{
     generate_combined_keys,
     generate_combined_proof,

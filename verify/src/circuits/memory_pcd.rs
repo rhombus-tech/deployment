@@ -14,18 +14,18 @@ pub struct LocalPCDCircuit<F: PrimeField> {
 
 impl<F: PrimeField> ConstraintSynthesizer<F> for LocalPCDCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        // Create variables for current state
+        // Create variables for current state as public inputs
         let curr_vars: Vec<FpVar<F>> = self.curr_state
             .iter()
-            .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+            .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
             .collect::<Result<_, _>>()?;
 
         // If we have a previous state, enforce PCD transition rules
         if let Some(prev_state) = self.prev_state {
-            // Create variables for previous state
+            // Create variables for previous state as public inputs
             let prev_vars: Vec<FpVar<F>> = prev_state
                 .iter()
-                .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+                .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
                 .collect::<Result<_, _>>()?;
 
             // For each pair of previous and current state variables, enforce the transition rule
@@ -59,10 +59,10 @@ pub struct MemorySafetyPCDCircuit<F: PrimeField> {
 
 impl<F: PrimeField> ConstraintSynthesizer<F> for MemorySafetyPCDCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        // Create variables for current state
+        // Create variables for current state as public inputs
         let curr_vars: Vec<FpVar<F>> = self.curr_state
             .iter()
-            .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+            .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
             .collect::<Result<_, _>>()?;
 
         // Create memory safety circuit for current state
@@ -76,10 +76,10 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for MemorySafetyPCDCircuit<F> {
 
         // If we have a previous state, enforce PCD transition rules
         if let Some((prev_state, prev_accesses, prev_allocs)) = self.prev_state {
-            // Create variables for previous state
+            // Create variables for previous state as public inputs
             let prev_vars: Vec<FpVar<F>> = prev_state
                 .iter()
-                .map(|val| FpVar::new_witness(cs.clone(), || Ok(*val)))
+                .map(|val| FpVar::new_input(cs.clone(), || Ok(*val)))
                 .collect::<Result<_, _>>()?;
 
             // Create memory safety circuit for previous state

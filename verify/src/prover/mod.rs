@@ -59,10 +59,20 @@ mod tests {
         let (pk, vk) = generate_combined_keys(&circuit)?;
 
         // Generate proof
-        let proof = generate_combined_proof(circuit, &pk)?;
+        let proof = generate_combined_proof(circuit.clone(), &pk)?;
 
-        // Verify proof with empty public inputs since we're not exposing any values
-        let public_inputs = vec![];
+        // Public inputs:
+        // 1. Current state variables
+        // 2. Memory circuit public inputs
+        //    - in_bounds variable for each access-allocation pair
+        let mut public_inputs = Vec::new();
+        
+        // Current state
+        public_inputs.extend(circuit.curr_state);
+        
+        // Memory circuit inputs - one in_bounds variable per access-allocation pair
+        public_inputs.push(Fr::from(1u32)); // Access is within bounds
+
         assert!(verify_combined_proof(&proof, &vk, &public_inputs)?);
 
         Ok(())
@@ -71,9 +81,10 @@ mod tests {
     #[test]
     fn test_combined_proof_transition() -> Result<()> {
         // Create a test circuit with state transition
+        let prev_state = vec![Fr::from(1u32)];
         let circuit = MemorySafetyPCDCircuit {
             prev_state: Some((
-                vec![Fr::from(1u32)],
+                prev_state.clone(),
                 vec![(0, 4)],
                 vec![(0, 65536)],
             )),
@@ -86,10 +97,35 @@ mod tests {
         let (pk, vk) = generate_combined_keys(&circuit)?;
 
         // Generate proof
-        let proof = generate_combined_proof(circuit, &pk)?;
+        let proof = generate_combined_proof(circuit.clone(), &pk)?;
 
-        // Verify proof with empty public inputs since we're not exposing any values
-        let public_inputs = vec![];
+        // Public inputs are ordered as follows (matching the circuit's order):
+        // 1. Current state variables (from first memory safety circuit)
+        // 2. Current memory safety circuit public inputs
+        // 3. Previous state variables (from second memory safety circuit)
+        // 4. Previous memory safety circuit public inputs
+        // 5. Current state variables again (from PCD circuit)
+        // 6. Previous state variables again (from PCD circuit)
+        let mut public_inputs = Vec::new();
+        
+        // Current state variables (from first memory safety circuit)
+        public_inputs.extend(circuit.curr_state.clone());
+        
+        // Current memory safety circuit public inputs
+        public_inputs.push(Fr::from(1u32)); // Current access is within bounds
+        
+        // Previous state variables (from second memory safety circuit)
+        public_inputs.extend(prev_state.clone());
+        
+        // Previous memory safety circuit public inputs
+        public_inputs.push(Fr::from(1u32)); // Previous access is within bounds
+
+        // Current state variables again (from PCD circuit)
+        public_inputs.extend(circuit.curr_state.clone());
+        
+        // Previous state variables again (from PCD circuit)
+        public_inputs.extend(prev_state);
+
         assert!(verify_combined_proof(&proof, &vk, &public_inputs)?);
 
         Ok(())
