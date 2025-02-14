@@ -48,8 +48,7 @@ pub fn verify_proof<E>(
 where
     E: PairingEngine,
 {
-    let mut proof_reader = proof_bytes.as_ref();
-    let proof = ark_groth16::Proof::<E>::deserialize(&mut proof_reader)?;
+    let proof = ark_groth16::Proof::deserialize(proof_bytes)?;
     Ok(Groth16::<E>::verify(verifying_key, public_inputs, &proof)?)
 }
 
@@ -64,9 +63,12 @@ mod tests {
         let mut rng = thread_rng();
 
         // Create a simple circuit that checks if two values are equal
+        let prev_state = vec![Fr::from(1u32)];
+        let curr_state = vec![Fr::from(2u32)];
+        
         let circuit = PCDCircuit {
-            prev_state: Some(vec![Fr::from(1u32)]),
-            curr_state: vec![Fr::from(2u32)],
+            prev_state: Some(prev_state.clone()),
+            curr_state: curr_state.clone(),
         };
 
         // Generate proving and verifying keys
@@ -78,8 +80,12 @@ mod tests {
         // Generate proof
         let proof = generate_proof(circuit, &proving_key, &mut rng)?;
 
+        // Collect public inputs
+        let mut public_inputs = prev_state;
+        public_inputs.extend(curr_state);
+
         // Verify proof
-        assert!(verify_proof(&verifying_key, &proof, &[])?);
+        assert!(verify_proof(&verifying_key, &proof, &public_inputs)?);
 
         Ok(())
     }
@@ -89,9 +95,12 @@ mod tests {
         let mut rng = thread_rng();
 
         // Create a PCD circuit with a state transition
+        let prev_state = vec![Fr::from(1u32)];
+        let curr_state = vec![Fr::from(2u32)];
+        
         let circuit = PCDCircuit {
-            prev_state: Some(vec![Fr::from(1u32)]),
-            curr_state: vec![Fr::from(2u32)],
+            prev_state: Some(prev_state.clone()),
+            curr_state: curr_state.clone(),
         };
 
         // Generate proving and verifying keys
@@ -103,8 +112,12 @@ mod tests {
         // Generate proof
         let proof = generate_proof(circuit, &proving_key, &mut rng)?;
 
+        // Collect public inputs
+        let mut public_inputs = prev_state;
+        public_inputs.extend(curr_state);
+
         // Verify proof
-        assert!(verify_proof(&verifying_key, &proof, &[])?);
+        assert!(verify_proof(&verifying_key, &proof, &public_inputs)?);
 
         Ok(())
     }
