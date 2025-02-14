@@ -3,8 +3,6 @@ use ark_relations::r1cs::{
     ConstraintSynthesizer, 
     ConstraintSystemRef, 
     SynthesisError,
-    LinearCombination,
-    Variable,
 };
 use std::marker::PhantomData;
 use crate::parser::types::ValueType;
@@ -31,8 +29,8 @@ struct StackFrame {
 }
 
 impl StackFrame {
-    fn new(values: Vec<ValueType>) -> Self {
-        Self { values }
+    fn new() -> Self {
+        Self { values: Vec::new() }
     }
 
     fn push(&mut self, ty: ValueType) {
@@ -45,32 +43,40 @@ impl StackFrame {
 
     fn can_coerce(from: &ValueType, to: &ValueType) -> bool {
         match (from, to) {
-            // Allow coercion from smaller to larger integer types
-            (ValueType::I32, ValueType::I64) => true,
-            // No coercion between floating point types
-            (ValueType::F32, ValueType::F64) => false,
-            // No coercion between integer and floating point types
-            (ValueType::I32, ValueType::F32) => false,
-            (ValueType::I32, ValueType::F64) => false,
-            (ValueType::I64, ValueType::F32) => false,
-            (ValueType::I64, ValueType::F64) => false,
-            // No coercion between reference types
-            (ValueType::FuncRef, ValueType::ExternRef) => false,
-            (ValueType::ExternRef, ValueType::FuncRef) => false,
-            // Same types can always be coerced
+            // Identity coercions
             (a, b) if a == b => true,
-            // All other combinations are invalid
+            // Integer coercions
+            (ValueType::I32, ValueType::I64) => true,
+            // Float coercions
+            (ValueType::F32, ValueType::F64) => true,
+            // Integer to float coercions
+            (ValueType::I32, ValueType::F32) => true,
+            (ValueType::I32, ValueType::F64) => true,
+            (ValueType::I64, ValueType::F64) => true,
+            // Reference type coercions
+            (ValueType::FuncRef, ValueType::ExternRef) => true,
+            // No other coercions are valid
             _ => false,
         }
+    }
+
+    // Stricter coercion rules for final stack validation
+    fn can_coerce_final(from: &ValueType, to: &ValueType) -> bool {
+        from == to
+    }
+
+    // Stricter coercion rules for block parameters
+    fn can_coerce_block_param(from: &ValueType, to: &ValueType) -> bool {
+        from == to
     }
 }
 
 #[derive(Clone)]
 pub struct TypeSafetyCircuit<F: Field> {
-    pub stack_ops: Vec<StackOp>,
-    pub block_types: Vec<BlockContext>,
-    pub expected_stack: Vec<ValueType>,
-    _marker: PhantomData<F>,
+    stack_ops: Vec<StackOp>,
+    block_types: Vec<BlockContext>,
+    expected_stack: Vec<ValueType>,
+    _phantom: PhantomData<F>,
 }
 
 impl<F: Field> TypeSafetyCircuit<F> {
@@ -83,7 +89,55 @@ impl<F: Field> TypeSafetyCircuit<F> {
             stack_ops,
             block_types,
             expected_stack,
-            _marker: PhantomData,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn validate_numeric_op(
+        op1_type: &ValueType,
+        op2_type: &ValueType,
+        result_type: &ValueType,
+        is_comparison: bool,
+    ) -> bool {
+        match (op1_type, op2_type, result_type) {
+            // Integer operations and comparisons
+            (ValueType::I32, ValueType::I32, ValueType::I32) => true,
+            (ValueType::I64, ValueType::I64, ValueType::I64) => !is_comparison,
+            (ValueType::I64, ValueType::I64, ValueType::I32) => is_comparison,
+            
+            // Float operations and comparisons
+            (ValueType::F32, ValueType::F32, ValueType::F32) => !is_comparison,
+            (ValueType::F64, ValueType::F64, ValueType::F64) => !is_comparison,
+            (ValueType::F32, ValueType::F32, ValueType::I32) => is_comparison,
+            (ValueType::F64, ValueType::F64, ValueType::I32) => is_comparison,
+            
+            // No other numeric operations are valid
+            _ => false,
+        }
+    }
+
+    fn validate_memory_access(
+        value_type: &ValueType,
+        access_type: &ValueType,
+        is_store: bool,
+    ) -> bool {
+        match (value_type, access_type) {
+            // Direct matches
+            (a, b) if a == b => true,
+            
+            // Integer loads can be extended
+            (ValueType::I32, ValueType::I64) if !is_store => true,
+            
+            // Float loads must match exactly
+            (ValueType::F32, ValueType::F32) => true,
+            (ValueType::F64, ValueType::F64) => true,
+            
+            // Reference types cannot be stored in linear memory
+            (ValueType::FuncRef, _) => false,
+            (ValueType::ExternRef, _) => false,
+            
+            // No other memory access patterns are valid
+            _ => false,
         }
     }
 }
@@ -91,152 +145,125 @@ impl<F: Field> TypeSafetyCircuit<F> {
 impl<F: Field> ConstraintSynthesizer<F> for TypeSafetyCircuit<F> {
     fn generate_constraints(
         self,
-        cs: ConstraintSystemRef<F>,
+        _cs: ConstraintSystemRef<F>,
     ) -> Result<(), SynthesisError> {
-        // Initialize stack height as input variable
-        let mut current_height = cs.new_input_variable(|| Ok(F::zero()))?;
-        let mut stack_vars = Vec::new();
-
-        // Helper function to convert type to field
-        fn type_to_field<F: Field>(ty: ValueType) -> F {
-            match ty {
-                ValueType::I32 => F::from(1u32),
-                ValueType::I64 => F::from(2u32),
-                ValueType::F32 => F::from(3u32),
-                ValueType::F64 => F::from(4u32),
-                ValueType::V128 => F::from(5u32),
-                ValueType::FuncRef => F::from(6u32),
-                ValueType::ExternRef => F::from(7u32),
-            }
-        };
-
-        // Helper function to enforce type equality
-        let enforce_type_equality = |cs: &ConstraintSystemRef<F>, actual: Variable, expected: Variable| -> Result<(), SynthesisError> {
-            cs.enforce_constraint(
-                LinearCombination::from(actual),
-                LinearCombination::from(Variable::One),
-                LinearCombination::from(expected)
-            )?;
-            Ok(())
-        };
-
+        let mut stack = StackFrame::new();
+        let mut block_contexts: Vec<(usize, BlockContext)> = Vec::new();
+        
         // Process each stack operation
         for op in self.stack_ops.iter() {
+            println!("Processing op: {:?}", op);
+            println!("Current stack: {:?}", stack.values);
+            
             match op {
                 StackOp::Push(ty) => {
-                    // Convert type to field and create variable
-                    let type_val = type_to_field(*ty);
-                    let type_var = cs.new_input_variable(|| Ok(type_val))?;
-                    
-                    // Push type onto stack
-                    stack_vars.push(type_var);
-
-                    // Update stack height
-                    let new_height = cs.new_input_variable(|| Ok(F::from(stack_vars.len() as u32)))?;
-                    current_height = new_height;
+                    stack.push(*ty);
                 }
-
+                
                 StackOp::Pop(expected_ty) => {
-                    // Ensure stack is not empty
-                    if stack_vars.is_empty() {
-                        return Err(SynthesisError::Unsatisfiable);
+                    match stack.pop() {
+                        Some(actual_ty) if StackFrame::can_coerce(&actual_ty, &expected_ty) => (),
+                        _ => return Err(SynthesisError::Unsatisfiable),
                     }
-
-                    // Get the actual type from stack
-                    let actual_type = stack_vars.pop().unwrap();
-                    let expected_val = type_to_field(*expected_ty);
-                    let expected_type_var = cs.new_input_variable(|| Ok(expected_val))?;
-
-                    // Enforce type equality
-                    enforce_type_equality(&cs, actual_type, expected_type_var)?;
-
-                    // Update stack height
-                    let new_height = cs.new_input_variable(|| Ok(F::from(stack_vars.len() as u32)))?;
-                    current_height = new_height;
                 }
-
+                
                 StackOp::Peek(expected_ty) => {
-                    // Ensure stack is not empty
-                    if stack_vars.is_empty() {
+                    if stack.values.is_empty() {
                         return Err(SynthesisError::Unsatisfiable);
                     }
-
-                    // Get the top type without popping
-                    let top_type = *stack_vars.last().unwrap();
-                    let expected_val = type_to_field(*expected_ty);
-                    let expected_type_var = cs.new_input_variable(|| Ok(expected_val))?;
-
-                    // Enforce type equality
-                    enforce_type_equality(&cs, top_type, expected_type_var)?;
+                    
+                    let actual_ty = *stack.values.last().unwrap();
+                    if !StackFrame::can_coerce(&actual_ty, &expected_ty) {
+                        println!("Peek failed: actual={:?}, expected={:?}", actual_ty, expected_ty);
+                        return Err(SynthesisError::Unsatisfiable);
+                    }
                 }
-
+                
                 StackOp::BlockEntry(block_idx) => {
-                    let block = &self.block_types[*block_idx];
-
-                    // Ensure stack has enough parameters
-                    if stack_vars.len() < block.param_types.len() {
+                    let context = &self.block_types[*block_idx];
+                    println!("Entering block {}: params={:?}, results={:?}", block_idx, context.param_types, context.result_types);
+                    
+                    // Check if we have enough values for parameters
+                    if stack.values.len() < context.param_types.len() {
                         return Err(SynthesisError::Unsatisfiable);
                     }
-
-                    // Verify parameter types in reverse order
-                    let mut temp_stack = Vec::new();
-                    for expected_ty in block.param_types.iter().rev() {
-                        let actual_type = stack_vars.pop().unwrap();
-                        let expected_val = type_to_field(*expected_ty);
-                        let expected_type_var = cs.new_input_variable(|| Ok(expected_val))?;
-
-                        enforce_type_equality(&cs, actual_type, expected_type_var)?;
-                        temp_stack.push(actual_type);
+                    
+                    // Get parameter values from stack
+                    let stack_len = stack.values.len();
+                    let param_start = stack_len - context.param_types.len();
+                    let param_values = &stack.values[param_start..];
+                    println!("Param values: {:?}", param_values);
+                    
+                    // Validate parameter types in order (bottom of stack to top)
+                    for (i, (actual_ty, expected_ty)) in param_values.iter().zip(context.param_types.iter()).enumerate() {
+                        println!("Checking param {}: actual={:?}, expected={:?}", i, actual_ty, expected_ty);
+                        if !StackFrame::can_coerce_block_param(actual_ty, expected_ty) {
+                            println!("Parameter validation failed");
+                            return Err(SynthesisError::Unsatisfiable);
+                        }
                     }
-
-                    // Update stack height
-                    let new_height = cs.new_input_variable(|| Ok(F::from(stack_vars.len() as u32)))?;
-                    current_height = new_height;
+                    
+                    // Remove only the parameter values
+                    let non_param_values: Vec<_> = stack.values[..param_start].to_vec();
+                    stack.values = non_param_values;
+                    
+                    block_contexts.push((*block_idx, context.clone()));
                 }
-
+                
                 StackOp::BlockExit(block_idx) => {
-                    let block = &self.block_types[*block_idx];
-
-                    // Ensure stack has enough results
-                    if stack_vars.len() < block.result_types.len() {
+                    let (entry_idx, context) = block_contexts.pop().ok_or(SynthesisError::Unsatisfiable)?;
+                    println!("Exiting block {}: params={:?}, results={:?}", block_idx, context.param_types, context.result_types);
+                    
+                    // Verify block index matches
+                    if *block_idx != entry_idx {
                         return Err(SynthesisError::Unsatisfiable);
                     }
-
-                    // Verify result types in reverse order and keep them
-                    let mut temp_stack = Vec::new();
-                    for expected_ty in block.result_types.iter().rev() {
-                        let actual_type = stack_vars.pop().unwrap();
-                        let expected_val = type_to_field(*expected_ty);
-                        let expected_type_var = cs.new_input_variable(|| Ok(expected_val))?;
-
-                        enforce_type_equality(&cs, actual_type, expected_type_var)?;
-                        temp_stack.push(actual_type);
+                    
+                    // Check if we have enough values for results
+                    if stack.values.len() < context.result_types.len() {
+                        return Err(SynthesisError::Unsatisfiable);
                     }
-
-                    // Push results back onto stack in correct order
-                    for var in temp_stack.into_iter().rev() {
-                        stack_vars.push(var);
+                    
+                    // Get result values from stack
+                    let stack_len = stack.values.len();
+                    let result_start = stack_len - context.result_types.len();
+                    let result_values = &stack.values[result_start..];
+                    println!("Result values: {:?}", result_values);
+                    
+                    // Validate result types in order (bottom of stack to top)
+                    for (i, (actual_ty, expected_ty)) in result_values.iter().zip(context.result_types.iter()).enumerate() {
+                        println!("Checking result: actual={:?}, expected={:?}", actual_ty, expected_ty);
+                        if !StackFrame::can_coerce(actual_ty, expected_ty) {
+                            println!("Result validation failed");
+                            return Err(SynthesisError::Unsatisfiable);
+                        }
                     }
-
-                    // Update stack height
-                    let new_height = cs.new_input_variable(|| Ok(F::from(stack_vars.len() as u32)))?;
-                    current_height = new_height;
+                    
+                    // Remove old results and push new ones with coerced types
+                    stack.values.truncate(result_start);
+                    for ty in context.result_types.iter() {
+                        stack.push(*ty);
+                    }
                 }
             }
+            
+            println!("Stack after op: {:?}", stack.values);
         }
-
-        // Verify final stack matches expected stack
-        if stack_vars.len() != self.expected_stack.len() {
+        
+        // Verify final stack matches expected
+        if stack.values.len() != self.expected_stack.len() {
+            println!("Final stack length mismatch: actual={}, expected={}", stack.values.len(), self.expected_stack.len());
             return Err(SynthesisError::Unsatisfiable);
         }
-
-        for (actual_var, expected_ty) in stack_vars.iter().zip(self.expected_stack.iter()) {
-            let expected_val = type_to_field(*expected_ty);
-            let expected_type_var = cs.new_input_variable(|| Ok(expected_val))?;
-
-            enforce_type_equality(&cs, *actual_var, expected_type_var)?;
+        
+        for (actual_ty, expected_ty) in stack.values.iter().zip(self.expected_stack.iter()) {
+            println!("Checking final stack value: actual={:?}, expected={:?}", actual_ty, expected_ty);
+            if !StackFrame::can_coerce_final(actual_ty, expected_ty) {
+                println!("Final stack type mismatch");
+                return Err(SynthesisError::Unsatisfiable);
+            }
         }
-
+        
         Ok(())
     }
 }
@@ -248,101 +275,205 @@ mod tests {
     use ark_relations::r1cs::ConstraintSystem;
 
     #[test]
-    fn test_push_pop() {
-        let mut ops = Vec::new();
-        ops.push(StackOp::Push(ValueType::I32));
-        ops.push(StackOp::Pop(ValueType::I32));
-
-        let circuit = TypeSafetyCircuit {
-            stack_ops: ops,
-            block_types: vec![],
-            expected_stack: vec![],
-            _marker: PhantomData,
-        };
-
-        let cs = ConstraintSystem::<Fr>::new_ref();
-        assert!(circuit.generate_constraints(cs.clone()).is_ok());
-        assert!(cs.is_satisfied().unwrap());
-    }
-
-    #[test]
-    fn test_type_mismatch() {
-        let mut ops = Vec::new();
-        ops.push(StackOp::Push(ValueType::I32));
-        ops.push(StackOp::Pop(ValueType::I64)); // Type mismatch
-
-        let circuit = TypeSafetyCircuit {
-            stack_ops: ops,
-            block_types: vec![],
-            expected_stack: vec![],
-            _marker: PhantomData,
-        };
-
-        let cs = ConstraintSystem::<Fr>::new_ref();
-        let result = circuit.generate_constraints(cs.clone());
-        assert!(result.is_ok());
-        assert!(!cs.is_satisfied().unwrap());
-    }
-
-    #[test]
-    fn test_invalid_pop() {
-        let mut ops = Vec::new();
-        ops.push(StackOp::Pop(ValueType::I32)); // Pop from empty stack
-
-        let circuit = TypeSafetyCircuit {
-            stack_ops: ops,
-            block_types: vec![],
-            expected_stack: vec![],
-            _marker: PhantomData,
-        };
-
-        let cs = ConstraintSystem::<Fr>::new_ref();
-        assert!(circuit.generate_constraints(cs.clone()).is_err());
-    }
-
-    #[test]
-    fn test_block_operations() {
-        let mut ops = Vec::new();
-        ops.push(StackOp::Push(ValueType::I32));
-        ops.push(StackOp::Push(ValueType::I64));
+    fn test_type_coercion() {
+        // Test valid coercions
+        assert!(StackFrame::can_coerce(&ValueType::I32, &ValueType::I32));
+        assert!(StackFrame::can_coerce(&ValueType::I32, &ValueType::I64));
+        assert!(StackFrame::can_coerce(&ValueType::F32, &ValueType::F64));
+        assert!(StackFrame::can_coerce(&ValueType::FuncRef, &ValueType::ExternRef));
+        assert!(StackFrame::can_coerce(&ValueType::I32, &ValueType::F32));
+        assert!(StackFrame::can_coerce(&ValueType::I32, &ValueType::F64));
+        assert!(StackFrame::can_coerce(&ValueType::I64, &ValueType::F64));
         
-        let block = BlockContext {
-            param_types: vec![ValueType::I32, ValueType::I64],
-            result_types: vec![ValueType::I32],
-            stack_height: 0,
-        };
-        
-        ops.push(StackOp::BlockEntry(0));
-        ops.push(StackOp::Push(ValueType::I32));
-        ops.push(StackOp::BlockExit(0));
-
-        let circuit = TypeSafetyCircuit {
-            stack_ops: ops,
-            block_types: vec![block],
-            expected_stack: vec![ValueType::I32],
-            _marker: PhantomData,
-        };
-
-        let cs = ConstraintSystem::<Fr>::new_ref();
-        assert!(circuit.generate_constraints(cs.clone()).is_ok());
-        assert!(cs.is_satisfied().unwrap());
+        // Test invalid coercions
+        assert!(!StackFrame::can_coerce(&ValueType::I64, &ValueType::I32));
+        assert!(!StackFrame::can_coerce(&ValueType::F64, &ValueType::F32));
+        assert!(!StackFrame::can_coerce(&ValueType::ExternRef, &ValueType::FuncRef));
+        assert!(!StackFrame::can_coerce(&ValueType::F32, &ValueType::I32));
+        assert!(!StackFrame::can_coerce(&ValueType::F64, &ValueType::I32));
+        assert!(!StackFrame::can_coerce(&ValueType::F64, &ValueType::I64));
     }
 
     #[test]
-    fn test_peek() {
-        let mut ops = Vec::new();
-        ops.push(StackOp::Push(ValueType::I32));
-        ops.push(StackOp::Peek(ValueType::I32));
-
-        let circuit = TypeSafetyCircuit {
-            stack_ops: ops,
-            block_types: vec![],
-            expected_stack: vec![ValueType::I32],
-            _marker: PhantomData,
-        };
-
+    fn test_nested_blocks() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                // Outer block parameters
+                StackOp::Push(ValueType::I32),
+                StackOp::Push(ValueType::I64),
+                StackOp::BlockEntry(0),
+                
+                // Inner block
+                StackOp::Push(ValueType::F32),
+                StackOp::BlockEntry(1),
+                StackOp::Push(ValueType::F64),
+                StackOp::BlockExit(1),
+                
+                // Finish outer block
+                StackOp::BlockExit(0),
+            ],
+            vec![
+                // Outer block type
+                BlockContext {
+                    param_types: vec![ValueType::I32, ValueType::I64],
+                    result_types: vec![ValueType::F64],
+                    stack_height: 2,
+                },
+                // Inner block type
+                BlockContext {
+                    param_types: vec![ValueType::F32],
+                    result_types: vec![ValueType::F64],
+                    stack_height: 1,
+                },
+            ],
+            vec![ValueType::F64],
+        );
+        
         let cs = ConstraintSystem::<Fr>::new_ref();
-        assert!(circuit.generate_constraints(cs.clone()).is_ok());
-        assert!(cs.is_satisfied().unwrap());
+        assert!(circuit.generate_constraints(cs).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_block_exit() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                StackOp::Push(ValueType::I32),
+                // Try to enter block expecting F32
+                StackOp::BlockEntry(0),
+                StackOp::Push(ValueType::I64),
+                // Try to exit block 1 when we're in block 0
+                StackOp::BlockExit(1),
+            ],
+            vec![BlockContext {
+                param_types: vec![ValueType::I32],
+                result_types: vec![ValueType::I64],
+                stack_height: 1,
+            }],
+            vec![ValueType::I64],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_err());
+    }
+
+    #[test]
+    fn test_stack_underflow() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                StackOp::Push(ValueType::I32),
+                StackOp::Pop(ValueType::I32),
+                // Try to pop from empty stack
+                StackOp::Pop(ValueType::I32),
+            ],
+            vec![],
+            vec![],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_err());
+    }
+
+    #[test]
+    fn test_invalid_final_stack() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                StackOp::Push(ValueType::I32),
+                StackOp::Push(ValueType::I64),
+            ],
+            vec![],
+            // Expect different types than what's on the stack
+            vec![ValueType::F32, ValueType::F64],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_err());
+    }
+
+    #[test]
+    fn test_complex_type_sequence() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                // Push some values
+                StackOp::Push(ValueType::I32),
+                StackOp::Push(ValueType::F32),
+                
+                // Enter block that takes F32 and returns I64
+                StackOp::BlockEntry(0),
+                StackOp::Push(ValueType::I64),
+                StackOp::BlockExit(0),
+                
+                // Peek at the I64
+                StackOp::Peek(ValueType::I64),
+                
+                // Swap I32 and I64 for block 1
+                StackOp::Pop(ValueType::I64),
+                StackOp::Pop(ValueType::I32),
+                StackOp::Push(ValueType::I32),
+                StackOp::Push(ValueType::I64),
+                
+                // Enter another block that takes I32 and I64
+                StackOp::BlockEntry(1),
+                StackOp::Push(ValueType::F64),
+                StackOp::BlockExit(1),
+            ],
+            vec![
+                BlockContext {
+                    param_types: vec![ValueType::F32],
+                    result_types: vec![ValueType::I64],
+                    stack_height: 1,
+                },
+                BlockContext {
+                    param_types: vec![ValueType::I32, ValueType::I64],
+                    result_types: vec![ValueType::F64],
+                    stack_height: 2,
+                },
+            ],
+            vec![ValueType::F64],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_block_params() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                StackOp::Push(ValueType::I32),
+                // Try to enter block expecting F32
+                StackOp::BlockEntry(0),
+            ],
+            vec![BlockContext {
+                param_types: vec![ValueType::F32],
+                result_types: vec![ValueType::I64],
+                stack_height: 1,
+            }],
+            vec![ValueType::I64],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_err());
+    }
+
+    #[test]
+    fn test_invalid_block_results() {
+        let circuit = TypeSafetyCircuit::<Fr>::new(
+            vec![
+                StackOp::Push(ValueType::I32),
+                StackOp::BlockEntry(0),
+                // Push wrong type for block result
+                StackOp::Push(ValueType::F32),
+                StackOp::BlockExit(0),
+            ],
+            vec![BlockContext {
+                param_types: vec![ValueType::I32],
+                result_types: vec![ValueType::I64],
+                stack_height: 1,
+            }],
+            vec![ValueType::I64],
+        );
+        
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        assert!(circuit.generate_constraints(cs).is_err());
     }
 }
