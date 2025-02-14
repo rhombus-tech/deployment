@@ -180,7 +180,7 @@ Our CI pipeline automatically runs:
 
 ## 🛣️ Roadmap
 
-[Coming soon]
+Also EVM
 
 ## 🔧 Development
 
