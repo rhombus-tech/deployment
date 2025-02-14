@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate ark_relations;
+
 pub mod proofs;
 pub mod parser;
 mod circuits;
