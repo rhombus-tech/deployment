@@ -98,6 +98,86 @@ You get one of two outcomes:
 - Explains problems
 - Blocks deployment
 
+## 🧪 Testing
+
+### Running Tests
+
+1. **Run All Tests**
+```bash
+cd verify
+cargo test --all
+```
+
+2. **Run Specific Test Suites**
+```bash
+# Memory safety tests
+cargo test --package verify --lib "circuits::memory_safety::tests"
+
+# Control flow tests
+cargo test --package verify --lib "circuits::control_flow::tests"
+
+# Type safety tests
+cargo test --package verify --lib "circuits::type_safety::tests"
+
+# Resource bounds tests
+cargo test --package verify --lib "circuits::resource_bounds::tests"
+```
+
+3. **Run Tests with Logging**
+```bash
+RUST_LOG=debug cargo test
+```
+
+### Test Coverage
+
+The test suite includes:
+
+1. **Unit Tests**
+- Memory access validation
+- Control flow verification
+- Type safety checks
+- Resource bounds monitoring
+
+2. **Integration Tests**
+- Full WebAssembly modules
+- Complex interaction patterns
+- Edge cases and error conditions
+- Performance benchmarks
+
+3. **Vulnerability Tests**
+- Buffer overflow attempts
+- Reentrancy attacks
+- Type confusion scenarios
+- Resource exhaustion cases
+
+### Adding New Tests
+
+1. Create a test module:
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_your_feature() {
+        // Your test code here
+    }
+}
+```
+
+2. Run the test:
+```bash
+cargo test test_your_feature
+```
+
+### Continuous Integration
+
+Our CI pipeline automatically runs:
+- All test suites
+- Linting checks
+- Format verification
+- Documentation tests
+
 ## 🛣️ Roadmap
 
 [Coming soon]
