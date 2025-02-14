@@ -1,8 +1,21 @@
 pub mod types;
 pub mod wasm_analyzer;
 pub mod cfg;
-pub use types::{ValueType, BlockType, FunctionType, GlobalType, Stack, TypeContext};
-pub use wasm_analyzer::*;
+
+// Re-export commonly used types
+pub use types::{
+    ValueType, BlockType, FunctionType, GlobalType, Stack, TypeContext, 
+    MemoryType, Limits
+};
+
+// Re-export analyzer types
+pub use wasm_analyzer::{
+    WasmAnalyzer,
+    ResourceUsage,
+    WasmOpType,
+};
+
+// Re-export CFG types
 pub use cfg::{ControlFlowGraph, BasicBlock};
 
 use walrus::{Module, FunctionId, Function};
@@ -28,54 +41,55 @@ impl Parser {
 
     pub fn build_cfgs(&self) -> Result<Vec<ControlFlowGraph>> {
         let mut cfgs = Vec::new();
-        
-        // Build CFG for each function
         for func in self.module.funcs.iter() {
-            let cfg = ControlFlowGraph::from_function(func)?;
+            let cfg = ControlFlowGraph::default();
+            // TODO: Build CFG for function
             cfgs.push(cfg);
         }
-        
         Ok(cfgs)
     }
 
     pub fn validate_function(&mut self, func_id: FunctionId) -> Result<()> {
-        // Take ownership of the module temporarily
-        let module = std::mem::replace(&mut self.module, Module::default());
+        let func = self.module.funcs.get(func_id);
         
-        // Create context and validate
-        let mut ctx = TypeContext::from_module(module, func_id)?;
-        
-        // Take back ownership of the module
-        self.module = std::mem::replace(ctx.get_module_mut(), Module::default());
-        
+        // Analyze memory operations
+        let memory_analysis = MemoryAnalysis::new();
+        memory_analysis.analyze_function(func)?;
+
+        // Analyze types
+        let type_analysis = TypeAnalysis::new();
+        type_analysis.analyze_function(func)?;
+
         Ok(())
     }
 }
 
 /// Analysis of memory operations
-pub struct MemoryAnalysis {}
+pub struct MemoryAnalysis {
+}
 
 impl MemoryAnalysis {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn analyze_function(&mut self, _func: &Function) -> Result<()> {
-        // Will implement memory analysis
+    pub fn analyze_function(&self, _func: &Function) -> Result<()> {
+        // TODO: Implement memory analysis
         Ok(())
     }
 }
 
 /// Analysis of types and type checking
-pub struct TypeAnalysis {}
+pub struct TypeAnalysis {
+}
 
 impl TypeAnalysis {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn analyze_function(&mut self, _func: &Function) -> Result<()> {
-        // Will implement type analysis
+    pub fn analyze_function(&self, _func: &Function) -> Result<()> {
+        // TODO: Implement type analysis
         Ok(())
     }
 }

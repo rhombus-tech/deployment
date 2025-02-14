@@ -89,7 +89,7 @@ pub struct MemoryInit {
 /// 2. Checking alignment requirements
 /// 3. Tracking memory growth
 /// 4. Preventing overlapping memory initializations
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MemorySafetyCircuit<F: Field> {
     /// Sequence of memory accesses to verify
     memory_accesses: Vec<MemoryAccess>,
@@ -215,8 +215,13 @@ impl<F: Field> MemorySafetyCircuit<F> {
         let size_var = cs.new_witness_variable(|| Ok(size_f))?;
         let memory_size_var = cs.new_input_variable(|| Ok(current_pages_f * page_size_f))?;
         
-        // Calculate access_end = offset + size
-        let access_end = cs.new_witness_variable(|| Ok(offset_f + size_f))?;
+        // Calculate access_end = offset + size, checking for overflow
+        let access_end = cs.new_witness_variable(|| {
+            match offset.checked_add(size) {
+                Some(end) => Ok(Self::u32_to_field(end)),
+                None => Ok(F::zero()) // If overflow, treat as zero which will fail bounds check
+            }
+        })?;
         
         // Enforce access_end = offset + size
         cs.enforce_constraint(
@@ -225,12 +230,17 @@ impl<F: Field> MemorySafetyCircuit<F> {
             lc!() + access_end,
         )?;
         
+        // Calculate memory_size = current_pages * PAGE_SIZE
+        let memory_size = current_pages as u32 * PAGE_SIZE;
+        
         // Enforce access_end <= memory_size
         let diff = cs.new_witness_variable(|| {
-            if offset + size > (current_pages as u32 * PAGE_SIZE) {
-                Ok(F::zero())
-            } else {
-                Ok(current_pages_f * page_size_f - (offset_f + size_f))
+            // Check for overflow and bounds
+            match offset.checked_add(size) {
+                Some(end) if end <= memory_size => {
+                    Ok(current_pages_f * page_size_f - Self::u32_to_field(end))
+                }
+                _ => Ok(F::zero()) // Either overflow or out of bounds
             }
         })?;
         

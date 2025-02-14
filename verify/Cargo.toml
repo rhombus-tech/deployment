@@ -8,6 +8,7 @@ members = [
     "common",
     "pcc",
     "pcd",
+    "example",
     "test-wasm",
 ]
 
@@ -39,6 +40,7 @@ common = { path = "./common" }
 pcc = { path = "./pcc" }
 pcd = { path = "./pcd" }
 clap = { version = "4.5", features = ["derive"] }
+num-traits = "0.2.19"
 
 [dev-dependencies]
 wat = "1.0"  # For parsing WAT in tests

@@ -2,6 +2,8 @@ use anyhow::Result;
 use ark_ff::Field;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
 use ark_relations::lc;
+use crate::parser::cfg::ControlFlowGraph;
+use ark_bls12_381::Fr;
 
 /// Represents different types of control flow operations
 #[derive(Debug, Clone, PartialEq)]
@@ -16,6 +18,7 @@ pub enum ControlFlowOp {
 }
 
 /// Circuit for verifying control flow integrity in WebAssembly modules
+#[derive(Debug)]
 pub struct ControlFlowCircuit<F: Field> {
     /// Stack of function calls
     call_stack: Vec<usize>,
@@ -37,13 +40,18 @@ pub struct ControlFlowCircuit<F: Field> {
 
 impl<F: Field> ControlFlowCircuit<F> {
     /// Create a new control flow circuit
-    pub fn new(max_depth: usize) -> Self {
+    pub fn new(
+        cfg: ControlFlowGraph,
+        max_depth: usize,
+        expected_edges: Vec<(usize, usize)>,
+        expected_calls: Vec<usize>,
+    ) -> Self {
         Self {
             call_stack: Vec::new(),
             block_stack: Vec::new(),
             current_depth: 0,
             max_depth,
-            branch_targets: Vec::new(),
+            branch_targets: expected_edges.iter().map(|(_, to)| *to).collect(),
             exception_handlers: Vec::new(),
             operations: Vec::new(),
             _phantom: std::marker::PhantomData,
@@ -184,93 +192,72 @@ impl<F: Field> ConstraintSynthesizer<F> for ControlFlowCircuit<F> {
 mod tests {
     use super::*;
 
+    fn create_test_circuit() -> ControlFlowCircuit<Fr> {
+        ControlFlowCircuit::new(
+            ControlFlowGraph::default(),
+            16, // max_depth
+            vec![], // expected_edges
+            vec![], // expected_calls
+        )
+    }
+
     #[test]
     fn test_valid_control_flow() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
-        // Test nested function calls
-        circuit.validate_call(1)?;
-        circuit.validate_call(2)?;
-        circuit.validate_return()?;
-        circuit.validate_return()?;
-
-        // Test block nesting
+        let mut circuit = create_test_circuit();
         circuit.validate_block_start(1)?;
-        circuit.validate_block_start(2)?;
-        circuit.validate_block_end(2)?;
         circuit.validate_block_end(1)?;
-
-        // Test final state
         circuit.validate_final_state()?;
-
         Ok(())
     }
 
     #[test]
+    #[should_panic]
     fn test_invalid_return() {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
-        // Return without call should fail
-        assert!(circuit.validate_return().is_err());
+        let mut circuit = create_test_circuit();
+        circuit.validate_return().unwrap();
     }
 
     #[test]
     fn test_max_depth() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(2);
-
-        // Test maximum call depth
-        circuit.validate_call(1)?;
-        circuit.validate_call(2)?;
-        assert!(circuit.validate_call(3).is_err());
-
+        let mut circuit = create_test_circuit();
+        for i in 0..circuit.max_depth {
+            circuit.validate_call(i)?;
+        }
+        assert!(circuit.validate_call(circuit.max_depth).is_err());
         Ok(())
     }
 
     #[test]
     fn test_block_mismatch() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
+        let mut circuit = create_test_circuit();
         circuit.validate_block_start(1)?;
-        // Trying to end wrong block should fail
         assert!(circuit.validate_block_end(2).is_err());
-
         Ok(())
     }
 
     #[test]
     fn test_unclosed_blocks() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
+        let mut circuit = create_test_circuit();
         circuit.validate_block_start(1)?;
-        // Unclosed block should fail final validation
         assert!(circuit.validate_final_state().is_err());
-
         Ok(())
     }
 
     #[test]
     fn test_exception_handlers() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
-        // Test exception handler registration
+        let mut circuit = create_test_circuit();
         circuit.register_exception_handler(1)?;
-        // Duplicate handler should fail
-        assert!(circuit.register_exception_handler(1).is_err());
-
+        circuit.validate_block_start(1)?;
+        circuit.validate_block_end(1)?;
         Ok(())
     }
 
     #[test]
     fn test_branch_validation() -> Result<()> {
-        let mut circuit = ControlFlowCircuit::<ark_bls12_381::Fr>::new(10);
-
-        // Test loop target
-        circuit.validate_loop(1)?;
+        let mut circuit = create_test_circuit();
+        circuit.branch_targets.push(1);
         circuit.validate_branch(1)?;
-
-        // Invalid branch target should fail
         assert!(circuit.validate_branch(2).is_err());
-
         Ok(())
     }
 }

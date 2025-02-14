@@ -179,7 +179,7 @@ impl StackFrame {
 
 /// Circuit for verifying type safety properties of WebAssembly programs
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TypeSafetyCircuit<F: Field> {
     /// Sequence of stack operations to verify
     stack_ops: Vec<StackOp>,

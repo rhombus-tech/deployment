@@ -4,7 +4,7 @@ use walrus::ir::{Instr, InstrLocId};
 use anyhow::Result;
 
 /// Represents a basic block in the control flow graph
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BasicBlock {
     /// Unique identifier for this block
     pub id: usize,
@@ -52,7 +52,7 @@ impl BasicBlock {
 }
 
 /// Control flow graph representation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ControlFlowGraph {
     /// Map of block ID to basic blocks
     blocks: HashMap<usize, BasicBlock>,
@@ -62,6 +62,12 @@ pub struct ControlFlowGraph {
     exits: HashSet<usize>,
     /// Current block ID counter
     next_id: usize,
+}
+
+impl Default for ControlFlowGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ControlFlowGraph {
