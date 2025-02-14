@@ -193,4 +193,17 @@ Our CI pipeline automatically runs:
 cargo build --release
 ```
 
+## License
+
+This project is licensed under the Business Source License 1.1 (BUSL-1.1). The license terms are designed to:
+
+1. Protect the innovative technology while allowing academic and research use
+2. Convert to GPLv2 or later on February 14, 2027
+3. Allow commercial use through additional licensing grants
+
+For more details:
+- See the [LICENSE](LICENSE) file
+- Visit https://rhombus.tech/license-grants for additional use grants
+- Contact licensing@rhombus.tech for commercial licensing inquiries
+
 [^1]: Alessandro Chiesa, ["Proof-Carrying Data"](https://dspace.mit.edu/bitstream/handle/1721.1/61151/698133641-MIT.pdf), MIT PhD Thesis, 2010.
