@@ -1,3 +1,49 @@
+//! Type Safety Circuit for WebAssembly
+//! 
+//! This module implements a zero-knowledge circuit that verifies type safety properties
+//! of WebAssembly programs. It ensures:
+//! 
+//! 1. Stack Safety:
+//!    - Stack operations maintain type consistency
+//!    - No stack underflow/overflow
+//!    - Block entries/exits preserve stack types
+//! 
+//! 2. Operation Type Safety:
+//!    - Numeric operations have compatible operand types
+//!    - Memory operations use correct value types
+//!    - Type coercion follows WebAssembly rules
+//! 
+//! 3. Block Type Safety:
+//!    - Block parameters match declared types
+//!    - Block results match declared types
+//!    - Nested blocks maintain type consistency
+//!
+//! # Usage
+//! 
+//! The circuit takes a sequence of stack operations and block contexts:
+//! ```ignore
+//! use verify::circuits::type_safety::{TypeSafetyCircuit, StackOp, NumericOp, ValueType};
+//! 
+//! // Create stack operations
+//! let ops = vec![
+//!     StackOp::Push(ValueType::I32),
+//!     StackOp::Push(ValueType::I32),
+//!     StackOp::NumericOp(NumericOp::Add, ValueType::I32, ValueType::I32, ValueType::I32),
+//! ];
+//! 
+//! // Create block contexts
+//! let blocks = vec![
+//!     BlockContext {
+//!         param_types: vec![],
+//!         result_types: vec![ValueType::I32],
+//!         stack_height: 0,
+//!     }
+//! ];
+//! 
+//! // Create and verify circuit
+//! let circuit = TypeSafetyCircuit::new(ops, blocks);
+//! ```
+
 use ark_ff::Field;
 use ark_relations::r1cs::{
     ConstraintSynthesizer, 
@@ -7,67 +53,100 @@ use ark_relations::r1cs::{
 use std::marker::PhantomData;
 use crate::parser::types::ValueType;
 
+/// Numeric operations supported by WebAssembly
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum NumericOp {
-    // Arithmetic operations
+    /// Integer/float addition
     Add,
+    /// Integer/float subtraction
     Sub,
+    /// Integer/float multiplication
     Mul,
+    /// Integer/float division
     Div,
     
-    // Comparison operations
+    /// Integer/float equality comparison
     Eq,
+    /// Integer/float inequality comparison
     Ne,
+    /// Integer/float less than
     Lt,
+    /// Integer/float greater than
     Gt,
+    /// Integer/float less than or equal
     Le,
+    /// Integer/float greater than or equal
     Ge,
 }
 
+/// Memory operations that affect types
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum MemoryOp {
-    // Memory operations
-    Load,  // Load from memory
-    Store, // Store to memory
-    Grow,  // Grow memory
+    /// Load value from memory
+    Load,
+    /// Store value to memory
+    Store,
+    /// Grow memory by specified pages
+    Grow,
 }
 
+/// Stack operations that must maintain type safety
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum StackOp {
+    /// Push a value of given type onto stack
     Push(ValueType),
+    /// Pop a value of given type from stack
     Pop(ValueType),
+    /// Peek at stack value of given type
     Peek(ValueType),
-    BlockEntry(usize),  // Block index
-    BlockExit(usize),   // Block index
+    /// Enter a new block, saving current stack state
+    BlockEntry(usize),
+    /// Exit a block, verifying stack state
+    BlockExit(usize),
+    /// Perform numeric operation with given types
     NumericOp(NumericOp, ValueType, ValueType, ValueType), // Operation, operand1 type, operand2 type, result type
+    /// Perform memory operation with given types
     MemoryOp(MemoryOp, ValueType, ValueType), // Operation, value type, access type
 }
 
+/// Context for a WebAssembly block
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct BlockContext {
+    /// Types of block parameters
     pub param_types: Vec<ValueType>,
+    /// Types of block results
     pub result_types: Vec<ValueType>,
+    /// Stack height at block entry
     pub stack_height: usize,
 }
 
-#[derive(Debug, Clone)]
+/// Stack frame for tracking type information
+#[allow(dead_code)]
 struct StackFrame {
     values: Vec<ValueType>,
 }
 
 impl StackFrame {
+    /// Create a new stack frame
     fn new() -> Self {
         Self { values: Vec::new() }
     }
 
+    /// Push a value onto the stack frame
     fn push(&mut self, ty: ValueType) {
         self.values.push(ty);
     }
 
+    /// Pop a value from the stack frame
     fn pop(&mut self) -> Option<ValueType> {
         self.values.pop()
     }
 
+    /// Check if a value can be coerced to another type
     fn can_coerce(from: &ValueType, to: &ValueType) -> bool {
         match (from, to) {
             // Identity coercions
@@ -98,15 +177,22 @@ impl StackFrame {
     }
 }
 
+/// Circuit for verifying type safety properties of WebAssembly programs
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct TypeSafetyCircuit<F: Field> {
+    /// Sequence of stack operations to verify
     stack_ops: Vec<StackOp>,
+    /// Block contexts for type checking
     block_types: Vec<BlockContext>,
+    /// Expected final stack
     expected_stack: Vec<ValueType>,
+    /// Phantom data for the field
     _phantom: PhantomData<F>,
 }
 
 impl<F: Field> TypeSafetyCircuit<F> {
+    /// Create a new type safety circuit
     pub fn new(
         stack_ops: Vec<StackOp>,
         block_types: Vec<BlockContext>,
@@ -120,6 +206,7 @@ impl<F: Field> TypeSafetyCircuit<F> {
         }
     }
 
+    /// Validate a numeric operation
     fn validate_numeric_op(
         op1_type: &ValueType,
         op2_type: &ValueType,
@@ -143,10 +230,11 @@ impl<F: Field> TypeSafetyCircuit<F> {
         }
     }
 
+    /// Validate a memory access operation
     fn validate_memory_access(
         value_type: &ValueType,
         access_type: &ValueType,
-        is_store: bool,
+        _is_store: bool,  // Prefix with underscore since it's unused
     ) -> bool {
         // Address must be an integer type
         if !matches!(access_type, ValueType::I32 | ValueType::I64) {
@@ -215,8 +303,8 @@ impl<F: Field> ConstraintSynthesizer<F> for TypeSafetyCircuit<F> {
                     println!("Param values: {:?}", param_values);
                     
                     // Validate parameter types in order (bottom of stack to top)
-                    for (i, (actual_ty, expected_ty)) in param_values.iter().zip(context.param_types.iter()).enumerate() {
-                        println!("Checking param {}: actual={:?}, expected={:?}", i, actual_ty, expected_ty);
+                    for (_i, (actual_ty, expected_ty)) in param_values.iter().zip(context.param_types.iter()).enumerate() {
+                        println!("Checking param {}: actual={:?}, expected={:?}", _i, actual_ty, expected_ty);
                         if !StackFrame::can_coerce_block_param(actual_ty, expected_ty) {
                             println!("Parameter validation failed");
                             return Err(SynthesisError::Unsatisfiable);
@@ -251,7 +339,7 @@ impl<F: Field> ConstraintSynthesizer<F> for TypeSafetyCircuit<F> {
                     println!("Result values: {:?}", result_values);
                     
                     // Validate result types in order (bottom of stack to top)
-                    for (i, (actual_ty, expected_ty)) in result_values.iter().zip(context.result_types.iter()).enumerate() {
+                    for (_i, (actual_ty, expected_ty)) in result_values.iter().zip(context.result_types.iter()).enumerate() {
                         println!("Checking result: actual={:?}, expected={:?}", actual_ty, expected_ty);
                         if !StackFrame::can_coerce(actual_ty, expected_ty) {
                             println!("Result validation failed");
@@ -603,6 +691,7 @@ mod tests {
         // Test basic arithmetic operations
         let circuit = TypeSafetyCircuit::<Fr>::new(
             vec![
+                // Push some values
                 StackOp::Push(ValueType::I32),  // Push 5
                 StackOp::Push(ValueType::I32),  // Push 3
                 StackOp::NumericOp(NumericOp::Add, ValueType::I32, ValueType::I32, ValueType::I32),  // 5 + 3

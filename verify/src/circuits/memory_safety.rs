@@ -1,3 +1,44 @@
+//! Memory Safety Circuit for WebAssembly
+//! 
+//! This module implements a zero-knowledge circuit that verifies memory safety properties
+//! of WebAssembly programs. It ensures:
+//! 
+//! 1. Memory Access Safety:
+//!    - All loads/stores are within bounds of allocated memory
+//!    - Memory accesses are properly aligned
+//!    - No out-of-bounds access attempts
+//! 
+//! 2. Memory Growth Safety:
+//!    - Memory growth requests don't exceed maximum allowed pages
+//!    - Page allocations are tracked correctly
+//! 
+//! 3. Memory Initialization Safety:
+//!    - No overlapping memory initializations
+//!    - All initializations are within bounds
+//!    - Initialization data is properly aligned
+//!
+//! # Usage
+//! 
+//! The circuit takes a sequence of memory operations and verifies their safety:
+//! ```ignore
+//! use verify::circuits::memory_safety::{MemoryAccess, MemorySafetyCircuit};
+//! 
+//! // Create a sequence of memory operations
+//! let accesses = vec![
+//!     MemoryAccess::Grow(1),           // Grow by 1 page
+//!     MemoryAccess::Store(0, 4, 4),    // Store 4 bytes at offset 0, aligned to 4
+//!     MemoryAccess::Load(0, 4, 4),     // Load 4 bytes from offset 0, aligned to 4
+//! ];
+//! 
+//! // Create and verify the circuit
+//! let circuit = MemorySafetyCircuit::new(
+//!     accesses,
+//!     vec![],          // Initial memory data
+//!     memory_type,     // Memory type with limits
+//!     2,              // Final number of pages
+//! );
+//! ```
+
 use ark_ff::Field;
 use ark_relations::{
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable},
@@ -8,13 +49,25 @@ use crate::parser::types::MemoryType;
 const PAGE_SIZE: u32 = 65536;
 
 /// Represents a memory access operation (load or store)
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum MemoryAccess {
-    /// Load operation: (offset, align, size)
+    /// Load operation with parameters:
+    /// - offset: Starting byte offset in memory
+    /// - align: Required alignment (must be power of 2)
+    /// - size: Number of bytes to load
     Load(u32, u32, u32),
-    /// Store operation: (offset, align, size)
+
+    /// Store operation with parameters:
+    /// - offset: Starting byte offset in memory
+    /// - align: Required alignment (must be power of 2)
+    /// - size: Number of bytes to store
     Store(u32, u32, u32),
-    /// Memory grow operation: new_pages
+
+    /// Memory grow operation:
+    /// - new_pages: Number of new pages to allocate
+    /// 
+    /// Note: Each page is 64KB (65536 bytes)
     Grow(u32),
 }
 
@@ -29,20 +82,32 @@ pub struct MemoryInit {
     pub data: Vec<u8>,
 }
 
-/// Circuit for verifying memory safety properties
+/// Circuit for verifying memory safety properties of WebAssembly programs
+/// 
+/// This circuit ensures that all memory operations are safe by:
+/// 1. Validating bounds for all memory accesses
+/// 2. Checking alignment requirements
+/// 3. Tracking memory growth
+/// 4. Preventing overlapping memory initializations
+#[derive(Clone)]
 pub struct MemorySafetyCircuit<F: Field> {
-    /// Memory access operations to verify
+    /// Sequence of memory accesses to verify
     memory_accesses: Vec<MemoryAccess>,
-    /// Memory initialization operations
+    
+    /// Initial memory data segments
     memory_inits: Vec<MemoryInit>,
-    /// Memory limits (min and max pages)
+    
+    /// Memory type containing limits
     memory_type: MemoryType,
-    /// Current memory size in pages
+    
+    /// Final number of pages after all operations
     current_pages: usize,
+    
     /// Phantom data for the field
     _marker: std::marker::PhantomData<F>,
 }
 
+#[allow(dead_code)]
 impl<F: Field> MemorySafetyCircuit<F> {
     /// Create a new memory safety circuit
     pub fn new(
@@ -801,7 +866,7 @@ mod tests {
     fn test_memory_growth_and_access() {
         let limits = crate::parser::types::Limits::new(1, Some(2));
         let memory_type = MemoryType::new(limits, false).unwrap();
-        let mut accesses = vec![
+        let accesses = vec![
             // First grow memory by 1 page
             MemoryAccess::Grow(1),
             // Then try to access the new page
@@ -893,6 +958,28 @@ mod tests {
 
         let cs = ConstraintSystem::<Fr>::new_ref();
         assert!(circuit.generate_constraints(cs.clone()).is_ok());
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_complex_memory_pattern_with_load_store() {
+        let limits = crate::parser::types::Limits::new(1, Some(2));
+        let memory_type = MemoryType::new(limits, false).unwrap();
+        let accesses = vec![
+            MemoryAccess::Load(0, 4, 4),
+            MemoryAccess::Store(4, 4, 4),
+            MemoryAccess::Grow(1),
+        ];
+
+        let circuit = MemorySafetyCircuit::<Fr>::new(
+            accesses,
+            vec![],
+            memory_type,
+            2,  // Final pages after growth
+        );
+
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
         assert!(cs.is_satisfied().unwrap());
     }
 }

@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate ark_relations;
 
 pub mod proofs;

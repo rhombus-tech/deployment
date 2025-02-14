@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use walrus::{Function, FunctionKind};
-use walrus::ir::{Instr, InstrLocId, InstrSeq};
+use walrus::ir::{Instr, InstrLocId};
 use anyhow::Result;
 
 /// Represents a basic block in the control flow graph
@@ -67,8 +67,8 @@ pub struct ControlFlowGraph {
 impl ControlFlowGraph {
     fn process_instruction(&self, instr: &Instr, block_id: usize, seq_to_block: &mut HashMap<usize, usize>) {
         match instr {
-            Instr::Block(block_instr) => {
-                seq_to_block.insert(block_instr.seq.index(), block_id);
+            Instr::Block(_block_instr) => {
+                seq_to_block.insert(_block_instr.seq.index(), block_id);
             }
             Instr::Loop(loop_instr) => {
                 seq_to_block.insert(loop_instr.seq.index(), block_id);
@@ -85,7 +85,7 @@ impl ControlFlowGraph {
         let mut is_exit = false;
 
         match instr {
-            Instr::Block(block_instr) => {
+            Instr::Block(_block_instr) => {
                 // Edges are handled in first pass
             }
             Instr::Loop(loop_instr) => {
@@ -163,10 +163,10 @@ impl ControlFlowGraph {
                 
                 // First pass: Process instructions for control flow and create blocks
                 for (instr, _) in block.instrs.iter() {
-                    if let Instr::Block(block_instr) = instr {
+                    if let Instr::Block(_block_instr) = instr {
                         // Create a new block for the block instruction
                         let new_block_id = cfg.create_block();
-                        seq_to_block.insert(block_instr.seq.index(), new_block_id);
+                        seq_to_block.insert(_block_instr.seq.index(), new_block_id);
                         
                         // Add edge from current block to new block
                         cfg.add_edge(block_id, new_block_id);
