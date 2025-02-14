@@ -1,5 +1,5 @@
 use walrus::ValType;
-use walrus::ir::{Instr, Value, BinaryOp, InstrSeqId};
+use walrus::ir::{Instr, Value, BinaryOp, InstrSeqId, LoadKind, StoreKind};
 use anyhow::Result;
 
 /// Represents a WebAssembly value type
@@ -32,6 +32,90 @@ impl From<ValType> for ValueType {
             ValType::Externref => ValueType::ExternRef,
             ValType::Funcref => ValueType::FuncRef,
         }
+    }
+}
+
+/// Represents limits for tables and memory
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Limits {
+    /// Minimum size
+    pub min: u32,
+    /// Maximum size (if specified)
+    pub max: Option<u32>,
+}
+
+impl Limits {
+    pub fn new(min: u32, max: Option<u32>) -> Self {
+        Self { min, max }
+    }
+
+    pub fn validate(&self) -> bool {
+        if let Some(max) = self.max {
+            max >= self.min
+        } else {
+            true
+        }
+    }
+}
+
+/// Reference types for tables
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RefType {
+    /// Function reference
+    Func,
+    /// External reference
+    Extern,
+}
+
+impl From<ValueType> for RefType {
+    fn from(value_type: ValueType) -> Self {
+        match value_type {
+            ValueType::FuncRef => RefType::Func,
+            ValueType::ExternRef => RefType::Extern,
+            _ => panic!("Cannot convert non-reference type to RefType"),
+        }
+    }
+}
+
+/// Represents a WebAssembly table type
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableType {
+    /// Type of elements in the table
+    pub element_type: RefType,
+    /// Size limits of the table
+    pub limits: Limits,
+}
+
+impl TableType {
+    pub fn new(element_type: RefType, limits: Limits) -> Result<Self> {
+        if !limits.validate() {
+            return Err(anyhow::anyhow!("Invalid table limits"));
+        }
+        Ok(Self { element_type, limits })
+    }
+}
+
+/// Represents a WebAssembly memory type
+#[derive(Debug, Clone, PartialEq)]
+pub struct MemoryType {
+    /// Size limits of the memory
+    pub limits: Limits,
+    /// Whether the memory is shared
+    pub shared: bool,
+}
+
+impl MemoryType {
+    pub fn new(limits: Limits, shared: bool) -> Result<Self> {
+        if !limits.validate() {
+            return Err(anyhow::anyhow!("Invalid memory limits"));
+        }
+        // WebAssembly spec: maximum must be less than or equal to 65536 pages (4GiB)
+        if let Some(max) = limits.max {
+            if max > 65536 {
+                return Err(anyhow::anyhow!("Memory maximum exceeds 65536 pages"));
+            }
+        }
+        Ok(Self { limits, shared })
     }
 }
 
@@ -124,7 +208,103 @@ impl Stack {
     }
 }
 
-#[derive(Debug)]
+/// Index types for WebAssembly
+pub type TableIdx = u32;
+pub type MemoryIdx = u32;
+pub type FuncIdx = u32;
+
+/// Represents an element segment in WebAssembly
+#[derive(Debug, Clone)]
+pub struct ElementSegment {
+    /// Table index this segment targets
+    pub table: TableIdx,
+    /// Type of elements in this segment
+    pub element_type: RefType,
+    /// Element values (as function indices for funcref)
+    pub elements: Vec<FuncIdx>,
+    /// Offset expression for the segment
+    pub offset: u32,
+}
+
+impl ElementSegment {
+    pub fn new(table: TableIdx, element_type: RefType, elements: Vec<FuncIdx>, offset: u32) -> Self {
+        Self {
+            table,
+            element_type,
+            elements,
+            offset,
+        }
+    }
+
+    pub fn validate(&self, table_type: &TableType) -> Result<()> {
+        // Check element type matches table
+        if self.element_type != table_type.element_type {
+            return Err(anyhow::anyhow!(
+                "Element type mismatch: segment type {:?} != table type {:?}",
+                self.element_type,
+                table_type.element_type
+            ));
+        }
+
+        // Check offset + length fits within table limits
+        let end_offset = self.offset as u64 + self.elements.len() as u64;
+        if let Some(max) = table_type.limits.max {
+            if end_offset > max as u64 {
+                return Err(anyhow::anyhow!(
+                    "Element segment exceeds table limits: end offset {} > max {}",
+                    end_offset,
+                    max
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents a data segment in WebAssembly
+#[derive(Debug, Clone)]
+pub struct DataSegment {
+    /// Memory index this segment targets
+    pub memory: MemoryIdx,
+    /// Raw bytes of the segment
+    pub data: Vec<u8>,
+    /// Offset expression for the segment
+    pub offset: u32,
+}
+
+impl DataSegment {
+    pub fn new(memory: MemoryIdx, data: Vec<u8>, offset: u32) -> Self {
+        Self {
+            memory,
+            data,
+            offset,
+        }
+    }
+
+    pub fn validate(&self, memory_type: &MemoryType) -> Result<()> {
+        // Check offset + length fits within memory limits
+        let end_offset = self.offset as u64 + self.data.len() as u64;
+        
+        // Convert to pages (64KiB per page)
+        let required_pages = (end_offset + 65535) / 65536;
+        
+        if let Some(max_pages) = memory_type.limits.max {
+            if required_pages > max_pages as u64 {
+                return Err(anyhow::anyhow!(
+                    "Data segment exceeds memory limits: required pages {} > max pages {}",
+                    required_pages,
+                    max_pages
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents a stack of value types for validation
+#[derive(Debug, Default)]
 pub struct TypeContext {
     pub locals: Vec<ValueType>,
     pub globals: Vec<ValueType>,
@@ -134,7 +314,7 @@ pub struct TypeContext {
     module: walrus::Module,
     pub types: Vec<FunctionType>,
     pub functions: Vec<FunctionType>,
-    current_func: walrus::FunctionId,
+    current_func: Option<walrus::FunctionId>,
 }
 
 impl TypeContext {
@@ -147,14 +327,15 @@ impl TypeContext {
             module: walrus::Module::default(),
             types: Vec::new(),
             functions: Vec::new(),
-            current_func: unsafe { std::mem::zeroed() },  // Safe because we'll set it properly in from_module
+            current_func: None,
             return_type: None,
         }
     }
 
     pub fn from_module(module: walrus::Module, func_id: walrus::FunctionId) -> Result<Self> {
         let mut ctx = Self::new();
-
+        ctx.current_func = Some(func_id);
+            
         // Set up locals
         let func = module.funcs.get(func_id);
             
@@ -174,8 +355,11 @@ impl TypeContext {
         }
 
         ctx.module = module;
-        ctx.current_func = func_id;
         Ok(ctx)
+    }
+
+    pub fn get_current_function(&self) -> Option<walrus::FunctionId> {
+        self.current_func
     }
 
     pub fn push_block_context(&mut self, block_type: Option<ValType>, seq_id: InstrSeqId) -> Result<()> {
@@ -389,6 +573,168 @@ impl TypeContext {
                 Ok(())
             }
 
+            Instr::Call(call) => {
+                let func_id = call.func;
+                let current_func = self.current_func.ok_or_else(|| anyhow::anyhow!("No current function"))?;
+                
+                // Get function type
+                if let walrus::FunctionKind::Local(local) = &self.module.funcs.get(current_func).kind {
+                    let type_id = local.ty();
+                    let func_type = self.module.types.get(type_id);
+                    
+                    // Pop arguments
+                    for _ in func_type.params().iter() {
+                        self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow"))?;
+                    }
+                    
+                    // Push results
+                    for result in func_type.results().iter() {
+                        self.stack.push(ValueType::from(*result));
+                    }
+                }
+                Ok(())
+            }
+
+            Instr::Load(load) => {
+                // Validate memory index
+                let _memory = self.module.memories.get(load.memory);
+
+                // Validate alignment
+                let natural_alignment = match load.kind {
+                    LoadKind::I32 { atomic: _ } => 4,
+                    LoadKind::I64 { atomic: _ } => 8,
+                    LoadKind::F32 => 4,
+                    LoadKind::F64 => 8,
+                    _ => return Err(anyhow::anyhow!("Unsupported load type")),
+                };
+
+                if !load.arg.align.is_power_of_two() || load.arg.align > natural_alignment {
+                    return Err(anyhow::anyhow!("Invalid alignment"));
+                }
+
+                // Check address is on stack
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing address"))?;
+
+                // Push loaded value type
+                let result_type = match load.kind {
+                    LoadKind::I32 { atomic: _ } => ValueType::I32,
+                    LoadKind::I64 { atomic: _ } => ValueType::I64,
+                    LoadKind::F32 => ValueType::F32,
+                    LoadKind::F64 => ValueType::F64,
+                    _ => return Err(anyhow::anyhow!("Unsupported load type")),
+                };
+                self.stack.push(result_type);
+                Ok(())
+            }
+
+            Instr::Store(store) => {
+                // Validate memory index
+                let _memory = self.module.memories.get(store.memory);
+
+                // Validate alignment
+                let natural_alignment = match store.kind {
+                    StoreKind::I32 { atomic: _ } => 4,
+                    StoreKind::I64 { atomic: _ } => 8,
+                    StoreKind::F32 => 4,
+                    StoreKind::F64 => 8,
+                    _ => return Err(anyhow::anyhow!("Unsupported store type")),
+                };
+
+                if !store.arg.align.is_power_of_two() || store.arg.align > natural_alignment {
+                    return Err(anyhow::anyhow!("Invalid alignment"));
+                }
+
+                // Pop value and address
+                let value_type = self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing value"))?;
+                let expected_type = match store.kind {
+                    StoreKind::I32 { atomic: _ } => ValueType::I32,
+                    StoreKind::I64 { atomic: _ } => ValueType::I64,
+                    StoreKind::F32 => ValueType::F32,
+                    StoreKind::F64 => ValueType::F64,
+                    _ => return Err(anyhow::anyhow!("Unsupported store type")),
+                };
+                
+                if value_type != expected_type {
+                    return Err(anyhow::anyhow!("Type mismatch in store operation"));
+                }
+                
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing address"))?;
+                Ok(())
+            }
+
+            Instr::MemoryGrow(memory) => {
+                // Validate memory index
+                let _memory = self.module.memories.get(memory.memory);
+
+                // Check delta is on stack
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing delta"))?;
+
+                // Push result (previous size or -1)
+                self.stack.push(ValueType::I32);
+                Ok(())
+            }
+
+            Instr::MemorySize(memory) => {
+                // Validate memory index
+                let _memory = self.module.memories.get(memory.memory);
+
+                // Push current size
+                self.stack.push(ValueType::I32);
+                Ok(())
+            }
+
+            Instr::TableGet(table) => {
+                // Validate table index
+                let _table = self.module.tables.get(table.table);
+
+                // Check index is on stack
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing index"))?;
+
+                // Push element type (always funcref in MVP)
+                self.stack.push(ValueType::FuncRef);
+                Ok(())
+            }
+
+            Instr::TableSet(table) => {
+                // Validate table index
+                let _table = self.module.tables.get(table.table);
+
+                // Pop value and index
+                let value_type = self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing value"))?;
+                if value_type != ValueType::FuncRef {
+                    return Err(anyhow::anyhow!("Type mismatch in table set operation"));
+                }
+
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing index"))?;
+                Ok(())
+            }
+
+            Instr::TableGrow(table) => {
+                // Validate table index
+                let _table = self.module.tables.get(table.table);
+
+                // Pop init value and delta
+                let init_type = self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing init value"))?;
+                if init_type != ValueType::FuncRef {
+                    return Err(anyhow::anyhow!("Type mismatch in table grow operation"));
+                }
+
+                self.stack.pop().ok_or_else(|| anyhow::anyhow!("Stack underflow - missing delta"))?;
+
+                // Push result (previous size or -1)
+                self.stack.push(ValueType::I32);
+                Ok(())
+            }
+
+            Instr::TableSize(table) => {
+                // Validate table index
+                let _table = self.module.tables.get(table.table);
+
+                // Push current size
+                self.stack.push(ValueType::I32);
+                Ok(())
+            }
+
             _ => Err(anyhow::anyhow!("Unsupported instruction")),
         }
     }
@@ -397,8 +743,7 @@ impl TypeContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use walrus::ir::{Value, Const};
-    use walrus::{Module, FunctionBuilder, ValType};
+    use walrus::{Module, FunctionBuilder, ir::*};
 
     #[test]
     fn test_stack_validation() -> Result<()> {
@@ -437,7 +782,7 @@ mod tests {
         module.globals.add_local(
             ValType::I32,
             true,
-            walrus::InitExpr::Value(Value::I32(0))
+            walrus::InitExpr::Value(Value::I32(0)),
         );
 
         // Create type context
@@ -527,13 +872,14 @@ mod tests {
     #[test]
     fn test_control_flow() -> Result<()> {
         let mut module = Module::default();
-        
-        // Create a function builder to help create instruction sequences
-        let builder = FunctionBuilder::new(&mut module.types, &[], &[ValType::I32]);
-        let func_id = builder.finish(vec![], &mut module.funcs);
+        let mut builder = FunctionBuilder::new(&mut module.types, &[], &[ValType::I32]);
+        let _func_id = builder.finish(Vec::new(), &mut module.funcs);
         
         // Create a new context with the module
-        let mut ctx = TypeContext::from_module(module, func_id)?;
+        let mut ctx = TypeContext::from_module(
+            module,
+            _func_id,
+        )?;
         
         // Create a new builder for block sequences
         let mut block_builder = FunctionBuilder::new(&mut ctx.get_module_mut().types, &[], &[ValType::I32]);
@@ -581,13 +927,227 @@ mod tests {
 
         // Create an invalid block target (using a sequence ID that doesn't exist in our context)
         let mut other_module = Module::default();
-        let mut other_builder = FunctionBuilder::new(&mut other_module.types, &[], &[ValType::I32]);
+        let mut other_builder = walrus::FunctionBuilder::new(&mut other_module.types, &[], &[ValType::I32]);
         let other_block = other_builder.func_body();
         let invalid_id = other_block.id();
         
         // Test br with invalid target
         assert!(ctx.validate_instruction(Instr::Br(walrus::ir::Br {
             block: invalid_id,
+        })).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_limits_validation() {
+        // Valid limits
+        assert!(Limits::new(0, None).validate());
+        assert!(Limits::new(0, Some(10)).validate());
+        assert!(Limits::new(5, Some(5)).validate());
+        
+        // Invalid limits
+        assert!(Limits::new(10, Some(5)).validate() == false);
+    }
+
+    #[test]
+    fn test_table_type() {
+        // Valid table
+        let limits = Limits::new(0, Some(10));
+        let table = TableType::new(RefType::Func, limits).unwrap();
+        assert_eq!(table.element_type, RefType::Func);
+        assert_eq!(table.limits, limits);
+
+        // Invalid limits
+        let invalid_limits = Limits::new(10, Some(5));
+        assert!(TableType::new(RefType::Func, invalid_limits).is_err());
+    }
+
+    #[test]
+    fn test_memory_type() {
+        // Valid memory
+        let limits = Limits::new(0, Some(100));
+        let memory = MemoryType::new(limits, false).unwrap();
+        assert_eq!(memory.limits, limits);
+        assert_eq!(memory.shared, false);
+
+        // Invalid limits (exceeds max pages)
+        let invalid_limits = Limits::new(0, Some(70000));
+        assert!(MemoryType::new(invalid_limits, false).is_err());
+    }
+
+    #[test]
+    fn test_element_segment() {
+        let table_limits = Limits::new(10, Some(20));
+        let table_type = TableType::new(RefType::Func, table_limits).unwrap();
+        
+        // Valid element segment
+        let segment = ElementSegment::new(
+            0,
+            RefType::Func,
+            vec![1, 2, 3],
+            0
+        );
+        assert!(segment.validate(&table_type).is_ok());
+
+        // Invalid type
+        let invalid_type_segment = ElementSegment::new(
+            0,
+            RefType::Extern,
+            vec![1, 2, 3],
+            0
+        );
+        assert!(invalid_type_segment.validate(&table_type).is_err());
+
+        // Exceeds limits
+        let exceeding_segment = ElementSegment::new(
+            0,
+            RefType::Func,
+            vec![1, 2, 3],
+            18 // offset + length > 20
+        );
+        assert!(exceeding_segment.validate(&table_type).is_err());
+    }
+
+    #[test]
+    fn test_data_segment() {
+        let memory_limits = Limits::new(1, Some(2)); // 2 pages = 128KiB
+        let memory_type = MemoryType::new(memory_limits, false).unwrap();
+        
+        // Valid data segment
+        let segment = DataSegment::new(
+            0,
+            vec![0; 65536], // 1 page
+            0
+        );
+        assert!(segment.validate(&memory_type).is_ok());
+
+        // Exceeds limits
+        let large_segment = DataSegment::new(
+            0,
+            vec![0; 200000], // > 2 pages when including offset
+            65536
+        );
+        assert!(large_segment.validate(&memory_type).is_err());
+    }
+
+    #[test]
+    fn test_memory_instructions() -> Result<()> {
+        let mut module = Module::default();
+        
+        // Create a memory with initial size 1 page
+        let memory_id = module.memories.add_local(false, 1, None);
+        
+        // Create a function builder
+        let mut builder = FunctionBuilder::new(&mut module.types, &[], &[]);
+        let func_id = builder.finish(Vec::new(), &mut module.funcs);
+        
+        // Create type context
+        let mut ctx = TypeContext::from_module(module, func_id)?;
+        
+        // Test memory.grow
+        ctx.stack.push(ValueType::I32); // Push delta
+        ctx.validate_instruction(Instr::MemoryGrow(MemoryGrow { memory: memory_id }))?;
+        assert_eq!(ctx.stack.height(), 1); // Result pushed
+        assert_eq!(ctx.stack.pop().unwrap(), ValueType::I32);
+        
+        // Test memory.size
+        ctx.validate_instruction(Instr::MemorySize(MemorySize { memory: memory_id }))?;
+        assert_eq!(ctx.stack.height(), 1); // Size pushed
+        assert_eq!(ctx.stack.pop().unwrap(), ValueType::I32);
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_table_instructions() -> Result<()> {
+        let mut module = Module::default();
+        
+        // Create a table with initial size 1
+        let table_id = module.tables.add_local(1, None, ValType::Funcref);
+        
+        // Create a function builder
+        let mut builder = FunctionBuilder::new(&mut module.types, &[], &[]);
+        let func_id = builder.finish(Vec::new(), &mut module.funcs);
+        
+        // Create type context
+        let mut ctx = TypeContext::from_module(module, func_id)?;
+        
+        // Test table.get
+        ctx.stack.push(ValueType::I32); // Push index
+        ctx.validate_instruction(Instr::TableGet(TableGet { table: table_id }))?;
+        assert_eq!(ctx.stack.height(), 1); // Result pushed
+        assert_eq!(ctx.stack.pop().unwrap(), ValueType::FuncRef);
+        
+        // Test table.set
+        ctx.stack.push(ValueType::I32); // Push index
+        ctx.stack.push(ValueType::FuncRef); // Push value
+        ctx.validate_instruction(Instr::TableSet(TableSet { table: table_id }))?;
+        assert_eq!(ctx.stack.height(), 0); // Stack empty after set
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_memory_operations() -> Result<()> {
+        use walrus::ir::*;
+        
+        let mut module = Module::default();
+        let memory_id = module.memories.add_local(false, 1, None);
+        let builder = FunctionBuilder::new(&mut module.types, &[], &[]);
+        let func_id = builder.finish(vec![], &mut module.funcs);
+        
+        let mut ctx = TypeContext::from_module(
+            module,
+            func_id,
+        )?;
+
+        // Test invalid alignment
+        ctx.stack.push(ValueType::I32); // address
+        assert!(ctx.validate_instruction(Instr::Load(Load {
+            memory: memory_id,
+            arg: MemArg { align: 16, offset: 0 }, // Too large alignment for i32
+            kind: LoadKind::I32 { atomic: false },
+        })).is_err());
+
+        // Test type mismatch in store
+        ctx.stack.push(ValueType::I32); // address
+        ctx.stack.push(ValueType::I64); // wrong value type
+        assert!(ctx.validate_instruction(Instr::Store(Store {
+            memory: memory_id,
+            arg: MemArg { align: 4, offset: 0 },
+            kind: StoreKind::I32 { atomic: false },
+        })).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_table_operations() -> Result<()> {
+        use walrus::ir::*;
+        
+        let mut module = Module::default();
+        let table_id = module.tables.add_local(1, None, ValType::Funcref);
+        let builder = FunctionBuilder::new(&mut module.types, &[], &[]);
+        let func_id = builder.finish(vec![], &mut module.funcs);
+        
+        let mut ctx = TypeContext::from_module(
+            module,
+            func_id,
+        )?;
+
+        // Test type mismatch in table.set
+        ctx.stack.push(ValueType::I32); // index
+        ctx.stack.push(ValueType::ExternRef); // wrong reference type
+        assert!(ctx.validate_instruction(Instr::TableSet(TableSet {
+            table: table_id,
+        })).is_err());
+
+        // Test type mismatch in table.grow
+        ctx.stack.push(ValueType::I32); // delta
+        ctx.stack.push(ValueType::ExternRef); // wrong reference type
+        assert!(ctx.validate_instruction(Instr::TableGrow(TableGrow {
+            table: table_id,
         })).is_err());
 
         Ok(())
