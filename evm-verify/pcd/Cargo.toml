@@ -1,0 +1,21 @@
+[package]
+name = "pcd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+
+# Ethereum
+ethers = "2.0"
+revm = "3.0"
+
+# Cryptographic primitives
+ark-ff = "0.4.0"
+ark-ec = "0.4.0"
+ark-bls12-381 = "0.4.0"
+ark-groth16 = "0.4.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"

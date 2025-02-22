@@ -1,29 +1,41 @@
-use std::fs;
+use std::path::PathBuf;
 use clap::Parser;
 use anyhow::Result;
-use verify::{verify_wasm, generate_combined_keys, generate_combined_proof, verify_combined_proof};
+use verify::proofs::{MemorySafetyProperty, Property};
+use wasmparser::WasmFeatures;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to the WASM file to analyze
     #[arg(short, long)]
-    wasm_file: String,
+    wasm_file: PathBuf,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
-
-    println!("Reading WASM file...");
-    let wasm_binary = fs::read(&args.wasm_file)?;
-
-    println!("Verifying WASM binary...");
-    verify_wasm(&wasm_binary)?;
-    println!("Basic verification passed!");
-
-    println!("\nGenerating zero-knowledge proofs...");
-    // TODO: Add proof generation once we have a sample WASM file to test with
     
-    println!("Verification complete! The WASM module satisfies all safety properties.");
+    // Read WASM file
+    let wasm = std::fs::read(&args.wasm_file)?;
+    
+    // Create property verifiers
+    let memory_safety = MemorySafetyProperty::new();
+    
+    println!("Verifying WASM module...");
+    
+    // Verify memory safety
+    let memory_proof = memory_safety.verify(&wasm, &WasmFeatures::default())?;
+    
+    println!("\nVerification Results:");
+    println!("  • Memory safety: {}", if memory_proof.bounds_checked { "✓" } else { "✗" });
+    println!("  • Leak free: {}", if memory_proof.leak_free { "✓" } else { "✗" });
+    println!("  • Access safety: {}", if memory_proof.access_safety { "✓" } else { "✗" });
+    
+    if memory_proof.bounds_checked && memory_proof.leak_free && memory_proof.access_safety {
+        println!("\n✅ WASM module satisfies all safety properties!");
+    } else {
+        println!("\n❌ WASM module failed some safety checks!");
+    }
+
     Ok(())
 }
