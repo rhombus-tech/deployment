@@ -5,12 +5,15 @@ use ark_groth16::{
     VerifyingKey,
     prepare_verifying_key,
 };
-use ark_snark::{SNARK, CircuitSpecificSetupSNARK};
+use ark_snark::SNARK;
 use ark_std::rand::thread_rng;
+use ethers::types::H160;
+use ark_relations::r1cs::{ConstraintSystem, ConstraintSynthesizer};
 
 use crate::bytecode::types::RuntimeAnalysis;
 use crate::circuits::access::AccessControlCircuit;
 use crate::common::DeploymentData;
+use crate::utils::address_to_field;
 
 /// Deployment prover
 pub struct DeploymentProver {
@@ -49,6 +52,14 @@ impl DeploymentProver {
         }
     }
 
+    /// Get public inputs for the circuit
+    fn get_public_inputs(&self) -> Vec<Fr> {
+        vec![
+            address_to_field(self.deployment.owner),
+            address_to_field(self.runtime.caller),
+        ]
+    }
+
     /// Prove deployment
     pub fn prove(&self) -> bool {
         // Create circuit
@@ -57,13 +68,25 @@ impl DeploymentProver {
             self.runtime.clone(),
         );
 
+        // Check if circuit is satisfiable
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        if circuit.clone().generate_constraints(cs.clone()).is_err() || !cs.is_satisfied().unwrap() {
+            return false;
+        }
+
+        // Get public inputs
+        let public_inputs = self.get_public_inputs();
+
         // Create proof
         let mut rng = thread_rng();
-        let proof = Groth16::<Bn254>::prove(&self.access_pk, circuit, &mut rng).unwrap();
+        let proof = match Groth16::<Bn254>::prove(&self.access_pk, circuit, &mut rng) {
+            Ok(p) => p,
+            Err(_) => return false,
+        };
 
         // Verify proof
         let pvk = prepare_verifying_key(&self.access_vk);
-        Groth16::<Bn254>::verify_with_processed_vk(&pvk, &[], &proof).unwrap()
+        Groth16::<Bn254>::verify_with_processed_vk(&pvk, &public_inputs, &proof).unwrap_or(false)
     }
 }
 
@@ -73,11 +96,13 @@ mod tests {
 
     #[test]
     fn test_deployment_prover() {
-        // Create deployment data
-        let deployment = DeploymentData::default();
+        // Create deployment data with valid owner
+        let mut deployment = DeploymentData::default();
+        deployment.owner = H160::from_low_u64_be(0x1234);
 
-        // Create runtime analysis
-        let runtime = RuntimeAnalysis::default();
+        // Create runtime analysis with matching caller
+        let mut runtime = RuntimeAnalysis::default();
+        runtime.caller = deployment.owner;
 
         // Create prover
         let prover = DeploymentProver::new(deployment, runtime);
@@ -89,22 +114,18 @@ mod tests {
 
     #[test]
     fn test_deployment_prover_invalid() {
-        // Create deployment data
-        let deployment = DeploymentData::default();
+        // Create deployment data with valid owner
+        let mut deployment = DeploymentData::default();
+        deployment.owner = H160::from_low_u64_be(0x1234);
 
-        // Create runtime analysis
-        let runtime = RuntimeAnalysis::default();
+        // Create runtime analysis with non-matching caller
+        let mut runtime = RuntimeAnalysis::default();
+        runtime.caller = H160::from_low_u64_be(0x5678); // Different from owner
 
         // Create prover
         let prover = DeploymentProver::new(deployment, runtime);
 
-        // Create invalid deployment data
-        let invalid_deployment = DeploymentData {
-            owner: ethers::types::H160::zero(),
-            ..Default::default()
-        };
-
-        // Prove deployment
+        // Prove deployment - should fail since caller != owner
         let valid = prover.prove();
         assert!(!valid);
     }
