@@ -39,17 +39,19 @@ For example, instead of just checking if a contract might have reentrancy, we pr
 - **Zero False Negatives**: If we prove a property, it's guaranteed to hold
 - **Compile-Time Guarantees**: Issues are caught before deployment, not at runtime
 
-## Comparison with Other Tools
+## How We're Different
 
-| Feature | EVM Verify | Traditional Auditing | Static Analyzers | Symbolic Execution |
-|---------|------------|---------------------|------------------|-------------------|
-| **Analysis Type** | Formal Verification | Expert Review | Pattern Matching | Path Exploration |
-| **Coverage** | Property-Specific | Comprehensive | Known Patterns | Path-Limited |
-| **False Positives** | Very Low | Analyst Dependent | Common | Common |
-| **False Negatives** | Property-Dependent | Possible | Common | Path-Dependent |
-| **Gas Analysis** | Safety Proofs | Manual Review | Basic Checks | Path-Based |
-| **Time to Results** | Minutes to Hours | Days/Weeks | Minutes | Hours |
-| **Scope** | Contract-Level | Protocol-Level | Contract-Level | Function-Level |
+🔍 **Traditional Security Tools**
+- Look for known vulnerabilities
+- Can miss unknown issues
+- Take days or weeks
+- Results may vary
+
+✅ **EVM Verify**
+- Proves security properties
+- Catches ALL violations
+- Results in minutes
+- Always consistent
 
 ### Why Choose EVM Verify?
 
