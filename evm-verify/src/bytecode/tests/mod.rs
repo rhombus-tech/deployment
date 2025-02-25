@@ -11,6 +11,8 @@ mod delegate;
 mod reentrancy;
 #[cfg(test)]
 mod solidity_checks;
+#[cfg(test)]
+mod real_world_tests;
 
 #[cfg(test)]
 mod tests {
