@@ -1,5 +1,7 @@
 pub mod memory;
 pub mod types;
+#[cfg(test)]
+pub mod tests;
 
 use anyhow::Result;
 use ethers::types::U256;
@@ -56,25 +58,5 @@ impl BytecodeAnalyzer {
     /// Get memory analyzer
     pub fn get_memory(&self) -> &MemoryAnalyzer {
         &self.memory
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bytecode_analyzer() -> Result<()> {
-        let mut analyzer = BytecodeAnalyzer::new();
-
-        // Record memory operations
-        analyzer.record_memory_allocation(U256::from(0), U256::from(32))?;
-        analyzer.record_memory_access(U256::from(0), U256::from(32), false)?;
-
-        // Check memory operations were recorded
-        assert_eq!(analyzer.get_memory().allocations.len(), 1);
-        assert_eq!(analyzer.get_memory().accesses.len(), 1);
-
-        Ok(())
     }
 }

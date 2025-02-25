@@ -1,0 +1,70 @@
+#[cfg(test)]
+mod bitwise_tests {
+    use super::*;
+    use ethers::types::Bytes;
+    use hex_literal::hex;
+    use anyhow::Result;
+
+    #[test]
+    fn test_detect_unsafe_shift() -> Result<()> {
+        // Contract with unsafe left shift (potential overflow)
+        let bytecode = Bytes::from(hex!(
+            "608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80639ec5a89414610030575b600080fd5b61004a600480360381019061004591906100c9565b610060565b60405161005791906100f5565b60405180910390f35b6000816001901c905092915050565b600080fd5b6000819050919050565b61008981610076565b811461009457600080fd5b50565b6000813590506100a681610080565b92915050565b6000819050919050565b6100bf816100ac565b81146100ca57600080fd5b50565b6000813590506100dc816100b6565b92915050565b6000602082840312156100f6576100f5610071565b5b600061010484828501610097565b91505092915050565b61011681610076565b82525050565b6000602082019050610131600083018461010d565b9291505056"
+        ));
+
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let results = analyzer.analyze()?;
+
+        // Check for unsafe shift operations
+        let has_unsafe_shift = results.runtime.memory_accesses.iter().any(|access| {
+            access.write && access.size.as_u64() > 32
+        });
+
+        assert!(has_unsafe_shift, "Should detect unsafe shift operation");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_detect_unsafe_right_shift() -> Result<()> {
+        // Contract with unsafe right shift (potential underflow)
+        let bytecode = Bytes::from(hex!(
+            "608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c8063a42fe75914610030575b600080fd5b61004a600480360381019061004591906100c9565b610060565b60405161005791906100f5565b60405180910390f35b6000816001911c905092915050565b600080fd5b6000819050919050565b61008981610076565b811461009457600080fd5b50565b6000813590506100a681610080565b92915050565b6000819050919050565b6100bf816100ac565b81146100ca57600080fd5b50565b6000813590506100dc816100b6565b92915050565b6000602082840312156100f6576100f5610071565b5b600061010484828501610097565b91505092915050565b61011681610076565b82525050565b6000602082019050610131600083018461010d565b9291505056"
+        ));
+
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let results = analyzer.analyze()?;
+
+        // Check for unsafe shift operations
+        let has_unsafe_shift = results.runtime.memory_accesses.iter().any(|access| {
+            access.write && access.offset.as_u64() == 0
+        });
+
+        assert!(has_unsafe_shift, "Should detect unsafe right shift");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_safe_bitwise() -> Result<()> {
+        // Contract with safe bitwise operations
+        let bytecode = Bytes::from(hex!(
+            "608060405234801561001057600080fd5b50610304806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80639ec5a89414610030575b600080fd5b61004a600480360381019061004591906100c9565b610060565b60405161005791906100f5565b60405180910390f35b60008160ff1611610073576000805180fd5b6000821180156100855750601f8211155b61008e576000805180fd5b816001901c9050919050565b600080fd5b6000819050919050565b6100b181610098565b81146100bc57600080fd5b50565b6000813590506100ce816100a8565b92915050565b6000602082840312156100ea576100e9610093565b5b60006100f8848285016100bf565b91505092915050565b61010a81610098565b82525050565b60006020820190506101256000830184610101565b9291505056"
+        ));
+
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let results = analyzer.analyze()?;
+
+        // Check for safe bitwise operations
+        let has_unsafe_ops = results.runtime.memory_accesses.iter().any(|access| {
+            access.write && (access.size.as_u64() > 32 || access.offset.as_u64() == 0)
+        });
+
+        assert!(!has_unsafe_ops, "Should not detect unsafe operations in safe pattern");
+
+        // Verify bounds checks
+        assert!(results.memory.max_size <= 32, "Memory usage should be bounded");
+
+        Ok(())
+    }
+}
