@@ -7,44 +7,42 @@ mod reentrancy_tests {
 
     #[test]
     fn test_detect_reentrancy() -> Result<()> {
-        let mut analyzer = BytecodeAnalyzer::new();
+        // Create bytecode that simulates a reentrancy vulnerability
+        // Pattern: read state -> external call -> write state
+        let bytecode = Bytes::from(hex!(
+            "6000" // PUSH1 0
+            "54"   // SLOAD - read from storage
+            "5A"   // GAS - prepare for call
+            "6000" // PUSH1 0 - value for call
+            "6000" // PUSH1 0 - target address
+            "F1"   // CALL - external call
+            "6000" // PUSH1 0
+            "55"   // SSTORE - write to storage after call
+        ));
         
-        // Simulate reentrancy operations that could cause issues
-        analyzer.record_memory_allocation(U256::from(0), U256::from(64))?;
-        analyzer.record_memory_access(U256::from(0), U256::from(64), true)?;
-
-        // Check for reentrancy patterns in memory accesses
-        let memory = analyzer.get_memory();
-        let has_reentrancy = memory.accesses.iter().any(|access| {
-            access.write && access.size.as_u64() > 32
-        });
-
-        assert!(has_reentrancy, "Should detect reentrancy patterns");
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let analysis = analyzer.analyze()?;
+        assert!(!analysis.warnings.is_empty());
         Ok(())
     }
 
     #[test]
     fn test_safe_reentrancy() -> Result<()> {
-        let mut analyzer = BytecodeAnalyzer::new();
+        // Create bytecode for a safe contract
+        // Pattern: write state -> external call
+        let bytecode = Bytes::from(hex!(
+            "6000" // PUSH1 0
+            "6001" // PUSH1 1
+            "55"   // SSTORE - write to storage first
+            "5A"   // GAS - prepare for call
+            "6000" // PUSH1 0 - value for call
+            "6000" // PUSH1 0 - target address
+            "F1"   // CALL - external call after state changes
+        ));
         
-        // Simulate safe reentrancy operations
-        analyzer.record_memory_allocation(U256::from(1), U256::from(32))?;
-        analyzer.record_memory_access(U256::from(1), U256::from(32), true)?;
-
-        // Check for safe reentrancy patterns in memory accesses
-        let memory = analyzer.get_memory();
-        let has_safe_reentrancy = memory.accesses.iter().all(|access| {
-            !access.write || (access.size.as_u64() <= 32 && access.offset.as_u64() > 0)
-        });
-
-        assert!(has_safe_reentrancy, "Should detect safe reentrancy patterns");
-
-        // Since we can't check after_external_call directly, we'll verify the memory access count
-        let state_modifications = memory.accesses.iter()
-            .filter(|access| access.write)
-            .count();
-
-        assert!(state_modifications <= 1, "Should have limited state modifications");
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let analysis = analyzer.analyze()?;
+        assert!(analysis.warnings.is_empty());
         Ok(())
     }
 }

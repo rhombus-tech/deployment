@@ -61,6 +61,10 @@ pub struct RuntimeAnalysis {
     pub access_checks: Vec<AccessControl>,
     /// Constructor calls
     pub constructor_calls: Vec<Constructor>,
+    /// Storage accesses
+    pub storage_accesses_new: Vec<StorageAccessNew>,
+    /// Warnings
+    pub warnings: Vec<String>,
 }
 
 /// Storage access information
