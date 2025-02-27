@@ -132,6 +132,33 @@ impl EVMState {
 
         current == self.storage_root
     }
+
+    /// Compute storage root from current storage state.
+    /// This implementation uses a simplified approach that concatenates and hashes all storage pairs.
+    /// For a more complete implementation that matches Ethereum's MPT, we would need to implement
+    /// the full Merkle Patricia Trie specification.
+    pub fn compute_storage_root(&mut self) -> H256 {
+        // Sort storage by slot for deterministic ordering
+        self.storage.sort_by(|(a, _), (b, _)| a.cmp(b));
+        
+        // Compute root by hashing all storage pairs
+        let mut combined = Vec::new();
+        for (slot, value) in &self.storage {
+            combined.extend_from_slice(slot.as_bytes());
+            let mut value_bytes = [0u8; 32];
+            value.to_big_endian(&mut value_bytes);
+            combined.extend_from_slice(&value_bytes);
+        }
+        
+        // Set and return root hash
+        self.storage_root = if combined.is_empty() {
+            H256::zero()
+        } else {
+            H256::from_slice(&Self::keccak256(&combined))
+        };
+        
+        self.storage_root
+    }
 }
 
 /// Circuit for verifying EVM state transitions with PCD
@@ -602,5 +629,32 @@ mod tests {
         let invalid_proof = vec![H256::zero()];
         let result = state.verify_merkle_proof(slot, value, &invalid_proof);
         assert!(!result, "Invalid Merkle proof should fail verification");
+    }
+
+    #[test]
+    fn test_compute_storage_root() {
+        let mut state = EVMState::default();
+        
+        // Add some storage values
+        state.storage.push((
+            H256::from_low_u64_be(1),
+            U256::from(100)
+        ));
+        state.storage.push((
+            H256::from_low_u64_be(2),
+            U256::from(200)
+        ));
+
+        // Compute root
+        let root = state.compute_storage_root();
+        assert_ne!(root, H256::zero());
+
+        // Verify root changes with different storage
+        state.storage.push((
+            H256::from_low_u64_be(3),
+            U256::from(300)
+        ));
+        let new_root = state.compute_storage_root();
+        assert_ne!(root, new_root);
     }
 }
