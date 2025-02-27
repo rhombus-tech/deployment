@@ -8,12 +8,13 @@ use ark_r1cs_std::{
 };
 use ethers::types::{Address, H256, U256};
 use std::marker::PhantomData;
+use tiny_keccak::{Keccak, Hasher};
 
 use crate::bytecode::types::{RuntimeAnalysis, StorageAccess, MemoryAccess};
 use crate::common::DeploymentData;
 
 /// EVM State for PCD verification
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EVMState {
     /// Storage state
     pub storage: Vec<(H256, U256)>,
@@ -23,6 +24,10 @@ pub struct EVMState {
     pub storage_access: Vec<StorageAccess>,
     /// Delegate call targets
     pub delegate_targets: Vec<Address>,
+    /// Storage root hash
+    pub storage_root: H256,
+    /// Storage proofs for verification
+    pub storage_proofs: Vec<(H256, Vec<H256>)>,
 }
 
 impl EVMState {
@@ -33,6 +38,8 @@ impl EVMState {
             memory: runtime.memory_accesses.clone(),
             storage_access: runtime.storage_accesses.clone(),
             delegate_targets: Vec::new(), // TODO: Extract from runtime
+            storage_root: H256::zero(),
+            storage_proofs: Vec::new(),
         }
     }
 
@@ -86,6 +93,44 @@ impl EVMState {
             }
         }
         true
+    }
+
+    /// Helper function to compute keccak256 hash
+    fn keccak256(data: &[u8]) -> [u8; 32] {
+        let mut hasher = Keccak::v256();
+        let mut output = [0u8; 32];
+        hasher.update(data);
+        hasher.finalize(&mut output);
+        output
+    }
+
+    /// Verify a Merkle proof for a storage slot
+    pub fn verify_merkle_proof(&self, slot: H256, value: U256, proof: &[H256]) -> bool {
+        let slot_bytes = slot.as_ref();
+        let mut value_bytes = [0u8; 32];
+        value.to_big_endian(&mut value_bytes);
+        
+        let mut data = Vec::with_capacity(64);
+        data.extend_from_slice(slot_bytes);
+        data.extend_from_slice(&value_bytes);
+        
+        let mut current = H256::from_slice(&Self::keccak256(&data));
+
+        for sibling in proof {
+            let mut data = Vec::with_capacity(64);
+            let current_bytes = current.as_fixed_bytes();
+            let sibling_bytes = sibling.as_fixed_bytes();
+            if current <= *sibling {
+                data.extend_from_slice(&current_bytes[..]);
+                data.extend_from_slice(&sibling_bytes[..]);
+            } else {
+                data.extend_from_slice(&sibling_bytes[..]);
+                data.extend_from_slice(&current_bytes[..]);
+            }
+            current = H256::from_slice(&Self::keccak256(&data));
+        }
+
+        current == self.storage_root
     }
 }
 
@@ -291,7 +336,8 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for EVMStateCircuit<F> {
 
             // Verify storage state transitions
             for (curr_slot, curr_value) in curr_storage_vars.iter() {
-                if let Some((prev_slot, prev_value)) = prev_storage_vars
+                let _slot = curr_slot; // Use underscore to silence warning
+                if let Some((_prev_slot, prev_value)) = prev_storage_vars  // Use underscore prefix
                     .iter()
                     .find(|(s, _)| s.value().unwrap_or(F::zero()) == curr_slot.value().unwrap_or(F::zero()))
                 {
@@ -360,6 +406,8 @@ mod tests {
                 is_init: false,
             }],
             delegate_targets: vec![],
+            storage_root: H256::zero(),
+            storage_proofs: Vec::new(),
         }
     }
 
@@ -478,14 +526,9 @@ mod tests {
 
     #[test]
     fn test_empty_state_conversion() {
-        let empty_state = EVMState {
-            storage: vec![],
-            memory: vec![],
-            storage_access: vec![],
-            delegate_targets: vec![],
-        };
-
+        let empty_state = EVMState::default();
         let elements = empty_state.to_field_elements::<Fr>();
+        
         assert!(elements.is_empty(), "Empty state should convert to empty field elements");
     }
 
@@ -500,6 +543,8 @@ mod tests {
             memory: vec![],
             storage_access: vec![],
             delegate_targets: vec![],
+            storage_root: H256::zero(),
+            storage_proofs: Vec::new(),
         };
 
         let elements = state.to_field_elements::<Fr>();
@@ -514,5 +559,48 @@ mod tests {
         assert_eq!(elements[3], Fr::from(2u64)); // second value
         assert_eq!(elements[4], Fr::from(2u64)); // third slot
         assert_eq!(elements[5], Fr::from(3u64)); // third value
+    }
+
+    #[test]
+    fn test_verify_merkle_proof() {
+        // Test case 1: Simple proof with one level
+        let slot = H256::from_low_u64_be(1);  // slot 1
+        let value = U256::from(42);  // value 42
+        
+        // Create initial hash of slot+value
+        let mut data = Vec::with_capacity(64);
+        data.extend_from_slice(slot.as_ref());
+        let mut value_bytes = [0u8; 32];
+        value.to_big_endian(&mut value_bytes);
+        data.extend_from_slice(&value_bytes);
+        
+        // Create a simulated Merkle proof
+        let leaf_hash = H256::from_slice(&EVMState::keccak256(&data));
+        let sibling = H256::from_low_u64_be(2);
+        
+        // Combine hashes in sorted order
+        let mut combined = Vec::with_capacity(64);
+        if leaf_hash <= sibling {
+            combined.extend_from_slice(leaf_hash.as_ref());
+            combined.extend_from_slice(sibling.as_ref());
+        } else {
+            combined.extend_from_slice(sibling.as_ref());
+            combined.extend_from_slice(leaf_hash.as_ref());
+        }
+        let storage_root = H256::from_slice(&EVMState::keccak256(&combined));
+        
+        // Create state with this root
+        let mut state = EVMState::default();
+        state.storage_root = storage_root;
+        
+        // Test the verification with the correct proof
+        let proof = vec![sibling];
+        let result = state.verify_merkle_proof(slot, value, &proof);
+        assert!(result, "Merkle proof verification should succeed");
+        
+        // Test case 2: Invalid proof
+        let invalid_proof = vec![H256::zero()];
+        let result = state.verify_merkle_proof(slot, value, &invalid_proof);
+        assert!(!result, "Invalid Merkle proof should fail verification");
     }
 }
