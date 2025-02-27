@@ -4,18 +4,31 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
+evm-verify-common = { path = "../common" }
 
-# Ethereum
-ethers = "2.0"
-revm = "3.0"
+# Ethereum - minimal features to avoid c-kzg
+ethers = { version = "2.0", default-features = false, features = ["abigen"] }
+revm = { version = "3.0", default-features = false }
 
 # Cryptographic primitives
 ark-ff = "0.4.0"
 ark-ec = "0.4.0"
-ark-bls12-381 = "0.4.0"
+ark-bn254 = "0.4.0"
 ark-groth16 = "0.4.0"
+ark-relations = "0.4.0"
+ark-snark = "0.4.0"
+ark-r1cs-std = "0.4.0"
+ark-std = "0.4.0"
+ark-serialize = "0.4.0"
+
+# Random number generation
+rand = "0.8"
 
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
+
+[dev-dependencies]
+ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-r1cs-std = { version = "0.4.0", default-features = false }
+ark-relations = { version = "0.4.0", default-features = false }
