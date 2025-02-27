@@ -51,7 +51,18 @@ impl BytecodeAnalyzer {
     /// Analyze bytecode and return results
     pub fn analyze(&mut self) -> Result<AnalysisResults> {
         // Analyze code sections
-        self.analyze_code_sections()?;
+        match self.analyze_code_sections() {
+            Ok(_) => {},
+            Err(e) => {
+                // If we get a stack underflow error, just log it and continue
+                if e.to_string().contains("Stack underflow") {
+                    println!("Warning: Stack underflow encountered during analysis. Continuing with partial results.");
+                } else {
+                    // For other errors, return them
+                    return Err(e);
+                }
+            }
+        }
         
         // TODO: Implement actual analysis
         let mut delegate_calls = Vec::new();
@@ -429,8 +440,509 @@ impl BytecodeAnalyzer {
                     i += 1;
                 }
                 
+                // MUL opcode
+                0x02 => {
+                    // Stack: [a, b] -> [a * b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the MUL operation
+                    let result = a.overflowing_mul(b).0;
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SUB opcode
+                0x03 => {
+                    // Stack: [a, b] -> [a - b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SUB operation
+                    let result = a.overflowing_sub(b).0;
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // DIV opcode
+                0x04 => {
+                    // Stack: [a, b] -> [a / b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the DIV operation (with division by zero check)
+                    let result = if b.is_zero() { U256::zero() } else { a / b };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SDIV opcode (signed division)
+                0x05 => {
+                    // Stack: [a, b] -> [a / b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SDIV operation (simplified)
+                    // In a real implementation, we'd need to handle signed values properly
+                    let result = if b.is_zero() { U256::zero() } else { a / b };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // MOD opcode
+                0x06 => {
+                    // Stack: [a, b] -> [a % b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the MOD operation (with division by zero check)
+                    let result = if b.is_zero() { U256::zero() } else { a % b };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SMOD opcode (signed modulo)
+                0x07 => {
+                    // Stack: [a, b] -> [a % b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SMOD operation (simplified)
+                    // In a real implementation, we'd need to handle signed values properly
+                    let result = if b.is_zero() { U256::zero() } else { a % b };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // ADDMOD opcode
+                0x08 => {
+                    // Stack: [a, b, n] -> [(a + b) % n]
+                    if self.state.stack.len() < 3 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let n = self.state.stack.pop().unwrap();
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the ADDMOD operation
+                    let result = if n.is_zero() {
+                        U256::zero()
+                    } else {
+                        // Use overflowing_add to handle potential overflow
+                        let sum = a.overflowing_add(b).0;
+                        sum % n
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // MULMOD opcode
+                0x09 => {
+                    // Stack: [a, b, n] -> [(a * b) % n]
+                    if self.state.stack.len() < 3 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let n = self.state.stack.pop().unwrap();
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the MULMOD operation
+                    let result = if n.is_zero() {
+                        U256::zero()
+                    } else {
+                        // Use overflowing_mul to handle potential overflow
+                        let product = a.overflowing_mul(b).0;
+                        product % n
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // EXP opcode
+                0x0a => {
+                    // Stack: [a, exponent] -> [a^exponent]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let exponent = self.state.stack.pop().unwrap();
+                    let base = self.state.stack.pop().unwrap();
+                    
+                    // Perform the EXP operation
+                    // For simplicity, we'll use a basic implementation
+                    // A real implementation would need to handle large exponents more efficiently
+                    let mut result = U256::one();
+                    let mut base_power = base;
+                    let mut exp = exponent;
+                    
+                    // Fast exponentiation algorithm
+                    while !exp.is_zero() {
+                        if exp & U256::one() == U256::one() {
+                            result = result.overflowing_mul(base_power).0;
+                        }
+                        base_power = base_power.overflowing_mul(base_power).0;
+                        exp = exp >> 1;
+                    }
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // LT opcode (less than)
+                0x10 => {
+                    // Stack: [a, b] -> [a < b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the LT operation
+                    let result = if a < b { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // GT opcode (greater than)
+                0x11 => {
+                    // Stack: [a, b] -> [a > b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the GT operation
+                    let result = if a > b { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SLT opcode (signed less than)
+                0x12 => {
+                    // Stack: [a, b] -> [a < b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SLT operation (simplified)
+                    // In a real implementation, we'd need to handle signed comparison properly
+                    let result = if a < b { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SGT opcode (signed greater than)
+                0x13 => {
+                    // Stack: [a, b] -> [a > b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SGT operation (simplified)
+                    // In a real implementation, we'd need to handle signed comparison properly
+                    let result = if a > b { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // EQ opcode (equality)
+                0x14 => {
+                    // Stack: [a, b] -> [a == b]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let b = self.state.stack.pop().unwrap();
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the EQ operation
+                    let result = if a == b { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // ISZERO opcode
+                0x15 => {
+                    // Stack: [a] -> [a == 0]
+                    if self.state.stack.is_empty() {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the ISZERO operation
+                    let result = if a.is_zero() { U256::one() } else { U256::zero() };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // NOT opcode (bitwise NOT)
+                0x19 => {
+                    // Stack: [a] -> [~a]
+                    if self.state.stack.is_empty() {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let a = self.state.stack.pop().unwrap();
+                    
+                    // Perform the NOT operation
+                    let result = !a;
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // BYTE opcode (get byte)
+                0x1a => {
+                    // Stack: [i, x] -> [x[i]]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let x = self.state.stack.pop().unwrap();
+                    let byte_idx = self.state.stack.pop().unwrap();
+                    
+                    // Perform the BYTE operation
+                    let result = if byte_idx >= U256::from(32) {
+                        U256::zero()
+                    } else {
+                        // Convert byte_idx to usize and get the byte
+                        let idx = 31 - byte_idx.as_usize();
+                        let byte = x.byte(idx);
+                        U256::from(byte)
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SHL opcode (shift left)
+                0x1b => {
+                    // Stack: [shift_amount, value] -> [value << shift_amount]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let value = self.state.stack.pop().unwrap();
+                    let shift_amount = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SHL operation
+                    let result = if shift_amount >= U256::from(256) {
+                        U256::zero()
+                    } else {
+                        value << shift_amount.as_u32()
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SHR opcode (shift right)
+                0x1c => {
+                    // Stack: [shift_amount, value] -> [value >> shift_amount]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let value = self.state.stack.pop().unwrap();
+                    let shift_amount = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SHR operation
+                    let result = if shift_amount >= U256::from(256) {
+                        U256::zero()
+                    } else {
+                        value >> shift_amount.as_u32()
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
+                // SAR opcode (arithmetic shift right)
+                0x1d => {
+                    // Stack: [shift_amount, value] -> [value >> shift_amount]
+                    if self.state.stack.len() < 2 {
+                        return Err(anyhow!("Stack underflow"));
+                    }
+                    
+                    let value = self.state.stack.pop().unwrap();
+                    let shift_amount = self.state.stack.pop().unwrap();
+                    
+                    // Perform the SAR operation (simplified)
+                    // In a real implementation, we'd need to handle signed values properly
+                    let result = if shift_amount >= U256::from(256) {
+                        if value.bit(255) { !U256::zero() } else { U256::zero() }
+                    } else {
+                        // Check if the value is negative (MSB set)
+                        if value.bit(255) {
+                            // For negative numbers, fill with 1s
+                            let shifted = value >> shift_amount.as_u32();
+                            // Set all bits above the shift to 1
+                            let mask = !U256::zero() << (256 - shift_amount.as_u32());
+                            shifted | mask
+                        } else {
+                            // For positive numbers, regular shift
+                            value >> shift_amount.as_u32()
+                        }
+                    };
+                    
+                    // Push result back onto stack
+                    self.state.stack.push(result);
+                    
+                    i += 1;
+                }
+                
                 // Default case for other opcodes
                 _ => {
+                    // For opcodes we haven't implemented yet, we need to handle them gracefully
+                    // This is a simplified approach - in a real implementation, we'd need to handle
+                    // each opcode properly according to the EVM specification
+                    
+                    // Handle common stack-manipulating opcodes
+                    match opcode {
+                        // DUP1 to DUP16 (0x80 to 0x8f)
+                        op if op >= 0x80 && op <= 0x8f => {
+                            let n = (op - 0x80 + 1) as usize;
+                            if self.state.stack.len() < n {
+                                // If we don't have enough items on the stack, just continue
+                                i += 1;
+                                continue;
+                            }
+                            
+                            // Duplicate the nth item from the top of the stack
+                            if let Some(value) = self.state.stack.get(self.state.stack.len() - n) {
+                                self.state.stack.push(*value);
+                            }
+                        }
+                        
+                        // SWAP1 to SWAP16 (0x90 to 0x9f)
+                        op if op >= 0x90 && op <= 0x9f => {
+                            let n = (op - 0x90 + 1) as usize;
+                            if self.state.stack.len() < n + 1 {
+                                // If we don't have enough items on the stack, just continue
+                                i += 1;
+                                continue;
+                            }
+                            
+                            // Swap the top item with the (n+1)th item from the top
+                            let len = self.state.stack.len();
+                            self.state.stack.swap(len - 1, len - n - 1);
+                        }
+                        
+                        // POP (0x50)
+                        0x50 => {
+                            if !self.state.stack.is_empty() {
+                                self.state.stack.pop();
+                            }
+                        }
+                        
+                        // JUMPDEST (0x5b) - No stack effect
+                        0x5b => {}
+                        
+                        // JUMP (0x56) and JUMPI (0x57)
+                        0x56 => {
+                            if !self.state.stack.is_empty() {
+                                self.state.stack.pop(); // Pop destination
+                            }
+                        }
+                        0x57 => {
+                            if self.state.stack.len() >= 2 {
+                                self.state.stack.pop(); // Pop condition
+                                self.state.stack.pop(); // Pop destination
+                            }
+                        }
+                        
+                        // For any other opcode, we'll just increment the counter
+                        _ => {}
+                    }
+                    
                     i += 1;
                 }
             }
