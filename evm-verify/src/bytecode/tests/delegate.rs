@@ -48,4 +48,36 @@ mod delegate_tests {
         assert!(!has_unsafe_delegate, "Should not detect unsafe delegatecall operations");
         Ok(())
     }
+
+    #[test]
+    fn test_delegate_call_tracking() -> Result<()> {
+        // Create bytecode with DELEGATECALL (0xF4)
+        // Stack setup for DELEGATECALL:
+        // [gas, target, in_offset, in_size, out_offset, out_size]
+        let bytecode = Bytes::from(hex!(
+            "6020"  // PUSH1 32 (out_size)
+            "6020"  // PUSH1 32 (out_offset)
+            "6020"  // PUSH1 32 (in_size)
+            "6000"  // PUSH1 0 (in_offset)
+            "73FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"  // PUSH20 target_address
+            "6020"  // PUSH1 32 (gas)
+            "f4"    // DELEGATECALL
+        ));
+        
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let runtime = analyzer.analyze()?;
+        
+        // Verify delegate calls are tracked
+        assert!(!runtime.delegate_calls.is_empty(), "Should track delegate calls");
+        
+        // Check delegate call details
+        let delegate_call = &runtime.delegate_calls[0];
+        assert_eq!(delegate_call.data_size.as_u64(), 32, "Should have correct data size");
+        assert_eq!(delegate_call.return_size.as_u64(), 32, "Should have correct return size");
+        assert_eq!(delegate_call.data_offset.as_u64(), 0, "Should have correct data offset");
+        assert_eq!(delegate_call.return_offset.as_u64(), 32, "Should have correct return offset");
+        
+        Ok(())
+    }
+
 }

@@ -65,6 +65,8 @@ pub struct RuntimeAnalysis {
     pub storage_accesses_new: Vec<StorageAccessNew>,
     /// Warnings
     pub warnings: Vec<String>,
+    /// Delegate calls
+    pub delegate_calls: Vec<DelegateCall>,
 }
 
 /// Storage access information
@@ -437,4 +439,23 @@ pub struct RuntimeAnalysisNewest {
     pub state_transitions: Vec<StateTransitionNewest>,
     /// Storage accesses
     pub storage_accesses: Vec<StorageAccessNewest>,
+}
+
+/// Delegate call operation details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DelegateCall {
+    /// Target contract address
+    pub target: H160,
+    /// Program counter where the call occurs
+    pub pc: u64,
+    /// Memory offset for call data
+    pub data_offset: U256,
+    /// Memory size for call data
+    pub data_size: U256,
+    /// Memory offset for return data
+    pub return_offset: U256,
+    /// Memory size for return data
+    pub return_size: U256,
+    /// State modifications during call
+    pub state_modifications: Vec<StorageAccess>,
 }
