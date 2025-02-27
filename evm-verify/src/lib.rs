@@ -12,6 +12,7 @@ use crate::utils::address_to_field;
 
 type Fr = <Bn254 as Pairing>::ScalarField;
 
+pub mod api;
 pub mod bytecode;
 pub mod circuits;
 pub mod common;

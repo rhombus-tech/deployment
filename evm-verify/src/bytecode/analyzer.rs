@@ -278,4 +278,9 @@ impl BytecodeAnalyzer {
     pub fn get_memory(&self) -> &MemoryAnalyzer {
         &self.memory_analyzer
     }
+    
+    /// Get bytecode length
+    pub fn bytecode_length(&self) -> usize {
+        self.bytecode.len()
+    }
 }
