@@ -15,6 +15,10 @@ pub struct AnalysisResults {
     pub memory: MemoryAnalysis,
     /// Any safety warnings
     pub warnings: Vec<String>,
+    /// Memory accesses for tests
+    pub memory_accesses: Vec<MemoryAccess>,
+    /// Delegate calls for tests
+    pub delegate_calls: Vec<DelegateCall>,
 }
 
 /// Constructor analysis data
