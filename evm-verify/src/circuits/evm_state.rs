@@ -1,9 +1,13 @@
 use ark_ff::PrimeField;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use ark_r1cs_std::{fields::fp::FpVar, prelude::*};
+use ark_r1cs_std::{
+    fields::fp::FpVar,
+    prelude::*,
+    boolean::Boolean,
+    ToBitsGadget,
+};
 use ethers::types::{Address, H256, U256};
 use std::marker::PhantomData;
-use std::cmp::Ordering;
 
 use crate::bytecode::types::{RuntimeAnalysis, StorageAccess, MemoryAccess};
 use crate::common::DeploymentData;
@@ -116,72 +120,210 @@ impl<F: PrimeField> EVMStateCircuit<F> {
         self.prev_state = Some(prev_state);
         self
     }
+
+    /// Verify memory bounds and overlaps
+    fn verify_memory_constraints(
+        &self,
+        cs: ConstraintSystemRef<F>,
+        memory_vars: &[(FpVar<F>, FpVar<F>, FpVar<F>, Boolean<F>)]
+    ) -> Result<(), SynthesisError> {
+        // Verify memory access constraints
+        for (i, (offset, size, pc, write)) in memory_vars.iter().enumerate() {
+            // 1. Verify memory bounds
+            self.verify_memory_bounds(cs.clone(), offset, size)?;
+            
+            // 2. Check for overlapping writes
+            if write.value().unwrap_or(false) {
+                for (j, (other_offset, other_size, other_pc, other_write)) in memory_vars.iter().enumerate() {
+                    if i != j && other_write.value().unwrap_or(false) {
+                        // Ensure no overlapping writes at different program counters
+                        if pc.value().unwrap_or(F::zero()) != other_pc.value().unwrap_or(F::zero()) {
+                            self.verify_no_overlap(cs.clone(), offset, size, other_offset, other_size)?;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Verify memory access bounds
+    fn verify_memory_bounds(
+        &self,
+        cs: ConstraintSystemRef<F>,
+        offset: &FpVar<F>,
+        size: &FpVar<F>
+    ) -> Result<(), SynthesisError> {
+        // Maximum memory size (32-bit)
+        let max_size = FpVar::new_constant(cs.clone(), F::from(u32::MAX as u64))?;
+        
+        // Convert to bits for comparison
+        let offset_bits = offset.to_bits_le()?;
+        let size_bits = size.to_bits_le()?;
+        let max_bits = max_size.to_bits_le()?;
+        
+        // Compare bit by bit
+        let mut offset_le_max = Boolean::new_constant(cs.clone(), true)?;
+        let mut size_le_max = Boolean::new_constant(cs.clone(), true)?;
+        
+        for (o, m) in offset_bits.iter().zip(max_bits.iter()) {
+            let o_not = o.not();
+            let o_implies_m = o_not.or(m)?;
+            offset_le_max = offset_le_max.and(&o_implies_m)?;
+        }
+        
+        for (s, m) in size_bits.iter().zip(max_bits.iter()) {
+            let s_not = s.not();
+            let s_implies_m = s_not.or(m)?;
+            size_le_max = size_le_max.and(&s_implies_m)?;
+        }
+        
+        // Verify offset + size doesn't overflow
+        let end_offset = offset + size;
+        let end_bits = end_offset.to_bits_le()?;
+        
+        let mut end_le_max = Boolean::new_constant(cs.clone(), true)?;
+        for (e, m) in end_bits.iter().zip(max_bits.iter()) {
+            let e_not = e.not();
+            let e_implies_m = e_not.or(m)?;
+            end_le_max = end_le_max.and(&e_implies_m)?;
+        }
+
+        // All bounds must be satisfied
+        offset_le_max.enforce_equal(&Boolean::new_constant(cs.clone(), true)?)?;
+        size_le_max.enforce_equal(&Boolean::new_constant(cs.clone(), true)?)?;
+        end_le_max.enforce_equal(&Boolean::new_constant(cs.clone(), true)?)?;
+
+        Ok(())
+    }
+
+    /// Verify no overlap between memory regions
+    fn verify_no_overlap(
+        &self,
+        cs: ConstraintSystemRef<F>,
+        offset1: &FpVar<F>,
+        size1: &FpVar<F>,
+        offset2: &FpVar<F>,
+        size2: &FpVar<F>
+    ) -> Result<(), SynthesisError> {
+        let end1 = offset1 + size1;
+        let end2 = offset2 + size2;
+        
+        let offset1_bits = offset1.to_bits_le()?;
+        let offset2_bits = offset2.to_bits_le()?;
+        let end1_bits = end1.to_bits_le()?;
+        let end2_bits = end2.to_bits_le()?;
+        
+        // Check if regions overlap:
+        // Either offset1 >= end2 OR offset2 >= end1
+        let mut offset1_ge_end2 = Boolean::new_constant(cs.clone(), true)?;
+        let mut offset2_ge_end1 = Boolean::new_constant(cs.clone(), true)?;
+        
+        for (o1, e2) in offset1_bits.iter().zip(end2_bits.iter()) {
+            let o1_not = o1.not();
+            let o1_implies_e2 = e2.or(&o1_not)?;
+            offset1_ge_end2 = offset1_ge_end2.and(&o1_implies_e2)?;
+        }
+        
+        for (o2, e1) in offset2_bits.iter().zip(end1_bits.iter()) {
+            let o2_not = o2.not();
+            let o2_implies_e1 = e1.or(&o2_not)?;
+            offset2_ge_end1 = offset2_ge_end1.and(&o2_implies_e1)?;
+        }
+        
+        // At least one must be true
+        let no_overlap = offset1_ge_end2.or(&offset2_ge_end1)?;
+        no_overlap.enforce_equal(&Boolean::new_constant(cs.clone(), true)?)?;
+
+        Ok(())
+    }
 }
 
 impl<F: PrimeField> ConstraintSynthesizer<F> for EVMStateCircuit<F> {
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        // 1. Convert storage state to field elements
-        let curr_storage_vars: Vec<(FpVar<F>, FpVar<F>)> = self.curr_state.storage
-            .iter()
-            .map(|(slot, value)| {
-                let slot_var = FpVar::new_witness(
-                    cs.clone(), 
-                    || Ok(F::from(slot.to_low_u64_be()))
-                )?;
-                let value_var = FpVar::new_witness(
-                    cs.clone(),
-                    || Ok(F::from(value.as_u64()))
-                )?;
-                Ok((slot_var, value_var))
-            })
-            .collect::<Result<_, SynthesisError>>()?;
+    fn generate_constraints(
+        self,
+        cs: ConstraintSystemRef<F>
+    ) -> Result<(), SynthesisError> {
+        // Convert memory accesses to circuit variables
+        let mut memory_vars = Vec::new();
+        for access in &self.curr_state.memory {
+            let offset = FpVar::new_witness(cs.clone(), || Ok(F::from(access.offset.as_u64())))?;
+            let size = FpVar::new_witness(cs.clone(), || Ok(F::from(access.size.as_u64())))?;
+            let pc = FpVar::new_witness(cs.clone(), || Ok(F::from(access.pc as u64)))?;
+            let write = Boolean::new_witness(cs.clone(), || Ok(access.write))?;
+            memory_vars.push((offset, size, pc, write));
+        }
 
-        // 2. If we have previous state, verify transitions
-        if let Some(prev_state) = self.prev_state {
+        // Handle previous state
+        if let Some(ref prev_state) = self.prev_state {
+            // Convert storage states to field variables
             let prev_storage_vars: Vec<(FpVar<F>, FpVar<F>)> = prev_state.storage
                 .iter()
                 .map(|(slot, value)| {
-                    let slot_var = FpVar::new_witness(
-                        cs.clone(),
-                        || Ok(F::from(slot.to_low_u64_be()))
-                    )?;
-                    let value_var = FpVar::new_witness(
-                        cs.clone(),
-                        || Ok(F::from(value.as_u64()))
-                    )?;
+                    let slot_var = FpVar::new_witness(cs.clone(), || Ok(F::from(slot.to_low_u64_be())))?;
+                    let value_var = FpVar::new_witness(cs.clone(), || Ok(F::from(value.as_u64())))?;
                     Ok((slot_var, value_var))
                 })
-                .collect::<Result<_, SynthesisError>>()?;
+                .collect::<Result<Vec<_>, SynthesisError>>()?;
 
-            // Verify storage transitions
-            for (slot, curr_value) in &curr_storage_vars {
-                // Find matching previous state slot
+            let curr_storage_vars: Vec<(FpVar<F>, FpVar<F>)> = self.curr_state.storage
+                .iter()
+                .map(|(slot, value)| {
+                    let slot_var = FpVar::new_witness(cs.clone(), || Ok(F::from(slot.to_low_u64_be())))?;
+                    let value_var = FpVar::new_witness(cs.clone(), || Ok(F::from(value.as_u64())))?;
+                    Ok((slot_var, value_var))
+                })
+                .collect::<Result<Vec<_>, SynthesisError>>()?;
+
+            // Map slots to write permissions
+            let mut slot_write_permissions = std::collections::HashMap::new();
+            for access in &self.curr_state.storage_access {
+                slot_write_permissions.insert(access.slot, access.write);
+            }
+
+            // Verify storage state transitions
+            for (curr_slot, curr_value) in curr_storage_vars.iter() {
                 if let Some((prev_slot, prev_value)) = prev_storage_vars
                     .iter()
-                    .find(|(s, _)| s.value().unwrap() == slot.value().unwrap()) {
-                    
-                    // If write not allowed, enforce value stays same
-                    if let Some(access) = self.curr_state.storage_access.iter()
-                        .find(|a| F::from(a.slot.to_low_u64_be()) == slot.value().unwrap()) {
-                        if !access.write {
+                    .find(|(s, _)| s.value().unwrap_or(F::zero()) == curr_slot.value().unwrap_or(F::zero()))
+                {
+                    // If slot exists in previous state, verify write permissions
+                    let slot_u64 = curr_slot.value().unwrap_or(F::zero());
+                    let slot_bytes = slot_u64.to_string().as_bytes().to_vec();
+                    let mut slot_h256 = H256::zero();
+                    let len = std::cmp::min(slot_bytes.len(), 32);
+                    slot_h256.0[..len].copy_from_slice(&slot_bytes[..len]);
+
+                    if let Some(&write_allowed) = slot_write_permissions.get(&slot_h256) {
+                        if !write_allowed {
+                            // If write not allowed, value must stay the same
                             curr_value.enforce_equal(prev_value)?;
                         }
-                        // If write is allowed, no additional constraints needed
                     } else {
-                        // If no access pattern found, value must stay same
+                        // If no explicit permission, value must stay the same
                         curr_value.enforce_equal(prev_value)?;
                     }
                 } else {
-                    // If slot not in previous state, must have write access
-                    let has_write_access = self.curr_state.storage_access.iter()
-                        .any(|a| F::from(a.slot.to_low_u64_be()) == slot.value().unwrap() && a.write);
-                    if !has_write_access {
-                        // No write access, cannot create new slot
+                    // If slot doesn't exist in previous state, must have write permission
+                    let slot_u64 = curr_slot.value().unwrap_or(F::zero());
+                    let slot_bytes = slot_u64.to_string().as_bytes().to_vec();
+                    let mut slot_h256 = H256::zero();
+                    let len = std::cmp::min(slot_bytes.len(), 32);
+                    slot_h256.0[..len].copy_from_slice(&slot_bytes[..len]);
+
+                    if let Some(&write_allowed) = slot_write_permissions.get(&slot_h256) {
+                        if !write_allowed {
+                            return Err(SynthesisError::Unsatisfiable);
+                        }
+                    } else {
                         return Err(SynthesisError::Unsatisfiable);
                     }
                 }
             }
         }
+
+        // Verify memory constraints
+        self.verify_memory_constraints(cs.clone(), &memory_vars)?;
 
         Ok(())
     }
