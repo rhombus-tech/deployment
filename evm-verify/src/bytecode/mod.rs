@@ -1,4 +1,4 @@
-mod analyzer;
+pub mod analyzer;
 pub mod memory;
 pub mod types;
 pub mod security;
