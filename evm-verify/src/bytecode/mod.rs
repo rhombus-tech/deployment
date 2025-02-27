@@ -3,8 +3,9 @@ pub mod types;
 #[cfg(test)]
 pub mod tests;
 
-use anyhow::Result;
-use ethers::types::{Bytes, H256, U256, H160};
+use anyhow::{Result, Error};
+use ethers::types::{Bytes, H160, H256, U256};
+use serde::{Deserialize, Serialize};
 
 use self::memory::MemoryAnalyzer;
 use self::types::{ConstructorAnalysis, RuntimeAnalysis, StorageAccess, DelegateCall};
@@ -26,6 +27,12 @@ pub struct BytecodeAnalyzer {
     storage_accesses: Vec<StorageAccess>,
     /// Warnings
     warnings: Vec<String>,
+    /// Current call depth
+    call_depth: u32,
+    /// Call stack for tracking parent-child relationships
+    call_stack: Vec<usize>,
+    /// Current gas remaining
+    gas_remaining: U256,
 }
 
 impl BytecodeAnalyzer {
@@ -38,6 +45,9 @@ impl BytecodeAnalyzer {
             bytecode,
             storage_accesses: Vec::new(),
             warnings: Vec::new(),
+            call_depth: 0,
+            call_stack: Vec::new(),
+            gas_remaining: U256::from(1_000_000), // Initial gas limit
         }
     }
 
@@ -73,18 +83,21 @@ impl BytecodeAnalyzer {
     ) -> Result<()> {
         // DELEGATECALL stack: [gas, target, in_offset, in_size, out_offset, out_size]
         if stack.len() < 6 {
+            println!("Stack underflow in record_delegate_call! Stack size: {}", stack.len());
             self.warnings.push(String::from("Stack underflow in DELEGATECALL operation"));
             return Ok(());
         }
 
-        // Stack values are in reverse order
-        let out_size = stack[0];
-        let out_offset = stack[1];
-        let in_size = stack[2];
-        let in_offset = stack[3];
-        let target = stack[4];
+        // Stack values are in LIFO order (last 6 items)
+        // Values were pushed in reverse order, so we need to read them in reverse
+        let gas_limit = stack[stack.len() - 1];
+        let target = stack[stack.len() - 2];
+        let in_offset = stack[stack.len() - 3];
+        let in_size = stack[stack.len() - 4];
+        let out_offset = stack[stack.len() - 5];
+        let out_size = stack[stack.len() - 6];
         
-        // Record memory accesses
+        // Record memory accesses for input and output data
         self.record_memory_access(in_offset, in_size, false, None)?;
         self.record_memory_access(out_offset, out_size, true, None)?;
 
@@ -92,6 +105,13 @@ impl BytecodeAnalyzer {
         let mut bytes = [0u8; 32];
         target.to_big_endian(&mut bytes);
         let target = H160::from_slice(&bytes[12..32]); // Take last 20 bytes
+
+        // Get parent call ID if we're in a nested call
+        let parent_call_id = if !self.call_stack.is_empty() {
+            Some(*self.call_stack.last().unwrap())
+        } else {
+            None
+        };
 
         // Create delegate call record
         let delegate_call = DelegateCall {
@@ -102,11 +122,56 @@ impl BytecodeAnalyzer {
             return_offset: out_offset,
             return_size: out_size,
             state_modifications: Vec::new(),
+            parent_call_id,
+            child_call_ids: Vec::new(),
+            gas_limit,
+            gas_used: U256::zero(),
+            depth: self.call_depth,
         };
 
         // Add to runtime analysis
+        let current_call_id = self.runtime.delegate_calls.len();
         self.runtime.delegate_calls.push(delegate_call);
 
+        // Update parent's child_call_ids if this is a nested call
+        if let Some(parent_id) = parent_call_id {
+            if let Some(parent_call) = self.runtime.delegate_calls.get_mut(parent_id) {
+                parent_call.child_call_ids.push(current_call_id);
+            }
+        }
+
+        // Update call stack and depth
+        self.call_stack.push(current_call_id);
+        self.call_depth += 1;
+
+        // Update gas tracking
+        self.gas_remaining = self.gas_remaining.saturating_sub(gas_limit);
+
+        Ok(())
+    }
+
+    /// Handle completion of a delegate call
+    fn complete_delegate_call(&mut self, gas_used: U256) -> Result<()> {
+        if let Some(current_call_id) = self.call_stack.pop() {
+            // Update gas usage for the current call
+            let current_call = &mut self.runtime.delegate_calls[current_call_id];
+            current_call.gas_used = gas_used;
+            
+            // Return unused gas to parent
+            let unused_gas = current_call.gas_limit.saturating_sub(gas_used);
+            self.gas_remaining = self.gas_remaining.saturating_add(unused_gas);
+
+            // Decrease call depth
+            self.call_depth = self.call_depth.saturating_sub(1);
+
+            // If we have a parent call, update its gas tracking
+            if let Some(parent_id) = current_call.parent_call_id {
+                let parent_call = &mut self.runtime.delegate_calls[parent_id];
+                parent_call.gas_used = parent_call.gas_used.saturating_add(gas_used);
+            }
+        } else {
+            self.warnings.push(String::from("Call stack underflow when completing delegate call"));
+        }
         Ok(())
     }
 
@@ -121,7 +186,6 @@ impl BytecodeAnalyzer {
         let bytecode = bytecode.as_ref();
         let mut stack: Vec<U256> = Vec::new();
         let mut has_external_call = false;
-
         while pc < bytecode.len() as u64 {
             match bytecode[pc as usize] {
                 0x01 => { // ADD
@@ -221,6 +285,17 @@ impl BytecodeAnalyzer {
                     }
                     pc += 1;
                 }
+                0x3e => { // RETURNDATACOPY
+                    if stack.len() < 3 {
+                        self.warnings.push(String::from("Stack underflow in RETURNDATACOPY operation"));
+                    } else {
+                        let size = stack.pop().unwrap();
+                        let dest_offset = stack.pop().unwrap();
+                        let _ = stack.pop(); // offset
+                        self.record_memory_access(dest_offset, size, true, None)?;
+                    }
+                    pc += 1;
+                }
                 0x54 => { // SLOAD
                     if !stack.is_empty() {
                         let slot = stack.pop().unwrap();
@@ -281,20 +356,100 @@ impl BytecodeAnalyzer {
                     }
                     pc += 1;
                 }
+                0x5a => { // GAS
+                    // Push remaining gas onto stack
+                    stack.push(self.gas_remaining);
+                    pc += 1;
+                }
                 0xf1 | 0xf2 | 0xf4 => { // CALL, CALLCODE, DELEGATECALL
                     has_external_call = true;
                     self.memory.record_external_call(pc as usize);
                     if bytecode[pc as usize] == 0xf4 {
-                        self.record_delegate_call(pc, &stack)?;
-                        
-                        // Pop the stack items
+                        println!("Found DELEGATECALL at pc: {}, stack size: {}", pc, stack.len());
                         if stack.len() >= 6 {
+                            // First record the delegate call
+                            self.record_delegate_call(pc, &stack)?;
+                            println!("Recorded delegate call, current depth: {}, call stack: {:?}", self.call_depth, self.call_stack);
+                            
+                            // Pop the stack items AFTER recording (since record_delegate_call needs them)
                             for _ in 0..6 {
                                 stack.pop();
                             }
+                            
                             // Push success value (1 for now)
+                            // Note: In EVM, success value is 0 for failure, 1 for success
                             stack.push(U256::one());
+                            
+                            // Calculate gas used for this call
+                            let gas_used = U256::from(1_000_000)  // Initial gas
+                                .saturating_sub(self.gas_remaining);
+                            
+                            // Record gas usage for the current call
+                            if let Some(current_call_id) = self.call_stack.last() {
+                                self.runtime.delegate_calls[*current_call_id].gas_used = gas_used;
+                            }
+                            
+                            // Continue executing the next instruction
+                            pc += 1;
+                            continue;
+                        } else {
+                            println!("Stack underflow in DELEGATECALL! Stack size: {}", stack.len());
+                            self.warnings.push(String::from("Stack underflow in DELEGATECALL operation"));
+                            pc += 1;
+                            continue;
                         }
+                    }
+                    pc += 1;
+                }
+                0xf3 => { // RETURN
+                    if stack.len() < 2 {
+                        self.warnings.push(String::from("Stack underflow in RETURN operation"));
+                    } else {
+                        let size = stack.pop().unwrap();
+                        let offset = stack.pop().unwrap();
+                        self.record_memory_access(offset, size, false, None)?;
+                        
+                        // Calculate gas used for this call
+                        let gas_used = U256::from(1_000_000)  // Initial gas
+                            .saturating_sub(self.gas_remaining);
+                        
+                        println!("Found RETURN at pc: {}, call depth: {}, call stack: {:?}", pc, self.call_depth, self.call_stack);
+                        
+                        // Handle return from delegate call
+                        if !self.call_stack.is_empty() {
+                            self.complete_delegate_call(gas_used)?;
+                            println!("Completed delegate call, new depth: {}, call stack: {:?}", self.call_depth, self.call_stack);
+                            
+                            // Continue execution after returning from the call
+                            pc += 1;
+                            continue;
+                        }
+                        
+                        println!("Not in delegate call, ending execution");
+                        // If not in a delegate call, end execution
+                        break;
+                    }
+                    pc += 1;
+                }
+                0xfd => { // REVERT
+                    if stack.len() < 2 {
+                        self.warnings.push(String::from("Stack underflow in REVERT operation"));
+                    } else {
+                        let size = stack.pop().unwrap();
+                        let offset = stack.pop().unwrap();
+                        self.record_memory_access(offset, size, false, None)?;
+                        
+                        // Calculate gas used for this call
+                        let gas_used = U256::from(1_000_000)  // Initial gas
+                            .saturating_sub(self.gas_remaining);
+                        
+                        // Handle return from delegate call
+                        if !self.call_stack.is_empty() {
+                            self.complete_delegate_call(gas_used)?;
+                        }
+                        
+                        // End execution
+                        break;
                     }
                     pc += 1;
                 }

@@ -442,7 +442,7 @@ pub struct RuntimeAnalysisNewest {
 }
 
 /// Delegate call operation details
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DelegateCall {
     /// Target contract address
     pub target: H160,
@@ -458,4 +458,14 @@ pub struct DelegateCall {
     pub return_size: U256,
     /// State modifications during call
     pub state_modifications: Vec<StorageAccess>,
+    /// Parent call if this is a nested call
+    pub parent_call_id: Option<usize>,
+    /// Child calls made by this call
+    pub child_call_ids: Vec<usize>,
+    /// Gas limit for this call
+    pub gas_limit: U256,
+    /// Gas used by this call and its children
+    pub gas_used: U256,
+    /// Call depth in the call stack
+    pub depth: u32,
 }

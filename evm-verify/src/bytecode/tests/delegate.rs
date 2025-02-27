@@ -80,4 +80,53 @@ mod delegate_tests {
         Ok(())
     }
 
+    #[test]
+    fn test_recursive_delegate_calls() -> Result<()> {
+        // Create bytecode with nested DELEGATECALL (0xF4)
+        let bytecode = Bytes::from(hex!(
+            // First DELEGATECALL
+            "6020"  // PUSH1 32 (out_size)
+            "6020"  // PUSH1 32 (out_offset) 
+            "6020"  // PUSH1 32 (in_size)
+            "6000"  // PUSH1 0 (in_offset)
+            "73FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"  // PUSH20 target_address
+            "5A"    // GAS - Get remaining gas
+            "F4"    // DELEGATECALL
+            "50"    // POP - Remove success value from first call
+            
+            // Second DELEGATECALL
+            "6020"  // PUSH1 32 (out_size)
+            "6020"  // PUSH1 32 (out_offset)
+            "6020"  // PUSH1 32 (in_size) 
+            "6000"  // PUSH1 0 (in_offset)
+            "73EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"  // PUSH20 different_target
+            "5A"    // GAS - Get remaining gas
+            "F4"    // DELEGATECALL
+            
+            // Return from both calls
+            "6000"  // PUSH1 0 (size)
+            "6000"  // PUSH1 0 (offset)
+            "F3"    // RETURN
+        ));
+
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let runtime = analyzer.analyze()?;
+
+        // Verify we have two delegate calls
+        assert_eq!(runtime.delegate_calls.len(), 2, "Should track two delegate calls");
+
+        // First call should be parent
+        let parent_call = &runtime.delegate_calls[0];
+        assert!(parent_call.parent_call_id.is_none(), "First call should have no parent");
+        assert_eq!(parent_call.child_call_ids.len(), 1, "First call should have one child");
+        assert_eq!(parent_call.depth, 0, "First call should be at depth 0");
+
+        // Second call should be child
+        let child_call = &runtime.delegate_calls[1];
+        assert_eq!(child_call.parent_call_id, Some(0), "Second call should have parent id 0");
+        assert!(child_call.child_call_ids.is_empty(), "Child call should have no children");
+        assert_eq!(child_call.depth, 1, "Child call should be at depth 1");
+
+        Ok(())
+    }
 }
