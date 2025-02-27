@@ -1,9 +1,23 @@
-use anyhow::Result;
-use ethers::{
-    providers::{Http, Provider},
-    types::{Address, TransactionReceipt},
-};
 use std::sync::Arc;
+use ethers::{
+    providers::{Provider, Http},
+    types::{Address, TransactionReceipt, H256},
+};
+use anyhow::Result;
+
+pub mod proof;
+pub mod trie;
+
+#[cfg(test)]
+mod tests {
+    pub(crate) use super::*;
+    pub(crate) use ethers::types::{Address, H256, U256};
+    pub(crate) use std::collections::HashMap;
+    pub(crate) use hex_literal::hex;
+    
+    mod proof_tests;
+    mod trie_tests;
+}
 
 /// Interface to Ethereum network
 pub struct EthereumConnector {
