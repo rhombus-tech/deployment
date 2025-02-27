@@ -7,6 +7,7 @@ use anyhow::Result;
 
 pub mod proof;
 pub mod trie;
+pub mod etherscan;
 
 #[cfg(test)]
 mod tests {

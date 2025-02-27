@@ -1,0 +1,30 @@
+{
+  "contract_name": "ComprehensiveAnalysis",
+  "timestamp": "2025-02-27T13:56:12.527548-05:00",
+  "code_length": 368,
+  "memory_access_count": 6,
+  "storage_access_count": 0,
+  "warnings": [
+    "Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy",
+    "Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy"
+  ],
+  "delegate_calls": [
+    {
+      "pc": 0,
+      "target": "0x0000000000000000000000000000000000000000",
+      "depth": 0
+    },
+    {
+      "pc": 0,
+      "target": "0x0000000000000000000000000000000000000000",
+      "depth": 1
+    }
+  ],
+  "severity_summary": {
+    "critical": 0,
+    "high": 2,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  }
+}

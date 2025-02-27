@@ -17,12 +17,21 @@ pcd = { path = "./pcd" }
 pcc = { path = "../verify/pcc" }
 
 # Ethereum
-ethers = { version = "2.0", features = ["ws"] }
+ethers = { version = "2.0", features = ["abigen", "ws", "rustls"] }
+ethers-core = "2.0"
+ethers-providers = "2.0"
+ethers-solc = "2.0"
 ethereum-types = "0.14"
 rlp = "0.5"
 tiny-keccak = { version = "2.0", features = ["keccak"] }
 hex = "0.4"
 hex-literal = "0.4"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+
+# Async runtime
+tokio = { version = "1.29", features = ["full"] }
 
 # Cryptographic proof systems
 ark-ff = "0.4"
@@ -33,9 +42,11 @@ ark-r1cs-std = "0.4"
 ark-relations = "0.4"
 ark-groth16 = "0.4"
 ark-snark = "0.4.0"
+ark-serialize = "0.4"
 
 # Error handling and utilities
 anyhow = "1.0"
+thiserror = "1.0"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -44,15 +55,16 @@ serde_json = "1.0"
 # Randomness
 rand = "0.8"
 
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
-
 # CLI
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.3", features = ["derive"] }
 
-# Temporary files for testing
-tempfile = "3.8"
+# Environment variables
+dotenv = "0.15"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
 hex-literal = "0.4"
+proptest = "1.2"

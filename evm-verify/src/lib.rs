@@ -18,6 +18,7 @@ pub mod circuits;
 pub mod common;
 pub mod ethereum;
 pub mod prover;
+pub mod report;
 pub mod utils;
 // pub mod pcd;
 

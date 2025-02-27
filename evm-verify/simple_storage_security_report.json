@@ -1,0 +1,36 @@
+{
+  "contract_name": "SimpleStorage",
+  "timestamp": "2025-02-27T13:41:43.963551-05:00",
+  "code_length": 336,
+  "memory_access_count": 4,
+  "storage_access_count": 0,
+  "warnings": [
+    "Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state",
+    "Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state",
+    "Potential reentrancy vulnerability detected: state changes after external call to 0xd32c87e169f58eadbe78210dd74d95e1fe0426456976e43a082e0828424c77ae",
+    "Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy",
+    "Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state",
+    "Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state",
+    "Potential reentrancy vulnerability detected: state changes after external call to 0x51e1e33dcdcfc80f76d4d54bde0fb5e0279c17a2f5dca889e6e004a69d8be97d",
+    "Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy"
+  ],
+  "delegate_calls": [
+    {
+      "pc": 0,
+      "target": "0x0000000000000000000000000000000000000000",
+      "depth": 0
+    },
+    {
+      "pc": 0,
+      "target": "0x0000000000000000000000000000000000000000",
+      "depth": 1
+    }
+  ],
+  "severity_summary": {
+    "critical": 0,
+    "high": 8,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  }
+}

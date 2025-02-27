@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Analysis: SimpleStorage</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; color: #333; }
+    h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    h2 { color: #2980b9; margin-top: 30px; }
+    h3 { color: #3498db; }
+    .summary { background-color: #f8f9fa; padding: 15px; border-radius: 5px; }
+    .critical { color: #e74c3c; }
+    .high { color: #e67e22; }
+    .medium { color: #f39c12; }
+    .low { color: #27ae60; }
+    .info { color: #3498db; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background-color: #f2f2f2; }
+    tr:hover { background-color: #f5f5f5; }
+    .finding { background-color: #f8f9fa; padding: 15px; margin: 10px 0; border-left: 4px solid #3498db; }
+  </style>
+</head>
+<body>
+  <h1>Security Analysis Report: SimpleStorage</h1>
+  <div class="summary">
+    <h2>Summary</h2>
+    <p>
+      <strong>Contract:</strong> SimpleStorage<br>
+      <strong>Analysis Date:</strong> 2025-02-27T13:41:43.965190-05:00<br>
+      <strong>Code Size:</strong> 336 bytes<br>
+      <strong>Memory Accesses:</strong> 4<br>
+      <strong>Storage Accesses:</strong> 0<br>
+      <strong>Total Issues:</strong> 16
+    </p>
+  </div>
+  <h2>Severity Breakdown</h2>
+  <table>
+    <tr><th>Severity</th><th>Count</th></tr>
+    <tr><td class="critical">Critical</td><td>0</td></tr>
+    <tr><td class="high">High</td><td>16</td></tr>
+    <tr><td class="medium">Medium</td><td>0</td></tr>
+    <tr><td class="low">Low</td><td>0</td></tr>
+    <tr><td class="info">Informational</td><td>0</td></tr>
+  </table>
+  <h2>Findings</h2>
+  <div class="finding">
+    <h3>Issue #1</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #2</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #3</h3>
+    <p>Potential reentrancy vulnerability detected: state changes after external call to 0xd32c87e169f58eadbe78210dd74d95e1fe0426456976e43a082e0828424c77ae</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #4</h3>
+    <p>Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #5</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #6</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #7</h3>
+    <p>Potential reentrancy vulnerability detected: state changes after external call to 0x51e1e33dcdcfc80f76d4d54bde0fb5e0279c17a2f5dca889e6e004a69d8be97d</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #8</h3>
+    <p>Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #9</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #10</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #11</h3>
+    <p>Potential reentrancy vulnerability detected: state changes after external call to 0x9f4445f16429a1b59d9205bdc829435cef67ebe81af9e9bbaec50beaffaa2fb2</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #12</h3>
+    <p>Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #13</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #14</h3>
+    <p>Potential cross-function reentrancy vulnerability detected: external call could reenter through a different function that modifies the same state</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #15</h3>
+    <p>Potential reentrancy vulnerability detected: state changes after external call to 0x7c51fb1b17c3890905fa9e7d52590e2da69cc500b8a9432366782dfc1a6256b5</p>
+  </div>
+  <div class="finding">
+    <h3>Issue #16</h3>
+    <p>Potential read-only reentrancy vulnerability detected: view function relies on storage that could be manipulated during reentrancy</p>
+  </div>
+  <h2>Delegate Calls</h2>
+  <table>
+    <tr><th>PC</th><th>Target</th><th>Depth</th></tr>
+    <tr><td>0</td><td>0x0000000000000000000000000000000000000000</td><td>0</td></tr>
+    <tr><td>0</td><td>0x0000000000000000000000000000000000000000</td><td>1</td></tr>
+  </table>
+  <h2>Recommendations</h2>
+  <ol>
+    <li>Review all potential reentrancy vulnerabilities and ensure proper guards are in place</li>
+    <li>Implement checks for arithmetic operations to prevent overflow/underflow</li>
+    <li>Carefully audit delegate calls to ensure they cannot be exploited</li>
+    <li>Follow the checks-effects-interactions pattern for all external calls</li>
+    <li>Consider using OpenZeppelin's security contracts for standardized protections</li>
+  </ol>
+</body>
+</html>

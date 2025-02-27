@@ -1806,4 +1806,46 @@ impl BytecodeAnalyzer {
     pub fn set_test_mode(&mut self, test_mode: bool) {
         self.test_mode = test_mode;
     }
+
+    /// Generate a security report for the analyzed bytecode
+    pub fn generate_report(&mut self, contract_name: String, format: crate::report::ReportFormat) -> Result<String> {
+        // Make sure we have analysis results
+        if self.bytecode.is_empty() {
+            return Err(anyhow!("No bytecode has been analyzed yet"));
+        }
+
+        // Analyze bytecode if not already done
+        let results = self.analyze()?;
+        
+        // Create report generator
+        let generator = crate::report::ReportGenerator::new(
+            results,
+            contract_name,
+            format
+        );
+        
+        // Generate report
+        generator.generate()
+    }
+
+    /// Save a security report to a file
+    pub fn save_report_to_file(&mut self, contract_name: String, format: crate::report::ReportFormat, path: &std::path::Path) -> Result<()> {
+        // Make sure we have analysis results
+        if self.bytecode.is_empty() {
+            return Err(anyhow!("No bytecode has been analyzed yet"));
+        }
+
+        // Analyze bytecode if not already done
+        let results = self.analyze()?;
+        
+        // Create report generator
+        let generator = crate::report::ReportGenerator::new(
+            results,
+            contract_name,
+            format
+        );
+        
+        // Save report to file
+        generator.save_to_file(path)
+    }
 }

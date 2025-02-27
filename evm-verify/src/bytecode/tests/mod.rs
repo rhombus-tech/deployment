@@ -17,6 +17,10 @@ mod solidity_checks;
 mod real_world_tests;
 #[cfg(test)]
 mod state_transitions;
+#[cfg(test)]
+mod mainnet_contracts;
+#[cfg(test)]
+mod live_contracts;
 
 #[cfg(test)]
 mod tests {
