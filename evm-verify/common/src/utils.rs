@@ -1,4 +1,4 @@
-use ark_ff::{Field, PrimeField};
+use ark_ff::{Field, Zero, PrimeField};
 use ethers::types::{H160, H256, U256};
 
 /// Convert bytes to field element

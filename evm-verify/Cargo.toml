@@ -11,7 +11,9 @@ members = [
 
 [dependencies]
 # Internal dependencies
-common = { path = "./common" }
+evm-verify-common = { path = "./common" }
+pcd = { path = "../verify/pcd" }
+pcc = { path = "../verify/pcc" }
 
 # Ethereum
 ethers = { version = "2.0", features = ["ws", "rustls"] }

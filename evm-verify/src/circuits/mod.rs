@@ -5,15 +5,19 @@ use crate::common::DeploymentData;
 
 pub mod access;
 pub mod constructor;
+pub mod evm_state;
 pub mod memory;
 pub mod state;
 pub mod storage;
+pub mod upgrade;
 
 use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
+use evm_state::EVMStateCircuit;
 use memory::MemorySafetyCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
+use upgrade::UpgradeVerificationCircuit;
 
 /// Circuit builder
 pub struct CircuitBuilder<F: PrimeField> {
@@ -51,6 +55,14 @@ impl<F: PrimeField> CircuitBuilder<F> {
         )
     }
 
+    /// Build EVM state circuit
+    pub fn build_evm_state(&self) -> EVMStateCircuit<F> {
+        EVMStateCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
     /// Build memory safety circuit
     pub fn build_memory_safety(&self) -> MemorySafetyCircuit<F> {
         MemorySafetyCircuit::new(
@@ -71,6 +83,15 @@ impl<F: PrimeField> CircuitBuilder<F> {
     pub fn build_storage(&self) -> StorageCircuit<F> {
         StorageCircuit::new(
             self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
+    /// Build upgrade verification circuit
+    pub fn build_upgrade_verification(&self, new_deployment: DeploymentData) -> UpgradeVerificationCircuit<F> {
+        UpgradeVerificationCircuit::new(
+            self.deployment.clone(),
+            new_deployment,
             self.runtime.clone(),
         )
     }

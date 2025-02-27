@@ -8,6 +8,6 @@ name = "contracts"
 path = "src/lib.rs"
 
 [dependencies]
-common = { path = "../common" }
+evm-verify-common = { path = "../common" }
 ethers = "2.0"
 anyhow = "1.0"

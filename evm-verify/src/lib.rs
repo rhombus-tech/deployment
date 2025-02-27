@@ -18,6 +18,7 @@ pub mod common;
 pub mod ethereum;
 pub mod prover;
 pub mod utils;
+// pub mod pcd;
 
 /// Generate proving key
 pub fn generate_proving_key<C>(circuit: C) -> <Groth16<Bn254> as SNARK<Fr>>::ProvingKey
