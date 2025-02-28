@@ -128,6 +128,10 @@ pub enum SecurityWarningKind {
     DelegateCallInConstructor,
     /// Other security issue
     Other(String),
+    /// Unchecked external call
+    UncheckedExternalCall,
+    /// Gas limit issue
+    GasLimitIssue,
 }
 
 /// Security severity level
@@ -330,18 +334,54 @@ impl SecurityWarning {
 
     /// Create an unchecked external call warning
     pub fn unchecked_external_call(pc: u64, target: H256, value: U256) -> Self {
-        Self::new(
-            SecurityWarningKind::UncheckedCallReturn,
-            SecuritySeverity::Medium,
+        Self {
+            kind: SecurityWarningKind::UncheckedExternalCall,
+            severity: SecuritySeverity::Medium,
             pc,
-            "External call return value not checked. This could lead to silent failures.".to_string(),
-            vec![Operation::ExternalCall {
+            description: format!("Unchecked external call at position {}. The return value of the call is not checked.", pc),
+            operations: vec![Operation::ExternalCall {
                 target,
                 value,
                 data: vec![],
             }],
-            "Always check the return value of external calls and handle potential failures.".to_string(),
-        )
+            remediation: "Always check the return value of external calls to handle potential failures.".to_string(),
+        }
+    }
+    
+    /// Create a simplified unchecked call warning
+    pub fn unchecked_call(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::UncheckedCallReturn,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: format!("Unchecked external call at position {}. The return value of the call is not checked.", pc),
+            operations: vec![],
+            remediation: "Always check the return value of external calls to handle potential failures.".to_string(),
+        }
+    }
+    
+    /// Create a tx.origin usage warning
+    pub fn txorigin_usage(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::TxOriginUsage,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: format!("tx.origin usage detected at position {}. This can be vulnerable to phishing attacks.", pc),
+            operations: vec![],
+            remediation: "Use msg.sender instead of tx.origin for authorization checks.".to_string(),
+        }
+    }
+    
+    /// Create a gas limit issue warning
+    pub fn gas_limit_issue(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GasLimitIssue,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: format!("Gas limit dependency detected at position {}. This may lead to unpredictable behavior as gas limits can change.", pc),
+            operations: vec![],
+            remediation: "Avoid relying on block gas limit for critical contract logic as it can change over time.".to_string(),
+        }
     }
 }
 

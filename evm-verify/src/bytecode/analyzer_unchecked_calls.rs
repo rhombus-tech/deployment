@@ -1,5 +1,4 @@
 use anyhow::Result;
-use ethers::types::{H256, U256};
 
 use crate::bytecode::security::SecurityWarning;
 use crate::bytecode::analyzer::BytecodeAnalyzer;
@@ -35,11 +34,7 @@ impl BytecodeAnalyzer {
                 if !return_checked {
                     // For simplicity, use default values for target and value
                     // In a real implementation, we would extract these from the stack
-                    let warning = SecurityWarning::unchecked_external_call(
-                        i as u64,
-                        H256::zero(),
-                        U256::zero()
-                    );
+                    let warning = SecurityWarning::unchecked_call(i as u64);
                     
                     println!("Adding unchecked call warning at position {}", i);
                     warnings.push(warning);

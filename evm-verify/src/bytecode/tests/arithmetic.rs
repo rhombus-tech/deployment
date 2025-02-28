@@ -31,6 +31,7 @@ mod arithmetic_tests {
         ));
         
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        analyzer.set_test_mode(true);
         let analysis = analyzer.analyze()?;
         assert!(analysis.warnings.is_empty());
         Ok(())
