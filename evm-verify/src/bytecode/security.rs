@@ -11,6 +11,11 @@ pub enum Operation {
         /// Value written
         value: U256,
     },
+    /// Storage read operation
+    StorageRead {
+        /// Storage slot
+        slot: H256,
+    },
     /// Delegate call operation
     DelegateCall {
         /// Target address
@@ -53,24 +58,24 @@ pub enum Operation {
         /// Value sent
         value: U256,
     },
+    /// Block information operation
+    BlockInformation {
+        /// Type of block information
+        info_type: String,
+    },
+    /// Transaction information operation
+    TransactionInformation {
+        /// Type of transaction information
+        info_type: String,
+    },
+    /// Arithmetic operation
+    Arithmetic {
+        /// Type of arithmetic operation
+        operation: String,
+    },
 }
 
-/// Security severity level
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum SecuritySeverity {
-    /// Informational issue
-    Info,
-    /// Low severity issue
-    Low,
-    /// Medium severity issue
-    Medium,
-    /// High severity issue
-    High,
-    /// Critical severity issue
-    Critical,
-}
-
-/// Security warning kind
+/// Security warning type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SecurityWarningKind {
     /// Reentrancy vulnerability
@@ -87,10 +92,16 @@ pub enum SecurityWarningKind {
     UnprotectedExternalCall,
     /// Unchecked return value
     UncheckedReturnValue,
+    /// Unchecked call return value
+    UncheckedCallReturn,
+    /// Multiple external calls
+    MultipleExternalCalls,
     /// Integer overflow/underflow
     IntegerOverflow,
     /// Use of tx.origin for authorization
     TxOriginAuth,
+    /// Use of tx.origin
+    TxOriginUsage,
     /// Uninitialized storage
     UninitializedStorage,
     /// Unprotected state variable
@@ -99,14 +110,39 @@ pub enum SecurityWarningKind {
     ArbitraryJump,
     /// Timestamp dependence
     TimestampDependence,
+    /// Timestamp manipulation
+    TimestampManipulation,
     /// Block number dependence
     BlockNumberDependence,
+    /// Front-running vulnerability
+    FrontRunning,
+    /// Price manipulation vulnerability
+    PriceManipulation,
     /// Unchecked math
     UncheckedMath,
     /// Unused return value
     UnusedReturnValue,
+    /// Delegate call misuse
+    DelegateCallMisuse,
+    /// Delegate call in constructor
+    DelegateCallInConstructor,
     /// Other security issue
     Other(String),
+}
+
+/// Security severity level
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SecuritySeverity {
+    /// Informational issue
+    Info,
+    /// Low severity issue
+    Low,
+    /// Medium severity issue
+    Medium,
+    /// High severity issue
+    High,
+    /// Critical severity issue
+    Critical,
 }
 
 /// Security warning
@@ -265,6 +301,30 @@ impl SecurityWarning {
             format!("Unprotected state variable write detected at slot {:?}", slot),
             vec![Operation::StorageWrite { slot, value: U256::zero() }],
             "Add access control to state-changing operations".to_string(),
+        )
+    }
+
+    /// Create a delegate call misuse warning
+    pub fn delegate_call_misuse(pc: u64, target: H256, data: Vec<u8>) -> Self {
+        Self::new(
+            SecurityWarningKind::DelegateCallMisuse,
+            SecuritySeverity::Medium,
+            pc,
+            format!("Delegate call misuse detected"),
+            vec![Operation::DelegateCall { target, data }],
+            "Review delegate call usage and ensure it's not being misused".to_string(),
+        )
+    }
+
+    /// Create a delegate call in constructor warning
+    pub fn delegate_call_in_constructor(pc: u64, target: H256, data: Vec<u8>) -> Self {
+        Self::new(
+            SecurityWarningKind::DelegateCallInConstructor,
+            SecuritySeverity::High,
+            pc,
+            format!("Delegate call in constructor detected at position {}. This can lead to unexpected behavior.", pc),
+            vec![Operation::DelegateCall { target, data }],
+            "Avoid using delegate calls in constructors as they can lead to unexpected behavior".to_string(),
         )
     }
 }

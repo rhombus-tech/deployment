@@ -186,6 +186,11 @@ impl MemoryAnalyzer {
         })
     }
 
+    /// Get all memory accesses
+    pub fn get_accesses(&self) -> &Vec<MemoryAccess> {
+        &self.accesses
+    }
+
     /// Check for reentrancy vulnerability
     /// Returns true if a reentrancy vulnerability is detected
     pub fn has_reentrancy_vulnerability(&self) -> bool {
