@@ -139,6 +139,12 @@ pub enum SecurityWarningKind {
     IntegerUnderflow,
     /// Integer overflow vulnerability
     IntegerOverflow,
+    /// Inconsistent access control patterns
+    InconsistentAccessControl,
+    /// Weak access control implementation
+    WeakAccessControl,
+    /// Hardcoded address in access control
+    HardcodedAccessControl,
 }
 
 /// Security severity level
@@ -397,9 +403,45 @@ impl SecurityWarning {
             SecurityWarningKind::AccessControl,
             SecuritySeverity::High,
             pc,
-            "Missing or insufficient access control detected".to_string(),
+            "Missing access control for sensitive operation".to_string(),
             vec![],
-            "Implement proper access controls for sensitive operations".to_string(),
+            "Implement proper access control checks before sensitive operations".to_string(),
+        )
+    }
+
+    /// Create a weak access control warning
+    pub fn weak_access_control(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::WeakAccessControl,
+            SecuritySeverity::High,
+            pc,
+            format!("Weak access control pattern detected at position {}. Using tx.origin for authentication is unsafe.", pc),
+            vec![],
+            "Replace tx.origin with msg.sender for authentication checks.".to_string(),
+        )
+    }
+
+    /// Create an inconsistent access control warning
+    pub fn inconsistent_access_control(pc: u64, protected_ops: usize, unprotected_ops: usize) -> Self {
+        Self::new(
+            SecurityWarningKind::InconsistentAccessControl,
+            SecuritySeverity::Medium,
+            pc,
+            format!("Inconsistent access control detected: {} operations are protected while {} similar operations are unprotected", protected_ops, unprotected_ops),
+            vec![],
+            "Apply consistent access control patterns across similar operations.".to_string(),
+        )
+    }
+
+    /// Create a hardcoded access control warning
+    pub fn hardcoded_access_control(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::HardcodedAccessControl,
+            SecuritySeverity::Medium,
+            pc,
+            format!("Hardcoded address used in access control at position {}. This may cause issues if the contract needs to be upgraded.", pc),
+            vec![],
+            "Use a modifiable access control scheme such as role-based access control.".to_string(),
         )
     }
 
