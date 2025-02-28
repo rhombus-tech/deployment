@@ -259,6 +259,16 @@ impl BytecodeAnalyzer {
                     security_warnings.push(warning);
                 }
             }
+            
+            // Detect unprotected self-destruct operations
+            if let Ok(selfdestruct_warnings) = self.detect_self_destruct() {
+                println!("Got {} self-destruct warnings", selfdestruct_warnings.len());
+                for warning in selfdestruct_warnings {
+                    println!("Adding self-destruct warning: {}", warning.description);
+                    warnings.push(warning.description.clone());
+                    security_warnings.push(warning);
+                }
+            }
         }
         
         // Detect bitmask operations
@@ -2269,6 +2279,32 @@ impl BytecodeAnalyzer {
             warnings.push(warning);
         }
         
-        Ok(warnings)
+        Ok(warnings)}
+
+    /// Determine if a self-destruct might be unsafe (simplified heuristic)
+    fn is_potentially_unsafe_selfdestruct(&self, location: usize, bytecode: &[u8]) -> bool {
+        // Check the previous opcodes to see where the address comes from
+        // This is a very simplified heuristic
+        
+        // Look back up to 10 instructions to see if the address comes from user input or storage
+        let start = if location > 10 { location - 10 } else { 0 };
+        
+        for i in start..location {
+            match bytecode[i] {
+                // If address comes from calldata, it might be user-controlled
+                0x35 => return true, // CALLDATALOAD
+                
+                // If address comes from storage, it might be changeable
+                0x54 => return true, // SLOAD
+                
+                // Other potentially unsafe sources
+                0x3b | 0x3c | 0x3e => return true, // EXTCODESIZE, EXTCODECOPY, RETURNDATACOPY
+                
+                _ => {}
+            }
+        }
+        
+        // If we can't determine for sure, be conservative and flag it
+        true
     }
 }

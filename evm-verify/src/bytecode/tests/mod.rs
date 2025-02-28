@@ -19,6 +19,8 @@ mod real_world_tests;
 mod state_transitions;
 #[cfg(test)]
 mod security_checks;
+#[cfg(test)]
+mod self_destruct;
 
 #[cfg(test)]
 mod tests {

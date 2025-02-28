@@ -266,9 +266,9 @@ impl SecurityWarning {
             SecurityWarningKind::UnprotectedSelfDestruct,
             SecuritySeverity::Critical,
             pc,
-            format!("Unprotected self destruct operation detected"),
+            format!("Unprotected self destruct operation detected at position {}. This can be called by anyone to destroy the contract.", pc),
             vec![Operation::SelfDestruct { beneficiary }],
-            "Add access control to self destruct operations".to_string(),
+            "Add access control checks (e.g., onlyOwner modifier) before self-destruct operations.".to_string(),
         )
     }
 

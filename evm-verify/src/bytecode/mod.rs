@@ -7,6 +7,7 @@ pub mod analyzer_unchecked_calls;
 pub mod analyzer_txorigin;
 pub mod analyzer_gas_limit;
 pub mod analyzer_arithmetic;
+pub mod analyzer_self_destruct;
 #[cfg(test)]
 pub mod tests;
 
