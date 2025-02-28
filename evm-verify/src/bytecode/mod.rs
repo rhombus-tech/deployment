@@ -9,6 +9,7 @@ pub mod analyzer_gas_limit;
 pub mod analyzer_arithmetic;
 pub mod analyzer_self_destruct;
 pub mod analyzer_access_control;
+pub mod analyzer_underflow;
 #[cfg(test)]
 pub mod tests;
 

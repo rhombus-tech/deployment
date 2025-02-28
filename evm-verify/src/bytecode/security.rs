@@ -134,6 +134,8 @@ pub enum SecurityWarningKind {
     GasLimitIssue,
     /// Access control vulnerability
     AccessControl,
+    /// Integer underflow vulnerability
+    IntegerUnderflow,
 }
 
 /// Security severity level
@@ -395,6 +397,18 @@ impl SecurityWarning {
             "Missing or insufficient access control detected".to_string(),
             vec![],
             "Implement proper access controls for sensitive operations".to_string(),
+        )
+    }
+
+    /// Create an integer underflow vulnerability warning
+    pub fn integer_underflow(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::IntegerUnderflow,
+            SecuritySeverity::High,
+            pc,
+            "Potential integer underflow detected".to_string(),
+            vec![],
+            "Implement checks before subtraction operations or use SafeMath".to_string(),
         )
     }
 }

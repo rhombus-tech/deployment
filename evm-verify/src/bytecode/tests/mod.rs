@@ -23,6 +23,8 @@ mod security_checks;
 mod self_destruct;
 #[cfg(test)]
 mod access_control;
+#[cfg(test)]
+mod underflow;
 
 #[cfg(test)]
 mod tests {
