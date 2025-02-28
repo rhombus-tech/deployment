@@ -1,7 +1,6 @@
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
+use crate::bytecode::security::SecurityWarning;
 use crate::bytecode::analyzer::BytecodeAnalyzer;
 use crate::bytecode::opcodes::*;
-use ethers::types::Bytes;
 
 /// Detects potential access control vulnerabilities in EVM bytecode.
 /// 
@@ -228,6 +227,8 @@ fn is_address_like(bytes: &[u8]) -> bool {
 mod tests {
     use super::*;
     use crate::bytecode::analyzer::BytecodeAnalyzer;
+    use crate::bytecode::security::SecurityWarningKind;
+    use ethers::types::Bytes;
 
     #[test]
     fn test_detect_missing_access_control() {
