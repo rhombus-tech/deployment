@@ -132,6 +132,8 @@ pub enum SecurityWarningKind {
     UncheckedExternalCall,
     /// Gas limit issue
     GasLimitIssue,
+    /// Access control vulnerability
+    AccessControl,
 }
 
 /// Security severity level
@@ -374,14 +376,26 @@ impl SecurityWarning {
     
     /// Create a gas limit issue warning
     pub fn gas_limit_issue(pc: u64) -> Self {
-        Self {
-            kind: SecurityWarningKind::GasLimitIssue,
-            severity: SecuritySeverity::Medium,
+        Self::new(
+            SecurityWarningKind::GasLimitIssue,
+            SecuritySeverity::Medium,
             pc,
-            description: format!("Gas limit dependency detected at position {}. This may lead to unpredictable behavior as gas limits can change.", pc),
-            operations: vec![],
-            remediation: "Avoid relying on block gas limit for critical contract logic as it can change over time.".to_string(),
-        }
+            "Gas limit issue detected".to_string(),
+            vec![],
+            "Consider optimizing gas usage or using smaller batches".to_string(),
+        )
+    }
+
+    /// Create an access control vulnerability warning
+    pub fn access_control_vulnerability(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::AccessControl,
+            SecuritySeverity::High,
+            pc,
+            "Missing or insufficient access control detected".to_string(),
+            vec![],
+            "Implement proper access controls for sensitive operations".to_string(),
+        )
     }
 }
 

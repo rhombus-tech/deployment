@@ -281,6 +281,16 @@ impl BytecodeAnalyzer {
             }
         }
         
+        // Detect access control vulnerabilities
+        if let Ok(access_control_warnings) = self.detect_access_control_vulnerabilities() {
+            println!("Got {} access control warnings", access_control_warnings.len());
+            for warning in access_control_warnings {
+                println!("Adding access control warning: {}", warning.description);
+                warnings.push(warning.description.clone());
+                security_warnings.push(warning);
+            }
+        }
+        
         // Add the security warnings to the analysis
         println!("Final warnings count: {}", warnings.len());
         analysis.warnings = warnings;
@@ -2282,29 +2292,59 @@ impl BytecodeAnalyzer {
         Ok(warnings)}
 
     /// Determine if a self-destruct might be unsafe (simplified heuristic)
-    fn is_potentially_unsafe_selfdestruct(&self, location: usize, bytecode: &[u8]) -> bool {
-        // Check the previous opcodes to see where the address comes from
-        // This is a very simplified heuristic
+    pub fn is_potentially_unsafe_selfdestruct(&self, location: usize, bytecode: &[u8]) -> bool {
+        // Look for access control patterns before this location
+        // This is a simplified heuristic and might need refinement
+        let start = if location > 50 { location - 50 } else { 0 };
         
-        // Look back up to 10 instructions to see if the address comes from user input or storage
-        let start = if location > 10 { location - 10 } else { 0 };
-        
+        // Check if there's any CALLER (0x33) followed by comparison in the preceding code
         for i in start..location {
-            match bytecode[i] {
-                // If address comes from calldata, it might be user-controlled
-                0x35 => return true, // CALLDATALOAD
-                
-                // If address comes from storage, it might be changeable
-                0x54 => return true, // SLOAD
-                
-                // Other potentially unsafe sources
-                0x3b | 0x3c | 0x3e => return true, // EXTCODESIZE, EXTCODECOPY, RETURNDATACOPY
-                
-                _ => {}
+            if i < bytecode.len() && bytecode[i] == 0x33 { // CALLER
+                // Look for comparison operations after CALLER
+                for j in i+1..min(i+10, location) {
+                    if j < bytecode.len() && (bytecode[j] == 0x14 || bytecode[j] == 0x11 || bytecode[j] == 0x10) {
+                        // Found a comparison after CALLER, likely an access control check
+                        return false;
+                    }
+                }
             }
         }
         
+        // Check the previous opcodes to see where the address comes from
+        // This is a very simplified heuristic
+        let start = if location > 10 { location - 10 } else { 0 };
+        
+        for i in start..location {
+            if i < bytecode.len() {
+                match bytecode[i] {
+                    // If address comes from calldata, it might be user-controlled
+                    0x35 => return true, // CALLDATALOAD
+                    
+                    // If address comes from storage, it might be changeable
+                    0x54 => return true, // SLOAD
+                    
+                    // Other potentially unsafe sources
+                    0x3b | 0x3c | 0x3e => return true, // EXTCODESIZE, EXTCODECOPY, RETURNDATACOPY
+                    
+                    _ => {}
+                }
+            }
+        }
+        
+        // No access control pattern found and no specific unsafe patterns detected
         // If we can't determine for sure, be conservative and flag it
         true
+    }
+    
+    /// Detect access control vulnerabilities
+    pub fn detect_access_control_vulnerabilities(&self) -> Result<Vec<SecurityWarning>> {
+        // Skip analysis if in test mode
+        if self.is_test_mode() {
+            return Ok(vec![]);
+        }
+        
+        // Use the analyzer_access_control module to detect vulnerabilities
+        let warnings = crate::bytecode::analyzer_access_control::detect_access_control_vulnerabilities(self);
+        Ok(warnings)
     }
 }

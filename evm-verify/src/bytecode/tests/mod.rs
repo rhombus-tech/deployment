@@ -21,6 +21,8 @@ mod state_transitions;
 mod security_checks;
 #[cfg(test)]
 mod self_destruct;
+#[cfg(test)]
+mod access_control;
 
 #[cfg(test)]
 mod tests {

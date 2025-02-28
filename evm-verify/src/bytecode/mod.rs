@@ -8,6 +8,7 @@ pub mod analyzer_txorigin;
 pub mod analyzer_gas_limit;
 pub mod analyzer_arithmetic;
 pub mod analyzer_self_destruct;
+pub mod analyzer_access_control;
 #[cfg(test)]
 pub mod tests;
 
