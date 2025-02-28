@@ -3,6 +3,9 @@ pub mod memory;
 pub mod types;
 pub mod security;
 pub mod access_control;
+pub mod analyzer_unchecked_calls;
+pub mod analyzer_txorigin;
+pub mod analyzer_gas_limit;
 #[cfg(test)]
 pub mod tests;
 

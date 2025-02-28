@@ -17,6 +17,8 @@ mod solidity_checks;
 mod real_world_tests;
 #[cfg(test)]
 mod state_transitions;
+#[cfg(test)]
+mod security_checks;
 
 #[cfg(test)]
 mod tests {

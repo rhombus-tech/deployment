@@ -327,6 +327,22 @@ impl SecurityWarning {
             "Avoid using delegate calls in constructors as they can lead to unexpected behavior".to_string(),
         )
     }
+
+    /// Create an unchecked external call warning
+    pub fn unchecked_external_call(pc: u64, target: H256, value: U256) -> Self {
+        Self::new(
+            SecurityWarningKind::UncheckedCallReturn,
+            SecuritySeverity::Medium,
+            pc,
+            "External call return value not checked. This could lead to silent failures.".to_string(),
+            vec![Operation::ExternalCall {
+                target,
+                value,
+                data: vec![],
+            }],
+            "Always check the return value of external calls and handle potential failures.".to_string(),
+        )
+    }
 }
 
 #[cfg(test)]

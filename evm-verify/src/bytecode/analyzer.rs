@@ -1917,6 +1917,16 @@ impl BytecodeAnalyzer {
         self.test_mode = test_mode;
     }
 
+    /// Check if test mode is enabled
+    pub fn is_test_mode(&self) -> bool {
+        self.test_mode
+    }
+
+    /// Get bytecode as a vector of bytes
+    pub fn get_bytecode_vec(&self) -> Vec<u8> {
+        self.bytecode.iter().copied().collect()
+    }
+
     /// Calculate the maximum memory usage based on memory accesses
     pub fn calculate_max_memory(&self) -> usize {
         let mut max_memory = 0;
