@@ -79,6 +79,14 @@ impl BytecodeAnalyzer {
     }
 }
 
+/// Standalone function to detect self-destruct vulnerabilities for API compatibility
+pub fn detect_self_destruct_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
+    match analyzer.detect_self_destruct() {
+        Ok(warnings) => warnings,
+        Err(_) => Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

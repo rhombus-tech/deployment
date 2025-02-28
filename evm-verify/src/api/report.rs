@@ -43,6 +43,7 @@ impl ReportFormatter {
         let mut medium = Vec::new();
         let mut low = Vec::new();
         let mut info = Vec::new();
+        let mut error = Vec::new();
         
         for vuln in &report.vulnerabilities {
             match vuln.severity {
@@ -51,6 +52,7 @@ impl ReportFormatter {
                 VulnerabilitySeverity::Medium => medium.push(vuln),
                 VulnerabilitySeverity::Low => low.push(vuln),
                 VulnerabilitySeverity::Info => info.push(vuln),
+                VulnerabilitySeverity::Error => error.push(vuln),
             }
         }
         
@@ -78,6 +80,11 @@ impl ReportFormatter {
         if !info.is_empty() {
             output.push_str(&format!("INFO: {} issues\n", info.len()));
             Self::format_vulnerabilities(&mut output, &info);
+        }
+        
+        if !error.is_empty() {
+            output.push_str(&format!("ERROR: {} issues\n", error.len()));
+            Self::format_vulnerabilities(&mut output, &error);
         }
         
         // Configuration
@@ -137,6 +144,7 @@ impl ReportFormatter {
         html.push_str("    .vuln-medium { background-color: #ffffee; border-left: 5px solid #ffcc00; padding: 10px; margin-bottom: 10px; }\n");
         html.push_str("    .vuln-low { background-color: #eeffee; border-left: 5px solid #00cc00; padding: 10px; margin-bottom: 10px; }\n");
         html.push_str("    .vuln-info { background-color: #eeeeff; border-left: 5px solid #0066ff; padding: 10px; margin-bottom: 10px; }\n");
+        html.push_str("    .vuln-error { background-color: #ffcccc; border-left: 5px solid #ff0000; padding: 10px; margin-bottom: 10px; }\n");
         html.push_str("  </style>\n");
         html.push_str("</head>\n");
         html.push_str("<body>\n");
@@ -162,6 +170,7 @@ impl ReportFormatter {
         let mut medium = Vec::new();
         let mut low = Vec::new();
         let mut info = Vec::new();
+        let mut error = Vec::new();
         
         for vuln in &report.vulnerabilities {
             match vuln.severity {
@@ -170,6 +179,7 @@ impl ReportFormatter {
                 VulnerabilitySeverity::Medium => medium.push(vuln),
                 VulnerabilitySeverity::Low => low.push(vuln),
                 VulnerabilitySeverity::Info => info.push(vuln),
+                VulnerabilitySeverity::Error => error.push(vuln),
             }
         }
         
@@ -197,6 +207,11 @@ impl ReportFormatter {
         if !info.is_empty() {
             html.push_str(&format!("  <h3>INFO: {} issues</h3>\n", info.len()));
             Self::format_vulnerabilities_html(&mut html, &info, "vuln-info");
+        }
+        
+        if !error.is_empty() {
+            html.push_str(&format!("  <h3>ERROR: {} issues</h3>\n", error.len()));
+            Self::format_vulnerabilities_html(&mut html, &error, "vuln-error");
         }
         
         // Configuration

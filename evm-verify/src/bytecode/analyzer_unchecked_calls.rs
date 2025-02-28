@@ -46,6 +46,14 @@ impl BytecodeAnalyzer {
     }
 }
 
+/// Standalone function to detect unchecked calls for API compatibility
+pub fn detect_unchecked_calls(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
+    match analyzer.detect_unchecked_calls() {
+        Ok(warnings) => warnings,
+        Err(_) => Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

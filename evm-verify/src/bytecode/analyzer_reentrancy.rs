@@ -58,3 +58,8 @@ pub fn detect_reentrancy(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
     // Return all detected warnings
     warnings
 }
+
+/// Alias for the detect_reentrancy function to maintain compatibility with the API module
+pub fn detect_reentrancy_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
+    detect_reentrancy(analyzer)
+}

@@ -73,6 +73,14 @@ impl BytecodeAnalyzer {
     }
 }
 
+/// Standalone function to detect gas limit vulnerabilities for API compatibility
+pub fn detect_gas_limit_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
+    match analyzer.detect_gas_limit_issues() {
+        Ok(warnings) => warnings,
+        Err(_) => Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

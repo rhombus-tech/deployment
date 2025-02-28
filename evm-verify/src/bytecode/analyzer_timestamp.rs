@@ -6,6 +6,32 @@
 use crate::bytecode::types::{AnalysisResults, TimestampDependency};
 use crate::bytecode::opcodes::{Opcode, TIMESTAMP};
 use anyhow::Result;
+use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
+use crate::bytecode::analyzer::BytecodeAnalyzer;
+
+/// Detect timestamp dependency vulnerabilities in bytecode
+pub fn detect_timestamp_dependencies(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
+    // Skip analysis if in test mode
+    if analyzer.is_test_mode() {
+        return vec![];
+    }
+    
+    let bytecode = analyzer.get_bytecode_vec();
+    let mut warnings = Vec::new();
+    
+    // Scan bytecode for TIMESTAMP opcode (0x42)
+    for i in 0..bytecode.len() {
+        if bytecode[i] == TIMESTAMP {
+            // Look ahead for comparison operations
+            if let Some(comparison_op) = TimestampDependencyDetector::find_comparison_after_timestamp(&bytecode[i+1..]) {
+                // Add a security warning for timestamp dependency
+                warnings.push(SecurityWarning::timestamp_dependence(i as u64));
+            }
+        }
+    }
+    
+    warnings
+}
 
 /// Timestamp dependency detector
 pub struct TimestampDependencyDetector;

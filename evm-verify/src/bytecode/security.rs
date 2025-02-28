@@ -456,6 +456,18 @@ impl SecurityWarning {
             "Implement checks before subtraction operations or use SafeMath".to_string(),
         )
     }
+
+    /// Create a timestamp dependence warning
+    pub fn timestamp_dependence(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::TimestampDependence,
+            SecuritySeverity::Medium,
+            pc,
+            "Timestamp dependency detected".to_string(),
+            vec![Operation::BlockInformation { info_type: "TIMESTAMP".to_string() }],
+            "Avoid using block.timestamp for critical operations as it can be manipulated by miners".to_string(),
+        )
+    }
 }
 
 #[cfg(test)]

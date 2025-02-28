@@ -69,6 +69,9 @@ pub enum VulnerabilitySeverity {
     
     /// Critical severity issue
     Critical,
+
+    /// Error (not a vulnerability, but an error in analysis)
+    Error,
 }
 
 impl VulnerabilitySeverity {
@@ -134,6 +137,9 @@ pub enum VulnerabilityType {
     
     /// Unknown vulnerability type
     Unknown,
+
+    /// Other vulnerability type
+    Other,
 }
 
 /// Location of a vulnerability in the bytecode
