@@ -97,9 +97,11 @@ impl ReportFormatter {
     /// Format vulnerabilities for text output
     fn format_vulnerabilities(output: &mut String, vulnerabilities: &[&Vulnerability]) {
         for (i, vuln) in vulnerabilities.iter().enumerate() {
-            output.push_str(&format!("  {}. {}\n", i + 1, vuln.title));
-            output.push_str(&format!("     Description: {}\n", vuln.description));
-            output.push_str(&format!("     Recommendation: {}\n\n", vuln.recommendation));
+            output.push_str(&format!("{}. {}\n", i + 1, vuln.title));
+            output.push_str(&format!("   Severity: {:?}\n", vuln.severity));
+            output.push_str(&format!("   Type: {:?}\n", vuln.vulnerability_type));
+            output.push_str(&format!("   Description: {}\n", vuln.description));
+            output.push_str(&format!("   Recommendation: {}\n\n", vuln.recommendation));
         }
     }
     
@@ -219,11 +221,13 @@ impl ReportFormatter {
     /// Format vulnerabilities for HTML output
     fn format_vulnerabilities_html(html: &mut String, vulnerabilities: &[&Vulnerability], class: &str) {
         for vuln in vulnerabilities {
-            html.push_str(&format!("  <div class=\"{}\">\n", class));
-            html.push_str(&format!("    <h4>{}</h4>\n", vuln.title));
-            html.push_str(&format!("    <p><strong>Description:</strong> {}</p>\n", vuln.description));
-            html.push_str(&format!("    <p><strong>Recommendation:</strong> {}</p>\n", vuln.recommendation));
-            html.push_str("  </div>\n");
+            html.push_str(&format!("<div class=\"vulnerability {}\">\n", class));
+            html.push_str(&format!("  <h3>{}</h3>\n", vuln.title));
+            html.push_str(&format!("  <p><strong>Severity:</strong> {:?}</p>\n", vuln.severity));
+            html.push_str(&format!("  <p><strong>Type:</strong> {:?}</p>\n", vuln.vulnerability_type));
+            html.push_str(&format!("  <p><strong>Description:</strong> {}</p>\n", vuln.description));
+            html.push_str(&format!("  <p><strong>Recommendation:</strong> {}</p>\n", vuln.recommendation));
+            html.push_str("</div>\n");
         }
     }
 }

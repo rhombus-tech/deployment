@@ -52,6 +52,7 @@ impl EVMVerify {
                         title: format!("Analysis Error: {}", e),
                         description: format!("Failed to analyze bytecode: {}", e),
                         severity: VulnerabilitySeverity::Info,
+                        vulnerability_type: VulnerabilityType::Unknown,
                         location: VulnerabilityLocation::Unknown,
                         recommendation: "Check if the bytecode is valid".to_string(),
                     }],
@@ -83,12 +84,78 @@ impl EVMVerify {
     fn generate_report(&self, results: AnalysisResults) -> Result<AnalysisReport> {
         // Extract vulnerabilities
         let vulnerabilities = results.warnings.iter()
-            .map(|warning| Vulnerability {
-                title: warning.clone(),
-                description: warning.clone(),
-                severity: VulnerabilitySeverity::from_warning(&warning),
-                location: VulnerabilityLocation::Unknown,
-                recommendation: "Review the affected code".to_string(),
+            .map(|warning| {
+                // Determine vulnerability type based on warning content
+                let vulnerability_type = if warning.contains("reentrancy") {
+                    VulnerabilityType::Reentrancy
+                } else if warning.contains("integer overflow") {
+                    VulnerabilityType::IntegerOverflow
+                } else if warning.contains("integer underflow") {
+                    VulnerabilityType::IntegerUnderflow
+                } else if warning.contains("access control") {
+                    VulnerabilityType::AccessControl
+                } else if warning.contains("unchecked call") {
+                    VulnerabilityType::UncheckedCall
+                } else if warning.contains("gas limit") {
+                    VulnerabilityType::GasLimit
+                } else if warning.contains("tx.origin") {
+                    VulnerabilityType::TxOrigin
+                } else if warning.contains("self-destruct") {
+                    VulnerabilityType::SelfDestruct
+                } else if warning.contains("delegate call") {
+                    VulnerabilityType::DelegateCall
+                } else if warning.contains("timestamp dependency") {
+                    VulnerabilityType::TimestampDependency
+                } else if warning.contains("front-running") {
+                    VulnerabilityType::FrontRunning
+                } else if warning.contains("block number dependency") {
+                    VulnerabilityType::BlockNumberDependency
+                } else if warning.contains("uninitialized storage") {
+                    VulnerabilityType::UninitializedStorage
+                } else {
+                    VulnerabilityType::Unknown
+                };
+                
+                // Generate appropriate recommendation based on vulnerability type
+                let recommendation = match vulnerability_type {
+                    VulnerabilityType::Reentrancy => 
+                        "Use ReentrancyGuard or check-effects-interactions pattern".to_string(),
+                    VulnerabilityType::IntegerOverflow => 
+                        "Use SafeMath or Solidity 0.8+ for automatic overflow checks".to_string(),
+                    VulnerabilityType::IntegerUnderflow => 
+                        "Use SafeMath or Solidity 0.8+ for automatic underflow checks".to_string(),
+                    VulnerabilityType::AccessControl => 
+                        "Implement proper access control mechanisms".to_string(),
+                    VulnerabilityType::UncheckedCall => 
+                        "Always check return values of external calls".to_string(),
+                    VulnerabilityType::GasLimit => 
+                        "Avoid loops with unbounded iterations".to_string(),
+                    VulnerabilityType::TxOrigin => 
+                        "Use msg.sender instead of tx.origin for authentication".to_string(),
+                    VulnerabilityType::SelfDestruct => 
+                        "Implement proper access controls for self-destruct operations".to_string(),
+                    VulnerabilityType::DelegateCall => 
+                        "Use delegatecall with extreme caution and proper validation".to_string(),
+                    VulnerabilityType::TimestampDependency => 
+                        "Avoid using block.timestamp for critical decisions".to_string(),
+                    VulnerabilityType::FrontRunning => 
+                        "Implement commit-reveal schemes or use a private mempool".to_string(),
+                    VulnerabilityType::BlockNumberDependency => 
+                        "Avoid using block.number for critical decisions".to_string(),
+                    VulnerabilityType::UninitializedStorage => 
+                        "Initialize all storage variables before reading from them".to_string(),
+                    VulnerabilityType::Unknown => 
+                        "Review the affected code".to_string(),
+                };
+                
+                Vulnerability {
+                    title: warning.clone(),
+                    description: warning.clone(),
+                    severity: VulnerabilitySeverity::from_warning(&warning),
+                    vulnerability_type,
+                    location: VulnerabilityLocation::Unknown,
+                    recommendation,
+                }
             })
             .collect();
         

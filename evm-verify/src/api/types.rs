@@ -42,6 +42,9 @@ pub struct Vulnerability {
     /// Severity level
     pub severity: VulnerabilitySeverity,
     
+    /// Type of vulnerability
+    pub vulnerability_type: VulnerabilityType,
+    
     /// Location in the bytecode
     pub location: VulnerabilityLocation,
     
@@ -85,6 +88,52 @@ impl VulnerabilitySeverity {
             Self::Low
         }
     }
+}
+
+/// Type of vulnerability
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VulnerabilityType {
+    /// Reentrancy vulnerability
+    Reentrancy,
+    
+    /// Integer overflow vulnerability
+    IntegerOverflow,
+    
+    /// Integer underflow vulnerability
+    IntegerUnderflow,
+    
+    /// Access control vulnerability
+    AccessControl,
+    
+    /// Unchecked external call vulnerability
+    UncheckedCall,
+    
+    /// Gas limit vulnerability
+    GasLimit,
+    
+    /// TX.Origin usage vulnerability
+    TxOrigin,
+    
+    /// Self-destruct vulnerability
+    SelfDestruct,
+    
+    /// Delegate call vulnerability
+    DelegateCall,
+    
+    /// Timestamp dependency vulnerability
+    TimestampDependency,
+    
+    /// Front-running vulnerability
+    FrontRunning,
+    
+    /// Block number dependency vulnerability
+    BlockNumberDependency,
+    
+    /// Uninitialized storage vulnerability
+    UninitializedStorage,
+    
+    /// Unknown vulnerability type
+    Unknown,
 }
 
 /// Location of a vulnerability in the bytecode
