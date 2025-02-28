@@ -20,13 +20,17 @@ mod state_transitions;
 #[cfg(test)]
 mod security_checks;
 #[cfg(test)]
+mod overflow;
+#[cfg(test)]
+mod block_number;
+#[cfg(test)]
+mod uninitialized_storage;
+#[cfg(test)]
 mod self_destruct;
 #[cfg(test)]
 mod access_control;
 #[cfg(test)]
 mod underflow;
-#[cfg(test)]
-mod overflow;
 
 #[cfg(test)]
 mod tests {
