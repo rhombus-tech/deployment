@@ -292,6 +292,16 @@ impl BytecodeAnalyzer {
                     security_warnings.push(warning);
                 }
             }
+            
+            // Detect flash loan vulnerabilities
+            if let Ok(flash_loan_warnings) = self.detect_flash_loan_vulnerabilities() {
+                println!("Got {} flash loan vulnerability warnings", flash_loan_warnings.len());
+                for warning in flash_loan_warnings {
+                    println!("Adding flash loan warning: {}", warning.description);
+                    warnings.push(warning.description.clone());
+                    security_warnings.push(warning);
+                }
+            }
         }
         
         // Detect bitmask operations
@@ -2624,5 +2634,14 @@ impl BytecodeAnalyzer {
         }
         
         complex_count
+    }
+
+    /// Detect flash loan vulnerabilities
+    pub fn detect_flash_loan_vulnerabilities(&self) -> Result<Vec<SecurityWarning>> {
+        use crate::bytecode::analyzer_flashloan::detect_flash_loan_vulnerabilities;
+        
+        // Call the standalone function from analyzer_flashloan module
+        let warnings = detect_flash_loan_vulnerabilities(self);
+        Ok(warnings)
     }
 }

@@ -135,6 +135,9 @@ pub enum VulnerabilityType {
     /// Uninitialized storage vulnerability
     UninitializedStorage,
     
+    /// Flash loan vulnerability
+    FlashLoan,
+    
     /// Unknown vulnerability type
     Unknown,
 
@@ -178,6 +181,9 @@ pub struct AnalysisConfig {
     
     /// Whether to detect delegate call vulnerabilities
     pub detect_delegate_call: bool,
+    
+    /// Whether to detect flash loan vulnerabilities
+    pub detect_flash_loan: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -190,6 +196,7 @@ impl Default for AnalysisConfig {
             detect_arithmetic: true,
             detect_access_control: true,
             detect_delegate_call: true,
+            detect_flash_loan: true,
         }
     }
 }

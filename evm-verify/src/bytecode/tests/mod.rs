@@ -31,6 +31,8 @@ mod self_destruct;
 mod access_control;
 #[cfg(test)]
 mod underflow;
+#[cfg(test)]
+mod flashloan;
 
 #[cfg(test)]
 mod tests {

@@ -83,6 +83,7 @@ fn main() -> Result<()> {
                     detect_arithmetic: true,
                     detect_access_control: true,
                     detect_delegate_call: true,
+                    detect_flash_loan: true,
                 });
                 
                 // Create a public method to generate a report

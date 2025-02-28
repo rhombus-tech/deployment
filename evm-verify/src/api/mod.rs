@@ -424,9 +424,55 @@ impl EVMVerify {
     /// }
     /// ```
     pub fn analyze_integer_underflow(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
-        let analyzer = BytecodeAnalyzer::new(bytecode);
-        let warnings = analyzer_underflow::detect_integer_underflow(&analyzer);
-        Ok(warnings)
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        if !self.config.detect_arithmetic {
+            println!("Arithmetic vulnerability detection disabled in config");
+            return Ok(vec![]);
+        }
+        
+        analyzer.detect_integer_underflow()
+    }
+
+    /// Analyze bytecode specifically for flash loan vulnerabilities
+    /// 
+    /// This method focuses only on detecting flash loan-related issues such as:
+    /// - Price oracle manipulation vulnerabilities
+    /// - State changes after external calls without validation
+    /// - Missing slippage protection in swap operations
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of detected flash loan vulnerabilities
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![/* bytecode with potential flash loan issues */]);
+    /// let vulnerabilities = verifier.analyze_flash_loan_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("Flash loan issue at PC {}: {}", vuln.pc, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_flash_loan_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Use the dedicated flash loan detection flag
+        if !self.config.detect_flash_loan {
+            println!("Flash loan vulnerability detection disabled in config");
+            return Ok(vec![]);
+        }
+        
+        analyzer.detect_flash_loan_vulnerabilities()
     }
 
     /// Analyze bytecode specifically for timestamp dependency vulnerabilities
@@ -496,6 +542,8 @@ impl EVMVerify {
                     VulnerabilityType::BlockNumberDependency
                 } else if warning.contains("uninitialized storage") {
                     VulnerabilityType::UninitializedStorage
+                } else if warning.contains("flash loan") {
+                    VulnerabilityType::FlashLoan
                 } else {
                     VulnerabilityType::Other
                 };
@@ -532,6 +580,8 @@ impl EVMVerify {
                         "Review the affected code".to_string(),
                     VulnerabilityType::Other => 
                         "Review and fix the identified issue".to_string(),
+                    VulnerabilityType::FlashLoan => 
+                        "Implement flash loan protection mechanisms".to_string(),
                 };
                 
                 Vulnerability {

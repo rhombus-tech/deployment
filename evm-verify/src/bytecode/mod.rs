@@ -16,6 +16,7 @@ pub mod analyzer_access_control;
 pub mod analyzer_timestamp;
 pub mod analyzer_blocknumber;
 pub mod analyzer_externalcalls;
+pub mod analyzer_flashloan;
 pub mod opcodes;
 #[cfg(test)]
 pub mod tests;

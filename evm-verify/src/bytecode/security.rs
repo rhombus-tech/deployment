@@ -145,6 +145,12 @@ pub enum SecurityWarningKind {
     WeakAccessControl,
     /// Hardcoded address in access control
     HardcodedAccessControl,
+    /// Flash loan vulnerability
+    FlashLoanVulnerability,
+    /// Flash loan state manipulation
+    FlashLoanStateManipulation,
+    /// Missing slippage protection
+    MissingSlippageProtection,
 }
 
 /// Security severity level
@@ -466,6 +472,42 @@ impl SecurityWarning {
             "Timestamp dependency detected".to_string(),
             vec![Operation::BlockInformation { info_type: "TIMESTAMP".to_string() }],
             "Avoid using block.timestamp for critical operations as it can be manipulated by miners".to_string(),
+        )
+    }
+
+    /// Create a flash loan vulnerability warning
+    pub fn flash_loan_vulnerability(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::FlashLoanVulnerability,
+            SecuritySeverity::High,
+            pc,
+            "Flash loan vulnerability detected. Price oracle dependency without manipulation protection.".to_string(),
+            vec![],
+            "Use time-weighted average prices (TWAP), multiple price sources, or price feeds with manipulation resistance.".to_string(),
+        )
+    }
+
+    /// Create a flash loan state manipulation warning
+    pub fn flash_loan_state_manipulation(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::FlashLoanStateManipulation,
+            SecuritySeverity::High,
+            pc,
+            "Flash loan state manipulation vulnerability detected. State changes after external calls without validation.".to_string(),
+            vec![],
+            "Implement checks-effects-interactions pattern and validate all external input before making state changes.".to_string(),
+        )
+    }
+
+    /// Create a missing slippage protection warning
+    pub fn missing_slippage_protection(pc: u64) -> Self {
+        Self::new(
+            SecurityWarningKind::MissingSlippageProtection,
+            SecuritySeverity::Medium,
+            pc,
+            "Missing slippage protection detected. This can lead to price manipulation in swap operations.".to_string(),
+            vec![],
+            "Implement minimum output or maximum input checks for all swap operations to prevent price manipulation.".to_string(),
         )
     }
 }
