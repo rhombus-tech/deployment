@@ -25,6 +25,8 @@ mod self_destruct;
 mod access_control;
 #[cfg(test)]
 mod underflow;
+#[cfg(test)]
+mod overflow;
 
 #[cfg(test)]
 mod tests {

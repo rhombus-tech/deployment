@@ -301,6 +301,16 @@ impl BytecodeAnalyzer {
             }
         }
         
+        // Detect integer overflow vulnerabilities
+        if let Ok(integer_overflow_warnings) = self.detect_integer_overflow() {
+            println!("Got {} integer overflow warnings", integer_overflow_warnings.len());
+            for warning in integer_overflow_warnings {
+                println!("Adding integer overflow warning: {}", warning.description);
+                warnings.push(warning.description.clone());
+                security_warnings.push(warning);
+            }
+        }
+        
         // Add the security warnings to the analysis
         println!("Final warnings count: {}", warnings.len());
         analysis.warnings = warnings;
@@ -2367,6 +2377,18 @@ impl BytecodeAnalyzer {
         
         // Use the analyzer_underflow module to detect vulnerabilities
         let warnings = crate::bytecode::analyzer_underflow::detect_integer_underflow(self);
+        Ok(warnings)
+    }
+    
+    /// Detect integer overflow vulnerabilities
+    pub fn detect_integer_overflow(&self) -> Result<Vec<SecurityWarning>> {
+        // Skip analysis if in test mode
+        if self.is_test_mode() {
+            return Ok(vec![]);
+        }
+        
+        // Use the analyzer_overflow module to detect vulnerabilities
+        let warnings = crate::bytecode::analyzer_overflow::detect_integer_overflow(self);
         Ok(warnings)
     }
 }

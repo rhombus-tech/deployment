@@ -96,8 +96,9 @@ pub enum SecurityWarningKind {
     UncheckedCallReturn,
     /// Multiple external calls
     MultipleExternalCalls,
-    /// Integer overflow/underflow
-    IntegerOverflow,
+    /// Integer overflow/underflow (deprecated - use IntegerOverflow or IntegerUnderflow)
+    #[deprecated(note = "Use specific IntegerOverflow or IntegerUnderflow instead")]
+    IntegerArithmetic,
     /// Use of tx.origin for authorization
     TxOriginAuth,
     /// Use of tx.origin
@@ -136,6 +137,8 @@ pub enum SecurityWarningKind {
     AccessControl,
     /// Integer underflow vulnerability
     IntegerUnderflow,
+    /// Integer overflow vulnerability
+    IntegerOverflow,
 }
 
 /// Security severity level
@@ -294,9 +297,9 @@ impl SecurityWarning {
             SecurityWarningKind::IntegerOverflow,
             SecuritySeverity::High,
             pc,
-            format!("Potential integer overflow/underflow detected"),
+            "Potential integer overflow detected".to_string(),
             vec![],
-            "Use SafeMath or Solidity 0.8.0+ for automatic overflow checking".to_string(),
+            "Implement checks before addition or multiplication operations to prevent overflow, or use SafeMath".to_string(),
         )
     }
 
