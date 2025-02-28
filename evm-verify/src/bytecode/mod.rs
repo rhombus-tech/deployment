@@ -13,6 +13,10 @@ pub mod analyzer_overflow;
 pub mod analyzer_arithmetic;
 pub mod analyzer_self_destruct;
 pub mod analyzer_access_control;
+pub mod analyzer_timestamp;
+pub mod analyzer_blocknumber;
+pub mod analyzer_externalcalls;
+pub mod opcodes;
 #[cfg(test)]
 pub mod tests;
 
@@ -21,3 +25,6 @@ pub use memory::*;
 pub use types::*;
 pub use security::*;
 pub use access_control::AccessControlAnalyzer;
+pub use analyzer_timestamp::TimestampDependencyDetector;
+pub use analyzer_blocknumber::BlockNumberDependencyDetector;
+pub use analyzer_externalcalls::ExternalCallDetector;

@@ -164,6 +164,11 @@ impl BytecodeAnalyzer {
             warnings: Vec::new(),
             memory_accesses: Vec::new(),
             delegate_calls,
+            external_calls: Vec::new(),
+            timestamp_dependencies: Vec::new(),
+            block_number_dependencies: Vec::new(),
+            gas_usage: self.calculate_gas_usage(),
+            metadata: std::collections::HashMap::new(),
         };
         
         // Only populate memory accesses when not in test mode
@@ -174,6 +179,24 @@ impl BytecodeAnalyzer {
         // Calculate the maximum memory usage (only when not in test mode)
         if !self.test_mode {
             analysis.memory_accesses = self.memory_analyzer.get_accesses().clone();
+        }
+        
+        // Run chain-specific detectors when not in test mode
+        if !self.test_mode {
+            // Detect timestamp dependencies
+            if let Err(e) = crate::bytecode::TimestampDependencyDetector::detect(&self.bytecode, &mut analysis) {
+                analysis.warnings.push(format!("Error detecting timestamp dependencies: {}", e));
+            }
+            
+            // Detect block number dependencies
+            if let Err(e) = crate::bytecode::BlockNumberDependencyDetector::detect(&self.bytecode, &mut analysis) {
+                analysis.warnings.push(format!("Error detecting block number dependencies: {}", e));
+            }
+            
+            // Detect external calls
+            if let Err(e) = crate::bytecode::ExternalCallDetector::detect(&self.bytecode, &mut analysis) {
+                analysis.warnings.push(format!("Error detecting external calls: {}", e));
+            }
         }
         
         // Detect security vulnerabilities
@@ -2516,5 +2539,90 @@ impl BytecodeAnalyzer {
         }
         
         Ok(warnings)
+    }
+
+    /// Calculate estimated gas usage for the bytecode
+    fn calculate_gas_usage(&self) -> u64 {
+        let mut gas_usage: u64 = 0;
+        
+        // Base gas cost for contract deployment
+        gas_usage += 32000; // Base cost for contract creation
+        
+        // Add gas cost for bytecode size (200 gas per byte)
+        gas_usage += (self.bytecode.len() as u64) * 200;
+        
+        // Add gas cost for storage operations
+        // This is a simplified estimation
+        let storage_ops = self.count_storage_operations();
+        gas_usage += storage_ops.0 * 20000; // SSTORE (new value)
+        gas_usage += storage_ops.1 * 5000;  // SSTORE (update)
+        gas_usage += storage_ops.2 * 800;   // SLOAD
+        
+        // Add gas cost for external calls
+        let call_count = self.count_external_calls();
+        gas_usage += call_count * 700; // Base cost for CALL
+        
+        // Add gas for complex operations
+        let complex_ops = self.count_complex_operations();
+        gas_usage += complex_ops * 400; // Average cost for complex operations
+        
+        gas_usage
+    }
+    
+    /// Count storage operations in bytecode
+    fn count_storage_operations(&self) -> (u64, u64, u64) {
+        let mut sstore_new = 0;
+        let mut sstore_update = 0;
+        let mut sload = 0;
+        
+        for i in 0..self.bytecode.len() {
+            match self.bytecode[i] {
+                0x54 => sload += 1,     // SLOAD
+                0x55 => {
+                    // Simplified: assume 50% new storage, 50% updates
+                    if i % 2 == 0 {
+                        sstore_new += 1;
+                    } else {
+                        sstore_update += 1;
+                    }
+                },
+                _ => continue,
+            }
+        }
+        
+        (sstore_new, sstore_update, sload)
+    }
+    
+    /// Count external calls in bytecode
+    fn count_external_calls(&self) -> u64 {
+        let mut call_count = 0;
+        
+        for i in 0..self.bytecode.len() {
+            match self.bytecode[i] {
+                0xF1 => call_count += 1, // CALL
+                0xF2 => call_count += 1, // CALLCODE
+                0xF4 => call_count += 1, // DELEGATECALL
+                0xFA => call_count += 1, // STATICCALL
+                _ => continue,
+            }
+        }
+        
+        call_count
+    }
+    
+    /// Count complex operations in bytecode
+    fn count_complex_operations(&self) -> u64 {
+        let mut complex_count = 0;
+        
+        for i in 0..self.bytecode.len() {
+            match self.bytecode[i] {
+                0x0A => complex_count += 1, // EXP
+                0x20 => complex_count += 1, // SHA3
+                0xA0..=0xA4 => complex_count += 1, // LOG0-LOG4
+                _ => continue,
+            }
+        }
+        
+        complex_count
     }
 }

@@ -19,6 +19,16 @@ pub struct AnalysisResults {
     pub memory_accesses: Vec<MemoryAccess>,
     /// Delegate calls for tests
     pub delegate_calls: Vec<DelegateCall>,
+    /// External calls for cross-chain analysis
+    pub external_calls: Vec<ExternalCall>,
+    /// Timestamp dependencies for chain-specific analysis
+    pub timestamp_dependencies: Vec<TimestampDependency>,
+    /// Block number dependencies for chain-specific analysis
+    pub block_number_dependencies: Vec<BlockNumberDependency>,
+    /// Gas usage estimation
+    pub gas_usage: u64,
+    /// Metadata for additional information
+    pub metadata: HashMap<String, String>,
 }
 
 /// Constructor analysis data
@@ -472,4 +482,55 @@ pub struct DelegateCall {
     pub gas_used: U256,
     /// Call depth in the call stack
     pub depth: u32,
+}
+
+/// External call operation details
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExternalCall {
+    /// Offset in bytecode where the call occurs
+    pub offset: usize,
+    /// Target address of the call
+    pub target: Option<Address>,
+    /// Call value (in wei)
+    pub value: U256,
+    /// Call data
+    pub data: Bytes,
+    /// Gas limit for the call
+    pub gas: U256,
+    /// Call type (CALL, STATICCALL, etc.)
+    pub call_type: String,
+    /// Whether the call is to a known contract
+    pub is_known_contract: bool,
+    /// Whether the call is to a potential bridge contract
+    pub is_potential_bridge: bool,
+}
+
+/// Timestamp dependency
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TimestampDependency {
+    /// Offset in bytecode where the dependency occurs
+    pub offset: usize,
+    /// Type of dependency (comparison, calculation, etc.)
+    pub dependency_type: String,
+    /// Operation being performed (>, <, ==, etc.)
+    pub operation: String,
+    /// Whether the dependency is used in a critical path
+    pub is_critical: bool,
+    /// Severity of the dependency (high, medium, low)
+    pub severity: String,
+}
+
+/// Block number dependency
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BlockNumberDependency {
+    /// Offset in bytecode where the dependency occurs
+    pub offset: usize,
+    /// Type of dependency (comparison, calculation, etc.)
+    pub dependency_type: String,
+    /// Operation being performed (>, <, ==, etc.)
+    pub operation: String,
+    /// Whether the dependency is used in a critical path
+    pub is_critical: bool,
+    /// Severity of the dependency (high, medium, low)
+    pub severity: String,
 }
