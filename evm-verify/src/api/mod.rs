@@ -23,6 +23,8 @@ use crate::bytecode::analyzer_gas_limit;
 use crate::bytecode::analyzer_overflow;
 use crate::bytecode::analyzer_underflow;
 use crate::bytecode::analyzer_timestamp;
+use crate::bytecode::analyzer_signature_replay;
+use crate::bytecode::analyzer_proxy;
 
 /// Main API for EVM Verify
 /// 
@@ -510,6 +512,86 @@ impl EVMVerify {
         Ok(warnings)
     }
 
+    /// Analyze bytecode specifically for signature replay vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential signature replay vulnerabilities,
+    /// such as missing nonce or timestamp checks in signature verification.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x1b, 0x60, 0x00, 0x52]); // ECRECOVER PUSH1 0 MSTORE
+    /// let vulnerabilities = verifier.analyze_signature_replay(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_signature_replay(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        // Create bytecode analyzer
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Run the analysis
+        analyzer.analyze()?;
+        
+        // Get signature replay vulnerabilities
+        let warnings = analyzer_signature_replay::detect_signature_replay_vulnerabilities(&analyzer);
+        
+        Ok(warnings)
+    }
+    
+    /// Analyze bytecode specifically for proxy contract vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential vulnerabilities in proxy contracts,
+    /// such as uninitialized proxies, storage collisions, and implementation shadowing.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0xf4, 0x60, 0x00, 0x54]); // DELEGATECALL PUSH1 0 SLOAD
+    /// let vulnerabilities = verifier.analyze_proxy_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_proxy_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        // Create bytecode analyzer
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Run the analysis
+        analyzer.analyze()?;
+        
+        // Get proxy vulnerabilities
+        let warnings = analyzer_proxy::detect_proxy_vulnerabilities(&analyzer);
+        
+        Ok(warnings)
+    }
+
     /// Generate a comprehensive analysis report
     fn generate_report(&self, results: AnalysisResults) -> Result<AnalysisReport> {
         // Extract vulnerabilities
@@ -544,6 +626,10 @@ impl EVMVerify {
                     VulnerabilityType::UninitializedStorage
                 } else if warning.contains("flash loan") {
                     VulnerabilityType::FlashLoan
+                } else if warning.contains("signature replay") {
+                    VulnerabilityType::SignatureReplay
+                } else if warning.contains("uninitialized proxy") || warning.contains("proxy") {
+                    VulnerabilityType::ProxyVulnerability
                 } else {
                     VulnerabilityType::Other
                 };
@@ -582,6 +668,10 @@ impl EVMVerify {
                         "Review and fix the identified issue".to_string(),
                     VulnerabilityType::FlashLoan => 
                         "Implement flash loan protection mechanisms".to_string(),
+                    VulnerabilityType::SignatureReplay => 
+                        "Implement signature replay protection mechanisms".to_string(),
+                    VulnerabilityType::ProxyVulnerability => 
+                        "Implement proxy vulnerability protection mechanisms".to_string(),
                 };
                 
                 Vulnerability {

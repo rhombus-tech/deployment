@@ -33,6 +33,8 @@ mod access_control;
 mod underflow;
 #[cfg(test)]
 mod flashloan;
+#[cfg(test)]
+mod test_new_analyzers;
 
 #[cfg(test)]
 mod tests {

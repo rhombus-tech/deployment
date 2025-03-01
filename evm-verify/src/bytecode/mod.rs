@@ -17,6 +17,11 @@ pub mod analyzer_timestamp;
 pub mod analyzer_blocknumber;
 pub mod analyzer_externalcalls;
 pub mod analyzer_flashloan;
+pub mod analyzer_bitmask;
+pub mod analyzer_dos;
+pub mod analyzer_signature_replay;
+pub mod analyzer_proxy;
+pub mod analyzer_randomness;
 pub mod opcodes;
 #[cfg(test)]
 pub mod tests;

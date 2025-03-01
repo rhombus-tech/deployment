@@ -197,6 +197,9 @@ pub const JUMPDEST: u8 = 0x5B;
 /// PUSH1 opcode
 pub const PUSH1: u8 = 0x60;
 
+/// DUP1 opcode
+pub const DUP1: u8 = 0x80;
+
 /// LOG0 opcode
 pub const LOG0: u8 = 0xA0;
 
@@ -326,6 +329,7 @@ impl Opcode for u8 {
             MSIZE => "MSIZE",
             GAS => "GAS",
             JUMPDEST => "JUMPDEST",
+            DUP1 => "DUP1",
             LOG0 => "LOG0",
             LOG1 => "LOG1",
             LOG2 => "LOG2",
@@ -367,6 +371,7 @@ impl Opcode for u8 {
             PC | MSIZE | GAS => 2,
             JUMPDEST => 1,
             PUSH1 => 3,
+            DUP1 => 3,
             LOG0 => 375,
             LOG1 => 750,
             LOG2 => 1125,

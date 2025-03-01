@@ -87,6 +87,10 @@ impl VulnerabilitySeverity {
             Self::High
         } else if warning_lower.contains("delegate") {
             Self::Medium
+        } else if warning_lower.contains("signature replay") {
+            Self::High
+        } else if warning_lower.contains("uninitialized proxy") || warning_lower.contains("proxy") {
+            Self::Medium
         } else {
             Self::Low
         }
@@ -137,6 +141,12 @@ pub enum VulnerabilityType {
     
     /// Flash loan vulnerability
     FlashLoan,
+    
+    /// Signature replay vulnerability
+    SignatureReplay,
+    
+    /// Proxy contract vulnerability
+    ProxyVulnerability,
     
     /// Unknown vulnerability type
     Unknown,

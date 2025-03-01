@@ -51,6 +51,41 @@ pub enum Operation {
         /// Size of read
         size: U256,
     },
+    /// Computation operation
+    Computation {
+        /// Operation type
+        op_type: String,
+        /// Gas cost
+        gas_cost: u64,
+    },
+    /// Gas usage operation
+    GasUsage {
+        /// Gas amount
+        amount: u64,
+        /// Operation description
+        description: String,
+    },
+    /// Storage operation
+    Storage {
+        /// Operation type
+        op_type: String,
+        /// Storage key
+        key: Option<H256>,
+    },
+    /// Cryptography operation
+    Cryptography {
+        /// Operation type
+        op_type: String,
+        /// Input data
+        input: Option<Vec<u8>>,
+    },
+    /// Randomness operation
+    Randomness {
+        /// Source of randomness
+        source: String,
+        /// Predictability level (0-100)
+        predictability: u8,
+    },
     /// External call with value
     ValueCall {
         /// Target address
@@ -151,6 +186,26 @@ pub enum SecurityWarningKind {
     FlashLoanStateManipulation,
     /// Missing slippage protection
     MissingSlippageProtection,
+    /// Denial of Service vulnerability
+    DenialOfService,
+    /// Signature replay vulnerability
+    SignatureReplay,
+    /// Uninitialized proxy vulnerability
+    UninitializedProxy,
+    /// Storage collision vulnerability
+    StorageCollision,
+    /// Implementation shadowing vulnerability
+    ImplementationShadowing,
+    /// Weak randomness vulnerability
+    WeakRandomness,
+    /// Bitmask vulnerability
+    BitMaskVulnerability,
+}
+
+impl Default for SecurityWarningKind {
+    fn default() -> Self {
+        SecurityWarningKind::Other("Unknown".to_string())
+    }
 }
 
 /// Security severity level
@@ -183,6 +238,19 @@ pub struct SecurityWarning {
     pub operations: Vec<Operation>,
     /// Suggested remediation
     pub remediation: String,
+}
+
+impl Default for SecurityWarning {
+    fn default() -> Self {
+        Self {
+            kind: SecurityWarningKind::default(),
+            severity: SecuritySeverity::Info,
+            pc: 0,
+            description: String::new(),
+            operations: Vec::new(),
+            remediation: String::new(),
+        }
+    }
 }
 
 impl SecurityWarning {

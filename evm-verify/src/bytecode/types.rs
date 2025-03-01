@@ -1,6 +1,7 @@
 use ethers::types::{Bytes, H160, H256, Address, U256};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use crate::bytecode::security::SecurityWarning;
 
 /// Analysis results for bytecode
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -15,6 +16,8 @@ pub struct AnalysisResults {
     pub memory: MemoryAnalysis,
     /// Any safety warnings
     pub warnings: Vec<String>,
+    /// Security warnings with detailed information
+    pub security_warnings: Vec<SecurityWarning>,
     /// Memory accesses for tests
     pub memory_accesses: Vec<MemoryAccess>,
     /// Delegate calls for tests

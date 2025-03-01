@@ -4,10 +4,16 @@ use std::cmp::min;
 use anyhow::{anyhow, Result};
 use ethers::types::{Bytes, H256, U256};
 
-use crate::bytecode::access_control::AccessControlAnalyzer;
-use crate::bytecode::memory::MemoryAnalyzer;
 use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
 use crate::bytecode::types::*;
+
+use crate::bytecode::access_control::AccessControlAnalyzer;
+use crate::bytecode::memory::MemoryAnalyzer;
+use crate::bytecode::analyzer_access_control;
+use crate::bytecode::analyzer_dos;
+use crate::bytecode::analyzer_signature_replay;
+use crate::bytecode::analyzer_proxy;
+use crate::bytecode::analyzer_randomness;
 
 /// Analyzes EVM bytecode for safety properties
 #[derive(Debug)]
@@ -162,6 +168,7 @@ impl BytecodeAnalyzer {
             storage,
             memory,
             warnings: Vec::new(),
+            security_warnings: Vec::new(),
             memory_accesses: Vec::new(),
             delegate_calls,
             external_calls: Vec::new(),
@@ -364,16 +371,52 @@ impl BytecodeAnalyzer {
             }
         }
         
+        // Detect access control vulnerabilities
+        let access_control_warnings = analyzer_access_control::detect_access_control_vulnerabilities(self);
+        for warning in access_control_warnings {
+            println!("Adding access control warning: {}", warning.description);
+            warnings.push(warning.description.clone());
+            security_warnings.push(warning);
+        }
+        
+        // Detect denial of service vulnerabilities
+        let dos_warnings = analyzer_dos::detect_dos_vulnerabilities(self);
+        for warning in dos_warnings {
+            println!("Adding denial of service warning: {}", warning.description);
+            warnings.push(warning.description.clone());
+            security_warnings.push(warning);
+        }
+        
+        // Detect signature replay vulnerabilities
+        let signature_replay_warnings = analyzer_signature_replay::detect_signature_replay_vulnerabilities(self);
+        for warning in signature_replay_warnings {
+            println!("Adding signature replay warning: {}", warning.description);
+            warnings.push(warning.description.clone());
+            security_warnings.push(warning);
+        }
+        
+        // Detect proxy vulnerabilities
+        let proxy_warnings = analyzer_proxy::detect_proxy_vulnerabilities(self);
+        for warning in proxy_warnings {
+            println!("Adding proxy vulnerability warning: {}", warning.description);
+            warnings.push(warning.description.clone());
+            security_warnings.push(warning);
+        }
+        
+        // Detect randomness vulnerabilities
+        let randomness_warnings = analyzer_randomness::detect_randomness_vulnerabilities(self);
+        for warning in randomness_warnings {
+            println!("Adding randomness vulnerability warning: {}", warning.description);
+            warnings.push(warning.description.clone());
+            security_warnings.push(warning);
+        }
+        
         // Add the security warnings to the analysis
         println!("Final warnings count: {}", warnings.len());
         analysis.warnings = warnings;
         
-        // Add security warnings to the analysis results, but only if not in test mode
-        if !self.test_mode {
-            for warning in security_warnings {
-                analysis.warnings.push(warning.description.clone());
-            }
-        }
+        // Add security warnings to the analysis results
+        analysis.security_warnings = security_warnings;
         
         // Create memory accesses for testing
         let mut memory_accesses = Vec::new();
