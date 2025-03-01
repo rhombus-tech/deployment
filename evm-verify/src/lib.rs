@@ -1,7 +1,6 @@
 use ark_bn254::Bn254;
 use ark_groth16::Groth16;
 use ark_snark::SNARK;
-use ark_ec::AffineRepr;
 use ark_ec::pairing::Pairing;
 use rand::rngs::OsRng;
 
@@ -19,7 +18,7 @@ pub mod common;
 pub mod ethereum;
 pub mod prover;
 pub mod utils;
-// pub mod pcd;
+pub mod pcc;
 
 /// Generate proving key
 pub fn generate_proving_key<C>(circuit: C) -> <Groth16<Bn254> as SNARK<Fr>>::ProvingKey

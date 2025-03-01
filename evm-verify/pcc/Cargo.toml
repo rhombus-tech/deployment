@@ -4,18 +4,25 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
+evm-verify-common = { path = "../common" }
 
 # Ethereum
 ethers = "2.0"
-revm = "3.0"
+ethereum-types = "0.14"
+hex = "0.4"
 
 # Cryptographic primitives
 ark-ff = "0.4.0"
 ark-ec = "0.4.0"
 ark-bls12-381 = "0.4.0"
 ark-groth16 = "0.4.0"
+ark-relations = "0.4.0"
+ark-snark = "0.4.0"
+ark-std = "0.4.0"
 
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
+
+[dev-dependencies]
+rand = "0.8"
