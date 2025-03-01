@@ -221,6 +221,9 @@ pub struct AnalysisConfig {
     /// Whether to detect event emission vulnerabilities
     pub detect_event_emission: bool,
     
+    /// Whether to detect front-running vulnerabilities
+    pub detect_front_running: bool,
+    
     /// Whether to run in test mode (disables certain checks to avoid false positives in tests)
     pub test_mode: bool,
 }
@@ -242,6 +245,7 @@ impl Default for AnalysisConfig {
             detect_gas_griefing: true,
             detect_precision_loss: true,
             detect_event_emission: true,
+            detect_front_running: true,
             test_mode: false,
         }
     }

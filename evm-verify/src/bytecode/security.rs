@@ -213,6 +213,8 @@ pub enum SecurityWarningKind {
     PrecisionLoss,
     /// Event emission vulnerability
     EventEmissionVulnerability,
+    /// Gas price dependency vulnerability (front-running related)
+    GasPriceDependency,
     /// Other security issue
     Other(String),
 }
@@ -639,6 +641,66 @@ impl SecurityWarning {
             description: "Centralized admin control detected in governance mechanism".to_string(),
             operations: Vec::new(),
             remediation: "Implement multi-signature requirements or decentralized governance mechanisms".to_string(),
+        }
+    }
+
+    /// Create a gas price dependency warning (front-running vulnerability)
+    pub fn gas_price_dependency(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GasPriceDependency,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Gas price dependency detected. This code may be vulnerable to front-running attacks.".to_string(),
+            operations: vec![],
+            remediation: "Consider implementing a commit-reveal pattern or using a transaction ordering protection mechanism.".to_string(),
+        }
+    }
+
+    /// Create a front-running vulnerability warning
+    pub fn front_running(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::FrontRunning,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Front-running vulnerability detected. This code may be manipulated by miners or other users to gain an advantage.".to_string(),
+            operations: vec![],
+            remediation: "Implement transaction ordering protection, commit-reveal patterns, or batch processing to mitigate front-running.".to_string(),
+        }
+    }
+
+    /// Create a block info dependency warning
+    pub fn block_info_dependency(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::BlockNumberDependence,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Block information dependency detected. This code may be vulnerable to manipulation by miners.".to_string(),
+            operations: vec![],
+            remediation: "Avoid using block information for critical operations or implement additional safeguards.".to_string(),
+        }
+    }
+
+    /// Create a missing commit-reveal pattern warning
+    pub fn missing_commit_reveal(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::FrontRunning,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Missing commit-reveal pattern in a context where it's needed. This may lead to front-running vulnerabilities.".to_string(),
+            operations: vec![],
+            remediation: "Implement a commit-reveal pattern where users first submit a hash of their action and later reveal the actual action.".to_string(),
+        }
+    }
+
+    /// Create a price-sensitive operation warning
+    pub fn price_sensitive_operation(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::PriceManipulation,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Price-sensitive operation detected. This code may be vulnerable to price manipulation or front-running.".to_string(),
+            operations: vec![],
+            remediation: "Implement price feeds with time-weighted average prices or use decentralized oracles with manipulation resistance.".to_string(),
         }
     }
 

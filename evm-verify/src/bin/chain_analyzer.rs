@@ -90,6 +90,7 @@ fn main() -> Result<()> {
                     detect_gas_griefing: true,
                     detect_precision_loss: true,
                     detect_event_emission: true,
+                    detect_front_running: true,
                     test_mode: false,
                 });
                 

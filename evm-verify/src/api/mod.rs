@@ -31,6 +31,8 @@ use crate::bytecode::analyzer_mev;
 use crate::bytecode::analyzer_governance;
 use crate::bytecode::analyzer_gas_griefing;
 use crate::bytecode::analyzer_precision;
+use crate::bytecode::analyzer_events;
+use crate::bytecode::analyzer_front_running;
 
 /// Main API for EVM Verify
 /// 
@@ -203,6 +205,14 @@ impl EVMVerify {
         if self.config.detect_event_emission {
             let event_emission_warnings = analyzer.analyze_event_emission_vulnerabilities();
             for warning in event_emission_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
+        // Detect front-running vulnerabilities if enabled
+        if self.config.detect_front_running {
+            let front_running_warnings = analyzer_front_running::analyze(&analyzer);
+            for warning in front_running_warnings {
                 results.add_warning(warning.description.clone());
             }
         }
@@ -886,6 +896,40 @@ impl EVMVerify {
         Ok(warnings)
     }
 
+    /// Analyze bytecode specifically for front-running vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential front-running vulnerabilities,
+    /// such as gas price dependencies, block information dependencies, missing commit-reveal patterns,
+    /// price-sensitive operations, and missing slippage protection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x3a, 0x60, 0x01, 0x10]); // GASPRICE PUSH1 1 LT
+    /// let vulnerabilities = verifier.analyze_front_running_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_front_running_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let analyzer = BytecodeAnalyzer::new(bytecode);
+        let warnings = analyzer_front_running::analyze(&analyzer);
+        Ok(warnings)
+    }
+
     /// Generate a comprehensive analysis report
     fn generate_report(&self, results: AnalysisResults) -> Result<AnalysisReport> {
         // Extract vulnerabilities
@@ -1136,6 +1180,39 @@ mod tests {
         // Verify the vulnerability is correctly identified
         let vuln = &vulnerabilities[0];
         assert_eq!(vuln.kind, SecurityWarningKind::InsufficientTimelock);
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_front_running_vulnerability_detection() -> Result<()> {
+        // Create bytecode with gas price dependency (front-running vulnerability)
+        let bytecode = Bytes::from(vec![
+            0x3A,       // GASPRICE
+            0x60, 0x0A, // PUSH1 10
+            0x11,       // GT (GASPRICE > 10)
+            0x60, 0x00, // PUSH1 0
+            0x55,       // SSTORE (store result)
+        ]);
+        
+        // Create verifier
+        let mut verifier = EVMVerify::new();
+        verifier.set_test_mode(true);
+        
+        // Analyze for front-running vulnerabilities
+        let vulnerabilities = verifier.analyze_front_running_vulnerabilities(bytecode)?;
+        
+        // Verify at least one vulnerability was found
+        assert!(!vulnerabilities.is_empty());
+        
+        // Verify the vulnerability is correctly identified as front-running related
+        let vuln = &vulnerabilities[0];
+        assert!(matches!(vuln.kind, 
+            SecurityWarningKind::FrontRunning | 
+            SecurityWarningKind::GasPriceDependency | 
+            SecurityWarningKind::PriceManipulation | 
+            SecurityWarningKind::MEVVulnerability
+        ));
         
         Ok(())
     }

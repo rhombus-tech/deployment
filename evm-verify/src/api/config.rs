@@ -130,6 +130,12 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set whether to detect front-running vulnerabilities
+    pub fn detect_front_running(mut self, value: bool) -> Self {
+        self.config.detect_front_running = value;
+        self
+    }
+    
     /// Set whether to run in test mode
     pub fn test_mode(mut self, value: bool) -> Self {
         self.config.test_mode = value;
