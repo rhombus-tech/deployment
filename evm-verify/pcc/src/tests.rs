@@ -10,14 +10,8 @@ mod tests {
         memory::MemorySafetyCircuit,
         bytecode::BytecodeSafetyCircuit,
     };
-    use crate::prover::{
-        generate_proving_key,
-        generate_proof,
-        verify_memory_proof,
-        verify_bytecode_proof,
-    };
-    use ark_bls12_381::Fr;
-    use ark_relations::r1cs::ConstraintSynthesizer;
+    use crate::prover::generate_proving_key;
+    use ark_bn254::Fr;
     
     // Sample EVM bytecode for testing
     // This is a simple contract that performs a basic storage operation

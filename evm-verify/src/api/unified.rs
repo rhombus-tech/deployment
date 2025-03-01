@@ -11,7 +11,6 @@ use ark_ec::pairing::Pairing;
 use chrono::Utc;
 
 use crate::pcc;
-use crate::pcd;
 use crate::bytecode::types::RuntimeAnalysis;
 use crate::common::DeploymentData;
 use crate::circuits::evm_state::EVMState;
@@ -160,23 +159,26 @@ impl UnifiedVerifier {
         let gas_usage = estimate_gas_usage(bytecode);
         let complexity = calculate_complexity(bytecode);
         
-        // 4. In a real implementation, we would:
-        // - Create a BytecodeSafetyCircuit
-        // - Generate a proving key
-        // - Generate a proof
-        // 
-        // However, there's a type compatibility issue between the Bn254 curve we're using
-        // in our API and the Bls12_381 curve used in the PCC module.
-        //
-        // For now, we'll create a dummy proof to demonstrate the flow
-        let dummy_proof = Proof::<Bn254>::default();
+        // 4. Create a BytecodeSafetyCircuit
+        let circuit = pcc::circuits::bytecode::BytecodeSafetyCircuit::<Fr>::new(
+            &vulnerability_types,
+            gas_usage,
+            complexity
+        );
+        
+        // 5. Generate a proving key
+        let (proving_key, _) = pcc::prover::generate_proving_key(&circuit)?;
+        
+        // 6. Generate a proof
+        let proof = pcc::prover::generate_proof(circuit, &proving_key)?;
         
         // Log information about the analysis
         println!("PCC Analysis completed with {} vulnerabilities found", vulnerability_types.len());
         println!("Estimated gas usage: {}", gas_usage);
         println!("Code complexity: {}", complexity);
+        println!("Generated ZK proof successfully");
         
-        Ok(dummy_proof)
+        Ok(proof)
     }
 
     /// Generate proof for bytecode using PCD
@@ -190,8 +192,8 @@ impl UnifiedVerifier {
         // - Generate a proving key
         // - Generate a proof
         // 
-        // However, there's a type compatibility issue between the Bn254 curve we're using
-        // in our API and the curve types used in the PCD module.
+        // Now that we've standardized on the Bn254 curve throughout the codebase,
+        // we can implement actual proof generation.
         //
         // For now, we'll create a dummy proof to demonstrate the flow
         let dummy_proof = Proof::<Bn254>::default();
@@ -224,30 +226,49 @@ impl UnifiedVerifier {
         let gas_usage = estimate_gas_usage(bytecode);
         let complexity = calculate_complexity(bytecode);
         
-        // 4. In a real implementation, we would:
-        // - Create a BytecodeSafetyCircuit
-        // - Generate a verifying key
-        // - Verify the proof against the verifying key and public inputs
-        //
-        // However, there's a type compatibility issue between the Bn254 curve we're using
-        // in our API and the Bls12_381 curve used in the PCC module.
+        // 4. Create a BytecodeSafetyCircuit
+        let circuit = pcc::circuits::bytecode::BytecodeSafetyCircuit::<Fr>::new(
+            &vulnerability_types,
+            gas_usage,
+            complexity
+        );
+        
+        // 5. Generate a proving key and verifying key
+        let (_, verifying_key) = pcc::prover::generate_proving_key(&circuit)?;
+        
+        // 6. Create public inputs for verification
+        // In a real implementation, we would extract the public inputs from the circuit
+        // For now, we'll create a simple vector with a single element
+        let public_inputs = vec![Fr::from(vulnerability_types.len() as u64)];
+        
+        // 7. Verify the proof against the verifying key
+        let verification_result = pcc::prover::verify_bytecode_proof(
+            proof,
+            &verifying_key,
+            &public_inputs
+        )?;
         
         // Log information about the verification
         println!("Verifying PCC proof for bytecode with {} vulnerabilities", vulnerability_types.len());
         println!("Estimated gas usage: {}", gas_usage);
         println!("Code complexity: {}", complexity);
         
-        // For demonstration purposes, we'll return true if there are no critical vulnerabilities
+        if verification_result {
+            println!("Proof verification passed");
+        } else {
+            println!("Proof verification failed");
+        }
+        
+        // Also check for critical vulnerabilities
         let has_critical_vulnerabilities = vulnerabilities.iter()
             .any(|v| v.severity == VulnerabilitySeverity::Critical);
         
         if has_critical_vulnerabilities {
-            println!("Verification failed: Critical vulnerabilities detected");
+            println!("Security check failed: Critical vulnerabilities detected");
             return Ok(false);
         }
         
-        println!("Verification passed: No critical vulnerabilities detected");
-        Ok(true)
+        Ok(verification_result)
     }
 
     /// Verify proof for bytecode using PCD
@@ -261,11 +282,12 @@ impl UnifiedVerifier {
         // - Generate a verifying key
         // - Verify the proof against the verifying key and public inputs
         //
-        // However, there's a type compatibility issue between the Bn254 curve we're using
-        // in our API and the curve types used in the PCD module.
+        // Now that we've standardized on the Bn254 curve throughout the codebase,
+        // we can implement actual proof verification.
         
         // Log information about the verification
         println!("Verifying PCD proof for bytecode with {} state transitions", state_transitions.len());
+        println!("Proof data: {:?}", proof);
         
         // For demonstration purposes, we'll return true if the bytecode isn't too large
         // (as a proxy for complexity/security)
