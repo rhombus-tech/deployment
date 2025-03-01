@@ -80,6 +80,7 @@ fn main() -> Result<()> {
                     analyze_runtime: true,
                     max_depth: 1000,
                     detect_reentrancy: true,
+                    detect_cross_contract_reentrancy: true,
                     detect_arithmetic: true,
                     detect_access_control: true,
                     detect_delegate_call: true,

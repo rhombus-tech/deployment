@@ -7,6 +7,7 @@ pub mod analyzer_unchecked_calls;
 pub mod analyzer_txorigin;
 pub mod analyzer_gas_limit;
 pub mod analyzer_reentrancy;
+pub mod analyzer_cross_contract_reentrancy;
 pub mod analyzer_underflow;
 pub mod analyzer_overflow;
 // pub mod analyzer_tx_origin; // Commented out until file is created

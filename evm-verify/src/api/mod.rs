@@ -17,6 +17,7 @@ use crate::bytecode::{BytecodeAnalyzer, AnalysisResults};
 use crate::bytecode::security::SecurityWarning;
 use crate::bytecode::analyzer_access_control;
 use crate::bytecode::analyzer_reentrancy;
+use crate::bytecode::analyzer_cross_contract_reentrancy;
 use crate::bytecode::analyzer_self_destruct;
 use crate::bytecode::analyzer_unchecked_calls;
 use crate::bytecode::analyzer_gas_limit;
@@ -158,6 +159,14 @@ impl EVMVerify {
             }
         }
         
+        // Detect cross-contract reentrancy vulnerabilities if enabled
+        if self.config.detect_cross_contract_reentrancy {
+            let cross_contract_reentrancy_warnings = analyzer_cross_contract_reentrancy::detect_cross_contract_reentrancy(&analyzer);
+            for warning in cross_contract_reentrancy_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
         // Detect access control vulnerabilities if enabled
         if self.config.detect_access_control {
             let access_control_warnings = analyzer_access_control::detect_access_control_vulnerabilities(&analyzer);
@@ -286,6 +295,41 @@ impl EVMVerify {
         
         let analyzer = BytecodeAnalyzer::new(bytecode);
         let warnings = analyzer_reentrancy::detect_reentrancy_vulnerabilities(&analyzer);
+        Ok(warnings)
+    }
+
+    /// Analyze bytecode specifically for cross-contract reentrancy vulnerabilities
+    /// 
+    /// This method focuses only on detecting complex cross-contract reentrancy issues such as:
+    /// - State changes after external calls across multiple contracts
+    /// - Shared storage between contracts
+    /// - Complex call patterns that may enable reentrancy
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of detected cross-contract reentrancy vulnerabilities
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![/* bytecode with potential cross-contract reentrancy */]);
+    /// let vulnerabilities = verifier.analyze_cross_contract_reentrancy(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("Cross-contract reentrancy issue at PC {}: {}", vuln.pc, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_cross_contract_reentrancy(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let analyzer = BytecodeAnalyzer::new(bytecode);
+        let warnings = analyzer_cross_contract_reentrancy::detect_cross_contract_reentrancy(&analyzer);
         Ok(warnings)
     }
     

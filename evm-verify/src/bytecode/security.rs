@@ -119,6 +119,8 @@ pub enum SecurityWarningKind {
     ReadOnlyReentrancy,
     /// Cross-function reentrancy vulnerability
     CrossFunctionReentrancy,
+    /// Cross-contract reentrancy vulnerability
+    CrossContractReentrancy,
     /// Unprotected self destruct
     UnprotectedSelfDestruct,
     /// Unprotected delegate call
@@ -631,6 +633,28 @@ impl SecurityWarning {
             operations: Vec::new(),
             remediation: "Implement multi-signature requirements or decentralized governance mechanisms".to_string(),
         }
+    }
+
+    /// Create a cross-contract reentrancy warning
+    pub fn cross_contract_reentrancy(pc: u64, target: H256, contract_address: H256) -> Self {
+        Self::new(
+            SecurityWarningKind::CrossContractReentrancy,
+            SecuritySeverity::Critical,
+            pc,
+            "Cross-contract reentrancy vulnerability detected".to_string(),
+            vec![
+                Operation::ExternalCall {
+                    target,
+                    value: U256::zero(),
+                    data: vec![],
+                },
+                Operation::StorageWrite {
+                    slot: H256::zero(),
+                    value: U256::zero(),
+                },
+            ],
+            "Implement checks-effects-interactions pattern across all contracts. Consider using ReentrancyGuard or similar mechanisms in all contracts that interact with each other.".to_string(),
+        )
     }
 }
 

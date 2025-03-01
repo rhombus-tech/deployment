@@ -191,6 +191,9 @@ pub struct AnalysisConfig {
     /// Whether to detect reentrancy vulnerabilities
     pub detect_reentrancy: bool,
     
+    /// Whether to detect cross-contract reentrancy vulnerabilities
+    pub detect_cross_contract_reentrancy: bool,
+    
     /// Whether to detect arithmetic vulnerabilities
     pub detect_arithmetic: bool,
     
@@ -217,6 +220,7 @@ impl Default for AnalysisConfig {
             analyze_runtime: true,
             max_depth: 100,
             detect_reentrancy: true,
+            detect_cross_contract_reentrancy: true,
             detect_arithmetic: true,
             detect_access_control: true,
             detect_delegate_call: true,

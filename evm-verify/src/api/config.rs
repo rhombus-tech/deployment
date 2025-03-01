@@ -70,6 +70,12 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set whether to detect cross-contract reentrancy vulnerabilities
+    pub fn detect_cross_contract_reentrancy(mut self, value: bool) -> Self {
+        self.config.detect_cross_contract_reentrancy = value;
+        self
+    }
+    
     /// Set whether to detect arithmetic vulnerabilities
     pub fn detect_arithmetic(mut self, value: bool) -> Self {
         self.config.detect_arithmetic = value;
