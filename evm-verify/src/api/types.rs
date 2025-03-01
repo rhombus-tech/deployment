@@ -74,6 +74,19 @@ pub enum VulnerabilitySeverity {
     Error,
 }
 
+impl std::fmt::Display for VulnerabilitySeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Info => write!(f, "Info"),
+            Self::Low => write!(f, "Low"),
+            Self::Medium => write!(f, "Medium"),
+            Self::High => write!(f, "High"),
+            Self::Critical => write!(f, "Critical"),
+            Self::Error => write!(f, "Error"),
+        }
+    }
+}
+
 impl VulnerabilitySeverity {
     /// Determine severity from a warning message
     pub fn from_warning(warning: &str) -> Self {
@@ -155,6 +168,9 @@ pub enum VulnerabilityType {
     
     /// Governance vulnerability
     GovernanceVulnerability,
+    
+    /// Unbounded loop vulnerability
+    UnboundedLoop,
     
     /// Unknown vulnerability type
     Unknown,

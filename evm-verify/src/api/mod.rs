@@ -6,7 +6,7 @@
 mod types;
 mod config;
 mod report;
-mod unified;
+pub mod unified;
 
 pub use types::*;
 pub use config::*;
@@ -24,16 +24,12 @@ use crate::bytecode::analyzer_self_destruct;
 use crate::bytecode::analyzer_unchecked_calls;
 use crate::bytecode::analyzer_gas_limit;
 use crate::bytecode::analyzer_overflow;
-use crate::bytecode::analyzer_underflow;
 use crate::bytecode::analyzer_timestamp;
 use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
-use crate::bytecode::analyzer_oracle;
-use crate::bytecode::analyzer_mev;
 use crate::bytecode::analyzer_governance;
 use crate::bytecode::analyzer_gas_griefing;
 use crate::bytecode::analyzer_precision;
-use crate::bytecode::analyzer_events;
 use crate::bytecode::analyzer_front_running;
 
 /// Main API for EVM Verify
@@ -940,40 +936,42 @@ impl EVMVerify {
                 // Determine vulnerability type based on warning content
                 let vulnerability_type = if warning.contains("reentrancy") {
                     VulnerabilityType::Reentrancy
-                } else if warning.contains("integer overflow") {
+                } else if warning.contains("overflow") {
                     VulnerabilityType::IntegerOverflow
-                } else if warning.contains("integer underflow") {
+                } else if warning.contains("underflow") {
                     VulnerabilityType::IntegerUnderflow
-                } else if warning.contains("access control") {
+                } else if warning.contains("access control") || warning.contains("permission") {
                     VulnerabilityType::AccessControl
-                } else if warning.contains("unchecked call") {
+                } else if warning.contains("unchecked call") || warning.contains("return value") {
                     VulnerabilityType::UncheckedCall
                 } else if warning.contains("gas limit") {
                     VulnerabilityType::GasLimit
                 } else if warning.contains("tx.origin") {
                     VulnerabilityType::TxOrigin
-                } else if warning.contains("self-destruct") {
+                } else if warning.contains("self-destruct") || warning.contains("selfdestruct") {
                     VulnerabilityType::SelfDestruct
-                } else if warning.contains("delegate call") {
+                } else if warning.contains("delegatecall") {
                     VulnerabilityType::DelegateCall
-                } else if warning.contains("timestamp dependency") {
+                } else if warning.contains("timestamp") {
                     VulnerabilityType::TimestampDependency
-                } else if warning.contains("front-running") {
+                } else if warning.contains("front-running") || warning.contains("frontrunning") {
                     VulnerabilityType::FrontRunning
-                } else if warning.contains("block number dependency") {
+                } else if warning.contains("block.number") {
                     VulnerabilityType::BlockNumberDependency
-                } else if warning.contains("uninitialized storage") {
+                } else if warning.contains("uninitialized") {
                     VulnerabilityType::UninitializedStorage
                 } else if warning.contains("flash loan") {
                     VulnerabilityType::FlashLoan
                 } else if warning.contains("signature replay") {
                     VulnerabilityType::SignatureReplay
-                } else if warning.contains("uninitialized proxy") || warning.contains("proxy") {
+                } else if warning.contains("proxy") {
                     VulnerabilityType::ProxyVulnerability
-                } else if warning.contains("oracle manipulation") || warning.contains("oracle") {
+                } else if warning.contains("oracle") {
                     VulnerabilityType::OracleManipulation
                 } else if warning.contains("governance") || warning.contains("timelock") || warning.contains("quorum") {
                     VulnerabilityType::GovernanceVulnerability
+                } else if warning.contains("unbounded loop") || warning.contains("infinite loop") {
+                    VulnerabilityType::UnboundedLoop
                 } else {
                     VulnerabilityType::Other
                 };
@@ -1020,6 +1018,8 @@ impl EVMVerify {
                         "Implement oracle manipulation protection mechanisms".to_string(),
                     VulnerabilityType::GovernanceVulnerability => 
                         "Implement proper timelock mechanisms, secure quorum requirements, and flash loan protection in governance systems".to_string(),
+                    VulnerabilityType::UnboundedLoop => 
+                        "Implement proper bounds on loops to prevent gas limit issues".to_string(),
                 };
                 
                 Vulnerability {

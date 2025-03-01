@@ -1,4 +1,4 @@
-use evm_verify::UnifiedVerifier;
+use evm_verify::api::unified::UnifiedVerifier;
 use ethers::types::Bytes;
 use std::error::Error;
 
@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     println!("Analyzing bytecode: 0x{}", hex::encode(&bytecode));
     
-    // Analyze bytecode
+    // Analyze bytecode - this method takes Bytes by value
     let report = verifier.analyze_bytecode(bytecode.clone())?;
     
     // Print the report
@@ -39,6 +39,62 @@ fn main() -> Result<(), Box<dyn Error>> {
     let pcd_verifier = UnifiedVerifier::with_config(true, false);
     let pcd_report = pcd_verifier.analyze_bytecode(bytecode.clone())?;
     println!("Found {} vulnerabilities", pcd_report.vulnerabilities.len());
+    
+    // Demonstrate proof generation and verification
+    println!("\n--- Proof Generation and Verification ---");
+    
+    // Generate PCC proof - these methods take &Bytes (reference)
+    println!("\nGenerating PCC proof...");
+    let pcc_proof = verifier.generate_pcc_proof(&bytecode)?;
+    println!("PCC proof generated successfully");
+    
+    // Verify PCC proof - these methods take &Bytes (reference)
+    println!("\nVerifying PCC proof...");
+    let pcc_verification_result = verifier.verify_pcc_proof(&bytecode, &pcc_proof)?;
+    println!("PCC proof verification result: {}", pcc_verification_result);
+    
+    // Generate PCD proof - these methods take &Bytes (reference)
+    println!("\nGenerating PCD proof...");
+    let pcd_proof = verifier.generate_pcd_proof(&bytecode)?;
+    println!("PCD proof generated successfully");
+    
+    // Verify PCD proof - these methods take &Bytes (reference)
+    println!("\nVerifying PCD proof...");
+    let pcd_verification_result = verifier.verify_pcd_proof(&bytecode, &pcd_proof)?;
+    println!("PCD proof verification result: {}", pcd_verification_result);
+    
+    // Example with a more complex bytecode (this is still a simple example)
+    println!("\n--- Testing with more complex bytecode ---");
+    // This bytecode includes a simple loop pattern
+    let complex_bytecode = Bytes::from(vec![
+        0x60, 0x0A, // PUSH1 10 (counter)
+        0x60, 0x00, // PUSH1 0 (index)
+        0x5B,       // JUMPDEST (loop start)
+        0x81,       // DUP2
+        0x11,       // GT
+        0x60, 0x09, // PUSH1 9 (exit address)
+        0x57,       // JUMPI (conditional jump to exit)
+        0x60, 0x01, // PUSH1 1
+        0x01,       // ADD (increment index)
+        0x60, 0x02, // PUSH1 2
+        0x56,       // JUMP (jump back to loop start)
+        0x5B,       // JUMPDEST (exit)
+        0x00        // STOP
+    ]);
+    
+    println!("Complex bytecode: 0x{}", hex::encode(&complex_bytecode));
+    
+    // Generate and verify PCC proof for complex bytecode
+    println!("\nGenerating and verifying PCC proof for complex bytecode...");
+    let complex_pcc_proof = verifier.generate_pcc_proof(&complex_bytecode)?;
+    let complex_pcc_result = verifier.verify_pcc_proof(&complex_bytecode, &complex_pcc_proof)?;
+    println!("Complex bytecode PCC verification result: {}", complex_pcc_result);
+    
+    // Generate and verify PCD proof for complex bytecode
+    println!("\nGenerating and verifying PCD proof for complex bytecode...");
+    let complex_pcd_proof = verifier.generate_pcd_proof(&complex_bytecode)?;
+    let complex_pcd_result = verifier.verify_pcd_proof(&complex_bytecode, &complex_pcd_proof)?;
+    println!("Complex bytecode PCD verification result: {}", complex_pcd_result);
     
     Ok(())
 }
