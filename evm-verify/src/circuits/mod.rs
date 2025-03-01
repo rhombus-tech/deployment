@@ -6,6 +6,7 @@ use crate::common::DeploymentData;
 pub mod access;
 pub mod constructor;
 pub mod evm_state;
+pub mod front_running;
 pub mod memory;
 pub mod state;
 pub mod storage;
@@ -14,6 +15,7 @@ pub mod upgrade;
 use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
 use evm_state::EVMStateCircuit;
+use front_running::FrontRunningCircuit;
 use memory::MemorySafetyCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
@@ -82,6 +84,14 @@ impl<F: PrimeField> CircuitBuilder<F> {
     /// Build storage circuit
     pub fn build_storage(&self) -> StorageCircuit<F> {
         StorageCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
+    /// Build front-running circuit
+    pub fn build_front_running(&self) -> FrontRunningCircuit<F> {
+        FrontRunningCircuit::new(
             self.deployment.clone(),
             self.runtime.clone(),
         )
