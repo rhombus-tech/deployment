@@ -26,6 +26,7 @@ use crate::bytecode::analyzer_timestamp;
 use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_oracle;
+use crate::bytecode::analyzer_mev;
 
 /// Main API for EVM Verify
 /// 
@@ -53,6 +54,7 @@ use crate::bytecode::analyzer_oracle;
 pub struct EVMVerify {
     /// Configuration for the analysis
     config: AnalysisConfig,
+    test_mode: bool,
 }
 
 impl EVMVerify {
@@ -60,6 +62,7 @@ impl EVMVerify {
     pub fn new() -> Self {
         Self {
             config: AnalysisConfig::default(),
+            test_mode: false,
         }
     }
 
@@ -84,7 +87,7 @@ impl EVMVerify {
     /// let verifier = EVMVerify::with_config(config);
     /// ```
     pub fn with_config(config: AnalysisConfig) -> Self {
-        Self { config }
+        Self { config, test_mode: false }
     }
 
     /// Analyze bytecode and return a comprehensive report
@@ -116,6 +119,9 @@ impl EVMVerify {
     pub fn analyze_bytecode(&self, bytecode: Bytes) -> Result<AnalysisReport> {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Set test mode based on the verifier's test mode
+        analyzer.set_test_mode(self.test_mode);
         
         // Run the analysis
         let results = match analyzer.analyze() {
@@ -544,6 +550,9 @@ impl EVMVerify {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
+        // Set test mode based on the verifier's test mode
+        analyzer.set_test_mode(self.test_mode);
+        
         // Run the analysis
         analyzer.analyze()?;
         
@@ -583,6 +592,9 @@ impl EVMVerify {
     pub fn analyze_proxy_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Set test mode based on the verifier's test mode
+        analyzer.set_test_mode(self.test_mode);
         
         // Run the analysis
         analyzer.analyze()?;
@@ -624,13 +636,56 @@ impl EVMVerify {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
+        // Set test mode based on the verifier's test mode
+        analyzer.set_test_mode(self.test_mode);
+        
         // Run the analysis
-        analyzer.analyze()?;
+        analyzer.analyze().context("Failed to analyze bytecode")?;
         
         // Get oracle manipulation vulnerabilities
-        let warnings = analyzer_oracle::detect_oracle_vulnerabilities(&analyzer);
+        analyzer.detect_oracle_manipulation()
+    }
+
+    /// Analyze bytecode specifically for MEV (Maximal Extractable Value) vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential MEV vulnerabilities,
+    /// such as unprotected price-sensitive operations, missing slippage protection,
+    /// and absence of commit-reveal patterns.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
+    /// let vulnerabilities = verifier.analyze_mev_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_mev_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        // Create bytecode analyzer
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
-        Ok(warnings)
+        // Set test mode based on the verifier's test mode
+        analyzer.set_test_mode(self.test_mode);
+        
+        // Run the analysis
+        analyzer.analyze().context("Failed to analyze bytecode")?;
+        
+        // Get MEV vulnerabilities
+        analyzer.detect_mev_vulnerabilities()
     }
 
     /// Generate a comprehensive analysis report
@@ -742,6 +797,30 @@ impl EVMVerify {
         };
         
         Ok(report)
+    }
+
+    /// Set test mode for the analyzer
+    /// 
+    /// This method enables or disables test mode for the analyzer.
+    /// When test mode is enabled, certain features like memory access tracking are disabled,
+    /// which is useful for testing.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `enabled` - Whether to enable test mode
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// 
+    /// let mut verifier = EVMVerify::new();
+    /// verifier.set_test_mode(true);
+    /// 
+    /// // Now analyze bytecode with test mode enabled
+    /// ```
+    pub fn set_test_mode(&mut self, enabled: bool) {
+        self.test_mode = enabled;
     }
 }
 

@@ -15,6 +15,7 @@ use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_randomness;
 use crate::bytecode::analyzer_oracle;
+use crate::bytecode::analyzer_mev;
 
 /// Analyzes EVM bytecode for safety properties
 #[derive(Debug)]
@@ -180,17 +181,17 @@ impl BytecodeAnalyzer {
         };
         
         // Only populate memory accesses when not in test mode
-        if !self.test_mode {
+        if !self.is_test_mode() {
             analysis.memory_accesses = self.memory_analyzer.get_accesses().clone();
         }
         
         // Calculate the maximum memory usage (only when not in test mode)
-        if !self.test_mode {
+        if !self.is_test_mode() {
             analysis.memory_accesses = self.memory_analyzer.get_accesses().clone();
         }
         
         // Run chain-specific detectors when not in test mode
-        if !self.test_mode {
+        if !self.is_test_mode() {
             // Detect timestamp dependencies
             if let Err(e) = crate::bytecode::TimestampDependencyDetector::detect(&self.bytecode, &mut analysis) {
                 analysis.warnings.push(format!("Error detecting timestamp dependencies: {}", e));
@@ -261,7 +262,7 @@ impl BytecodeAnalyzer {
         }
         
         // Detect unchecked external calls
-        if !self.test_mode {
+        if !self.is_test_mode() {
             if let Ok(unchecked_calls_warnings) = self.detect_unchecked_calls() {
                 println!("Got {} unchecked calls warnings", unchecked_calls_warnings.len());
                 for warning in unchecked_calls_warnings {
@@ -423,6 +424,17 @@ impl BytecodeAnalyzer {
             println!("Error detecting oracle manipulation vulnerabilities");
         }
         
+        // Detect MEV vulnerabilities
+        if let Ok(mev_warnings) = self.detect_mev_vulnerabilities() {
+            for warning in mev_warnings {
+                println!("Adding MEV warning: {}", warning.description);
+                warnings.push(warning.description.clone());
+                security_warnings.push(warning);
+            }
+        } else {
+            println!("Error detecting MEV vulnerabilities");
+        }
+        
         // Add the security warnings to the analysis
         println!("Final warnings count: {}", warnings.len());
         analysis.warnings = warnings;
@@ -434,7 +446,7 @@ impl BytecodeAnalyzer {
         let mut memory_accesses = Vec::new();
         
         // Only populate memory_accesses if not in test mode
-        if !self.test_mode {
+        if !self.is_test_mode() {
             // Scan bytecode for memory operations
             for (i, &opcode) in self.bytecode.iter().enumerate() {
                 match opcode {
@@ -2376,8 +2388,8 @@ impl BytecodeAnalyzer {
         let mut warnings = Vec::new();
         
         // We don't want to flag any bitmask operations in our tests
-        println!("detect_bitmask: test_mode = {}", self.test_mode);
-        if self.test_mode {
+        println!("detect_bitmask: test_mode = {}", self.is_test_mode());
+        if self.is_test_mode() {
             println!("Skipping bitmask detection in test mode");
             return Ok(warnings);
         }
@@ -2703,6 +2715,12 @@ impl BytecodeAnalyzer {
     /// Detect oracle manipulation vulnerabilities
     pub fn detect_oracle_manipulation(&self) -> Result<Vec<SecurityWarning>> {
         let warnings = analyzer_oracle::detect_oracle_vulnerabilities(self);
+        Ok(warnings)
+    }
+
+    /// Detect MEV (Maximal Extractable Value) vulnerabilities
+    pub fn detect_mev_vulnerabilities(&self) -> Result<Vec<SecurityWarning>> {
+        let warnings = analyzer_mev::detect_mev_vulnerabilities(self);
         Ok(warnings)
     }
 }

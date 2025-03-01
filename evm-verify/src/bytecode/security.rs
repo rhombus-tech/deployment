@@ -202,6 +202,8 @@ pub enum SecurityWarningKind {
     BitMaskVulnerability,
     /// Oracle manipulation vulnerability
     OracleManipulation,
+    /// MEV (Maximal Extractable Value) vulnerability
+    MEVVulnerability,
 }
 
 impl Default for SecurityWarningKind {
