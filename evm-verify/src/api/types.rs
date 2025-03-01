@@ -211,6 +211,12 @@ pub struct AnalysisConfig {
     
     /// Whether to detect governance vulnerabilities
     pub detect_governance: bool,
+    
+    /// Whether to detect gas griefing vulnerabilities
+    pub detect_gas_griefing: bool,
+    
+    /// Whether to run in test mode (disables certain checks to avoid false positives in tests)
+    pub test_mode: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -227,6 +233,8 @@ impl Default for AnalysisConfig {
             detect_flash_loan: true,
             detect_oracle_manipulation: true,
             detect_governance: true,
+            detect_gas_griefing: true,
+            test_mode: false,
         }
     }
 }

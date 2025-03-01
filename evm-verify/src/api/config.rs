@@ -94,6 +94,36 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set whether to detect flash loan vulnerabilities
+    pub fn detect_flash_loan(mut self, value: bool) -> Self {
+        self.config.detect_flash_loan = value;
+        self
+    }
+    
+    /// Set whether to detect oracle manipulation vulnerabilities
+    pub fn detect_oracle_manipulation(mut self, value: bool) -> Self {
+        self.config.detect_oracle_manipulation = value;
+        self
+    }
+    
+    /// Set whether to detect governance vulnerabilities
+    pub fn detect_governance(mut self, value: bool) -> Self {
+        self.config.detect_governance = value;
+        self
+    }
+    
+    /// Set whether to detect gas griefing vulnerabilities
+    pub fn detect_gas_griefing(mut self, value: bool) -> Self {
+        self.config.detect_gas_griefing = value;
+        self
+    }
+    
+    /// Set whether to run in test mode
+    pub fn test_mode(mut self, value: bool) -> Self {
+        self.config.test_mode = value;
+        self
+    }
+    
     /// Build the configuration
     pub fn build(self) -> AnalysisConfig {
         self.config

@@ -35,6 +35,10 @@ mod underflow;
 mod flashloan;
 #[cfg(test)]
 mod test_new_analyzers;
+#[cfg(test)]
+mod test_upgradability;
+#[cfg(test)]
+mod test_gas_griefing;
 
 #[cfg(test)]
 mod tests {

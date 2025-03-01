@@ -87,6 +87,8 @@ fn main() -> Result<()> {
                     detect_flash_loan: true,
                     detect_oracle_manipulation: true,
                     detect_governance: true,
+                    detect_gas_griefing: true,
+                    test_mode: false,
                 });
                 
                 // Create a public method to generate a report

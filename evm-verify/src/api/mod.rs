@@ -29,6 +29,7 @@ use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_oracle;
 use crate::bytecode::analyzer_mev;
 use crate::bytecode::analyzer_governance;
+use crate::bytecode::analyzer_gas_griefing;
 
 /// Main API for EVM Verify
 /// 
@@ -56,7 +57,6 @@ use crate::bytecode::analyzer_governance;
 pub struct EVMVerify {
     /// Configuration for the analysis
     config: AnalysisConfig,
-    test_mode: bool,
 }
 
 impl EVMVerify {
@@ -64,7 +64,6 @@ impl EVMVerify {
     pub fn new() -> Self {
         Self {
             config: AnalysisConfig::default(),
-            test_mode: false,
         }
     }
 
@@ -89,7 +88,7 @@ impl EVMVerify {
     /// let verifier = EVMVerify::with_config(config);
     /// ```
     pub fn with_config(config: AnalysisConfig) -> Self {
-        Self { config, test_mode: false }
+        Self { config }
     }
 
     /// Analyze bytecode and return a comprehensive report
@@ -122,8 +121,8 @@ impl EVMVerify {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
-        // Set test mode based on the verifier's test mode
-        analyzer.set_test_mode(self.test_mode);
+        // Set test mode based on the configuration
+        analyzer.set_test_mode(self.config.test_mode);
         
         // Run the analysis
         let mut results = match analyzer.analyze() {
@@ -179,6 +178,14 @@ impl EVMVerify {
         if self.config.detect_governance {
             let governance_warnings = analyzer_governance::detect_governance_vulnerabilities(&analyzer);
             for warning in governance_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
+        // Detect gas griefing vulnerabilities if enabled
+        if self.config.detect_gas_griefing {
+            let gas_griefing_warnings = analyzer_gas_griefing::analyze(&analyzer);
+            for warning in gas_griefing_warnings {
                 results.add_warning(warning.description.clone());
             }
         }
@@ -620,9 +627,6 @@ impl EVMVerify {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
-        // Set test mode based on the verifier's test mode
-        analyzer.set_test_mode(self.test_mode);
-        
         // Run the analysis
         analyzer.analyze()?;
         
@@ -662,9 +666,6 @@ impl EVMVerify {
     pub fn analyze_proxy_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
-        
-        // Set test mode based on the verifier's test mode
-        analyzer.set_test_mode(self.test_mode);
         
         // Run the analysis
         analyzer.analyze()?;
@@ -706,9 +707,6 @@ impl EVMVerify {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
         
-        // Set test mode based on the verifier's test mode
-        analyzer.set_test_mode(self.test_mode);
-        
         // Run the analysis
         analyzer.analyze().context("Failed to analyze bytecode")?;
         
@@ -747,9 +745,6 @@ impl EVMVerify {
     pub fn analyze_mev_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
         // Create bytecode analyzer
         let mut analyzer = BytecodeAnalyzer::new(bytecode);
-        
-        // Set test mode based on the verifier's test mode
-        analyzer.set_test_mode(self.test_mode);
         
         // Run the analysis
         analyzer.analyze().context("Failed to analyze bytecode")?;
@@ -794,6 +789,51 @@ impl EVMVerify {
         }
         
         Ok(analyzer_governance::detect_governance_vulnerabilities(&analyzer))
+    }
+
+    /// Analyze bytecode specifically for gas griefing vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential gas griefing vulnerabilities,
+    /// such as unbounded loops, expensive operations in loops, missing gas limits in external calls,
+    /// and insufficient gas stipends.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![
+    ///     0x5b, // JUMPDEST (loop start)
+    ///     0x60, 0x01, // PUSH1 1
+    ///     0x54, // SLOAD (expensive operation)
+    ///     0x60, 0x00, // PUSH1 0
+    ///     0x57, // JUMPI (conditional jump)
+    /// ]);
+    /// let vulnerabilities = verifier.analyze_gas_griefing_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_gas_griefing_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Set test mode based on the configuration
+        analyzer.set_test_mode(self.config.test_mode);
+        
+        let warnings = analyzer_gas_griefing::analyze(&analyzer);
+        
+        Ok(warnings)
     }
 
     /// Generate a comprehensive analysis report
@@ -932,7 +972,7 @@ impl EVMVerify {
     /// // Now analyze bytecode with test mode enabled
     /// ```
     pub fn set_test_mode(&mut self, enabled: bool) {
-        self.test_mode = enabled;
+        self.config.test_mode = enabled;
     }
 }
 

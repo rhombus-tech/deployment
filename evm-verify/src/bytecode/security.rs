@@ -207,6 +207,8 @@ pub enum SecurityWarningKind {
     GovernanceVulnerability,
     /// Access control vulnerability (alias)
     AccessControl,
+    /// Gas griefing vulnerability
+    GasGriefing,
     /// Other security issue
     Other(String),
 }
