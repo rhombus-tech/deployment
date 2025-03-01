@@ -215,6 +215,9 @@ pub struct AnalysisConfig {
     /// Whether to detect gas griefing vulnerabilities
     pub detect_gas_griefing: bool,
     
+    /// Whether to detect precision loss vulnerabilities
+    pub detect_precision_loss: bool,
+    
     /// Whether to run in test mode (disables certain checks to avoid false positives in tests)
     pub test_mode: bool,
 }
@@ -234,6 +237,7 @@ impl Default for AnalysisConfig {
             detect_oracle_manipulation: true,
             detect_governance: true,
             detect_gas_griefing: true,
+            detect_precision_loss: true,
             test_mode: false,
         }
     }

@@ -39,6 +39,8 @@ mod test_new_analyzers;
 mod test_upgradability;
 #[cfg(test)]
 mod test_gas_griefing;
+#[cfg(test)]
+mod test_precision;
 
 #[cfg(test)]
 mod tests {

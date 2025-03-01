@@ -209,6 +209,8 @@ pub enum SecurityWarningKind {
     AccessControl,
     /// Gas griefing vulnerability
     GasGriefing,
+    /// Precision loss vulnerability
+    PrecisionLoss,
     /// Other security issue
     Other(String),
 }

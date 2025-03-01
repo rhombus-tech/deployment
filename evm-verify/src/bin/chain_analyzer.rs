@@ -88,6 +88,7 @@ fn main() -> Result<()> {
                     detect_oracle_manipulation: true,
                     detect_governance: true,
                     detect_gas_griefing: true,
+                    detect_precision_loss: true,
                     test_mode: false,
                 });
                 

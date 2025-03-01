@@ -30,6 +30,7 @@ use crate::bytecode::analyzer_oracle;
 use crate::bytecode::analyzer_mev;
 use crate::bytecode::analyzer_governance;
 use crate::bytecode::analyzer_gas_griefing;
+use crate::bytecode::analyzer_precision;
 
 /// Main API for EVM Verify
 /// 
@@ -186,6 +187,14 @@ impl EVMVerify {
         if self.config.detect_gas_griefing {
             let gas_griefing_warnings = analyzer_gas_griefing::analyze(&analyzer);
             for warning in gas_griefing_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
+        // Detect precision and rounding vulnerabilities if enabled
+        if self.config.detect_precision_loss {
+            let precision_warnings = analyzer_precision::analyze(&analyzer);
+            for warning in precision_warnings {
                 results.add_warning(warning.description.clone());
             }
         }
@@ -833,6 +842,39 @@ impl EVMVerify {
         
         let warnings = analyzer_gas_griefing::analyze(&analyzer);
         
+        Ok(warnings)
+    }
+
+    /// Analyze bytecode specifically for precision vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential precision vulnerabilities,
+    /// such as division by zero, or precision loss in arithmetic operations.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The EVM bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
+    /// let vulnerabilities = verifier.analyze_precision_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_precision_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let analyzer = BytecodeAnalyzer::new(bytecode);
+        let warnings = analyzer_precision::analyze(&analyzer);
         Ok(warnings)
     }
 

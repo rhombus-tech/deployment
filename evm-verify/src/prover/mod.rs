@@ -7,7 +7,6 @@ use ark_groth16::{
 };
 use ark_snark::SNARK;
 use ark_std::rand::thread_rng;
-use ethers::types::H160;
 use ark_relations::r1cs::{ConstraintSystem, ConstraintSynthesizer};
 
 use crate::bytecode::types::RuntimeAnalysis;
@@ -93,7 +92,8 @@ impl DeploymentProver {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use ethers::types::H160;
+    
     #[test]
     fn test_deployment_prover() {
         // Create deployment data with valid owner

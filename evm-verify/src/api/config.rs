@@ -118,6 +118,12 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set whether to detect precision loss vulnerabilities
+    pub fn detect_precision_loss(mut self, value: bool) -> Self {
+        self.config.detect_precision_loss = value;
+        self
+    }
+    
     /// Set whether to run in test mode
     pub fn test_mode(mut self, value: bool) -> Self {
         self.config.test_mode = value;
