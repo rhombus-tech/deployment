@@ -204,6 +204,8 @@ pub enum SecurityWarningKind {
     OracleManipulation,
     /// MEV (Maximal Extractable Value) vulnerability
     MEVVulnerability,
+    /// Governance vulnerability
+    GovernanceVulnerability,
 }
 
 impl Default for SecurityWarningKind {
@@ -573,14 +575,62 @@ impl SecurityWarning {
 
     /// Create a missing slippage protection warning
     pub fn missing_slippage_protection(pc: u64) -> Self {
-        Self::new(
-            SecurityWarningKind::MissingSlippageProtection,
-            SecuritySeverity::Medium,
+        Self {
+            kind: SecurityWarningKind::MissingSlippageProtection,
+            severity: SecuritySeverity::High,
             pc,
-            "Missing slippage protection detected. This can lead to price manipulation in swap operations.".to_string(),
-            vec![],
-            "Implement minimum output or maximum input checks for all swap operations to prevent price manipulation.".to_string(),
-        )
+            description: "Missing slippage protection in swap operation".to_string(),
+            operations: Vec::new(),
+            remediation: "Implement slippage protection with minimum output amount checks".to_string(),
+        }
+    }
+    
+    /// Create an insufficient timelock warning
+    pub fn insufficient_timelock(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GovernanceVulnerability,
+            severity: SecuritySeverity::High,
+            pc,
+            description: "Insufficient timelock mechanism detected in governance function".to_string(),
+            operations: Vec::new(),
+            remediation: "Implement a longer timelock period (at least 24 hours recommended) for critical governance actions".to_string(),
+        }
+    }
+    
+    /// Create a weak quorum requirement warning
+    pub fn weak_quorum_requirement(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GovernanceVulnerability,
+            severity: SecuritySeverity::High,
+            pc,
+            description: "Weak quorum requirement detected in governance voting mechanism".to_string(),
+            operations: Vec::new(),
+            remediation: "Increase quorum requirements to ensure sufficient participation in governance decisions".to_string(),
+        }
+    }
+    
+    /// Create a flash loan voting vulnerability warning
+    pub fn flash_loan_voting_vulnerability(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GovernanceVulnerability,
+            severity: SecuritySeverity::Critical,
+            pc,
+            description: "Potential flash loan vulnerability in governance voting mechanism".to_string(),
+            operations: Vec::new(),
+            remediation: "Implement voting weight snapshots or timelock mechanisms to prevent flash loan attacks on governance".to_string(),
+        }
+    }
+    
+    /// Create a centralized admin control warning
+    pub fn centralized_admin_control(pc: u64) -> Self {
+        Self {
+            kind: SecurityWarningKind::GovernanceVulnerability,
+            severity: SecuritySeverity::Medium,
+            pc,
+            description: "Centralized admin control detected in governance mechanism".to_string(),
+            operations: Vec::new(),
+            remediation: "Implement multi-signature requirements or decentralized governance mechanisms".to_string(),
+        }
     }
 }
 

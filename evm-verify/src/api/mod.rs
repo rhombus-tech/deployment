@@ -27,6 +27,7 @@ use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_oracle;
 use crate::bytecode::analyzer_mev;
+use crate::bytecode::analyzer_governance;
 
 /// Main API for EVM Verify
 /// 
@@ -124,8 +125,8 @@ impl EVMVerify {
         analyzer.set_test_mode(self.test_mode);
         
         // Run the analysis
-        let results = match analyzer.analyze() {
-            Ok(results) => results,
+        let mut results = match analyzer.analyze() {
+            Ok(r) => r,
             Err(e) => {
                 // Create a minimal report with the error
                 return Ok(AnalysisReport {
@@ -146,6 +147,32 @@ impl EVMVerify {
                 });
             }
         };
+        
+        // Detect additional vulnerabilities based on configuration
+        
+        // Detect reentrancy vulnerabilities if enabled
+        if self.config.detect_reentrancy {
+            let reentrancy_warnings = analyzer_reentrancy::detect_reentrancy(&analyzer);
+            for warning in reentrancy_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
+        // Detect access control vulnerabilities if enabled
+        if self.config.detect_access_control {
+            let access_control_warnings = analyzer_access_control::detect_access_control_vulnerabilities(&analyzer);
+            for warning in access_control_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
+        // Detect governance vulnerabilities if enabled
+        if self.config.detect_governance {
+            let governance_warnings = analyzer_governance::detect_governance_vulnerabilities(&analyzer);
+            for warning in governance_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
         
         self.generate_report(results)
     }
@@ -433,7 +460,7 @@ impl EVMVerify {
     /// }
     /// ```
     pub fn analyze_integer_underflow(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
-        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let analyzer = BytecodeAnalyzer::new(bytecode);
         
         if !self.config.detect_arithmetic {
             println!("Arithmetic vulnerability detection disabled in config");
@@ -473,9 +500,8 @@ impl EVMVerify {
     /// }
     /// ```
     pub fn analyze_flash_loan_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
-        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let analyzer = BytecodeAnalyzer::new(bytecode);
         
-        // Use the dedicated flash loan detection flag
         if !self.config.detect_flash_loan {
             println!("Flash loan vulnerability detection disabled in config");
             return Ok(vec![]);
@@ -688,6 +714,44 @@ impl EVMVerify {
         analyzer.detect_mev_vulnerabilities()
     }
 
+    /// Analyze bytecode specifically for governance vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential governance vulnerabilities,
+    /// such as missing or weak access controls, or improper use of governance mechanisms.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
+    /// let vulnerabilities = verifier.analyze_governance_vulnerabilities(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_governance_vulnerabilities(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        let analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        if !self.config.detect_governance {
+            println!("Governance vulnerability detection disabled in config");
+            return Ok(vec![]);
+        }
+        
+        Ok(analyzer_governance::detect_governance_vulnerabilities(&analyzer))
+    }
+
     /// Generate a comprehensive analysis report
     fn generate_report(&self, results: AnalysisResults) -> Result<AnalysisReport> {
         // Extract vulnerabilities
@@ -728,6 +792,8 @@ impl EVMVerify {
                     VulnerabilityType::ProxyVulnerability
                 } else if warning.contains("oracle manipulation") || warning.contains("oracle") {
                     VulnerabilityType::OracleManipulation
+                } else if warning.contains("governance") || warning.contains("timelock") || warning.contains("quorum") {
+                    VulnerabilityType::GovernanceVulnerability
                 } else {
                     VulnerabilityType::Other
                 };
@@ -772,6 +838,8 @@ impl EVMVerify {
                         "Implement proxy vulnerability protection mechanisms".to_string(),
                     VulnerabilityType::OracleManipulation => 
                         "Implement oracle manipulation protection mechanisms".to_string(),
+                    VulnerabilityType::GovernanceVulnerability => 
+                        "Implement proper timelock mechanisms, secure quorum requirements, and flash loan protection in governance systems".to_string(),
                 };
                 
                 Vulnerability {
@@ -883,47 +951,57 @@ mod tests {
 
     #[test]
     fn test_timestamp_dependency_detection() -> Result<()> {
-        // Create bytecode with a potential timestamp dependency vulnerability
-        // This bytecode uses the TIMESTAMP opcode (0x42) followed by a comparison
+        // Create test bytecode with timestamp dependency
         let bytecode = Bytes::from(vec![
-            // TIMESTAMP
-            0x42,
-            // PUSH1 0x10 (16 in decimal)
-            0x60, 0x10,
-            // GT (greater than comparison)
-            0x11,
-            // PUSH1 0x0C (jump destination)
-            0x60, 0x0C,
-            // JUMPI (conditional jump)
-            0x57,
-            // PUSH1 0x00
-            0x60, 0x00,
-            // PUSH1 0x00
-            0x60, 0x00,
-            // REVERT
-            0xFD,
-            // JUMPDEST
-            0x5B,
-            // PUSH1 0x01
-            0x60, 0x01,
-            // PUSH1 0x00
-            0x60, 0x00,
-            // SSTORE (store value 1 at storage slot 0)
-            0x55
+            0x42, // TIMESTAMP
+            0x60, 0x05, // PUSH1 5
+            0x10, // LT
+            0x60, 0x00, // PUSH1 0
+            0x57, // JUMPI
         ]);
         
-        // Create analyzer with default config
-        let analyzer = EVMVerify::new();
+        // Create verifier
+        let mut verifier = EVMVerify::new();
+        verifier.set_test_mode(true);
         
-        // Run specific timestamp dependency analysis
-        let warnings = analyzer.analyze_timestamp_dependencies(bytecode)?;
+        // Analyze for timestamp dependencies
+        let vulnerabilities = verifier.analyze_timestamp_dependencies(bytecode)?;
         
-        // Verify that we detected the vulnerability
-        assert!(!warnings.is_empty(), "Should have detected timestamp dependency vulnerability");
+        // Verify at least one vulnerability was found
+        assert!(!vulnerabilities.is_empty());
         
-        // Verify the warning type
-        let warning = &warnings[0];
-        assert_eq!(warning.kind, SecurityWarningKind::TimestampDependence);
+        // Verify the vulnerability is correctly identified
+        let vuln = &vulnerabilities[0];
+        assert_eq!(vuln.kind, SecurityWarningKind::TimestampDependence);
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_governance_vulnerability_detection() -> Result<()> {
+        // Create test bytecode with governance vulnerability
+        // This simulates a contract with insufficient timelock (small timestamp comparison)
+        let bytecode = Bytes::from(vec![
+            0x42, // TIMESTAMP
+            0x60, 0x0A, // PUSH1 10 (very small timelock of 10 seconds)
+            0x11, // GT
+            0x60, 0x00, // PUSH1 0
+            0x55, // SSTORE
+        ]);
+        
+        // Create verifier
+        let mut verifier = EVMVerify::new();
+        verifier.set_test_mode(true);
+        
+        // Analyze for governance vulnerabilities
+        let vulnerabilities = verifier.analyze_governance_vulnerabilities(bytecode)?;
+        
+        // Verify at least one vulnerability was found
+        assert!(!vulnerabilities.is_empty());
+        
+        // Verify the vulnerability is correctly identified
+        let vuln = &vulnerabilities[0];
+        assert_eq!(vuln.kind, SecurityWarningKind::GovernanceVulnerability);
         
         Ok(())
     }

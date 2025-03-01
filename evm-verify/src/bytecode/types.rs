@@ -34,6 +34,13 @@ pub struct AnalysisResults {
     pub metadata: HashMap<String, String>,
 }
 
+impl AnalysisResults {
+    /// Add a warning to the analysis results
+    pub fn add_warning(&mut self, warning: String) {
+        self.warnings.push(warning);
+    }
+}
+
 /// Constructor analysis data
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ConstructorAnalysis {

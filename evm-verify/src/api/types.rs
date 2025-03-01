@@ -153,6 +153,9 @@ pub enum VulnerabilityType {
     /// Oracle manipulation vulnerability
     OracleManipulation,
     
+    /// Governance vulnerability
+    GovernanceVulnerability,
+    
     /// Unknown vulnerability type
     Unknown,
 
@@ -202,6 +205,9 @@ pub struct AnalysisConfig {
     
     /// Whether to detect oracle manipulation vulnerabilities
     pub detect_oracle_manipulation: bool,
+    
+    /// Whether to detect governance vulnerabilities
+    pub detect_governance: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -216,6 +222,7 @@ impl Default for AnalysisConfig {
             detect_delegate_call: true,
             detect_flash_loan: true,
             detect_oracle_manipulation: true,
+            detect_governance: true,
         }
     }
 }
