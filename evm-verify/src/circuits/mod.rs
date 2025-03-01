@@ -8,6 +8,8 @@ pub mod constructor;
 pub mod evm_state;
 pub mod flash_loan;
 pub mod front_running;
+pub mod gas_limit;
+pub mod governance;
 pub mod integer_overflow;
 pub mod mev;
 pub mod memory;
@@ -15,10 +17,12 @@ pub mod oracle;
 pub mod precision;
 pub mod proxy;
 pub mod reentrancy;
+pub mod self_destruct;
 pub mod signature_replay;
 pub mod state;
 pub mod storage;
 pub mod timestamp_dependency;
+pub mod unchecked_calls;
 pub mod upgrade;
 
 // Import for internal use
@@ -26,16 +30,20 @@ use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
 use evm_state::EVMStateCircuit;
 use front_running::FrontRunningCircuit;
+use gas_limit::GasLimitCircuit;
+use governance::GovernanceCircuit;
 use mev::MEVCircuit;
 use memory::MemorySafetyCircuit;
 use oracle::OracleCircuit;
 use precision::PrecisionCircuit;
 use proxy::ProxyCircuit;
 use reentrancy::ReentrancyCircuit;
+use self_destruct::SelfDestructCircuit;
 use signature_replay::SignatureReplayCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
 use timestamp_dependency::TimestampDependencyCircuit;
+use unchecked_calls::UncheckedCallsCircuit;
 use upgrade::UpgradeVerificationCircuit;
 
 // Re-export circuits for public use
@@ -184,6 +192,26 @@ impl<F: PrimeField> CircuitBuilder<F> {
     
     /// Build timestamp dependency vulnerability detection circuit
     pub fn build_timestamp_dependency(&self) -> TimestampDependencyCircuit<F> {
-        TimestampDependencyCircuit::<F>::new(self.deployment.clone(), self.runtime.clone())
+        TimestampDependencyCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+
+    /// Build gas limit vulnerability detection circuit
+    pub fn build_gas_limit(&self) -> GasLimitCircuit<F> {
+        GasLimitCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+
+    /// Build governance circuit
+    pub fn build_governance(&self) -> GovernanceCircuit<F> {
+        GovernanceCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+
+    /// Build self-destruct vulnerability detection circuit
+    pub fn build_self_destruct(&self) -> SelfDestructCircuit<F> {
+        SelfDestructCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+
+    /// Build unchecked calls vulnerability detection circuit
+    pub fn build_unchecked_calls(&self) -> UncheckedCallsCircuit<F> {
+        UncheckedCallsCircuit::new(self.deployment.clone(), self.runtime.clone())
     }
 }
