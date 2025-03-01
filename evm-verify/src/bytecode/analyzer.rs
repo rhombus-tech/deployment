@@ -16,6 +16,7 @@ use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_randomness;
 use crate::bytecode::analyzer_oracle;
 use crate::bytecode::analyzer_mev;
+use crate::bytecode::analyzer_upgradability;
 
 /// Analyzes EVM bytecode for safety properties
 #[derive(Debug)]
@@ -433,6 +434,17 @@ impl BytecodeAnalyzer {
             }
         } else {
             println!("Error detecting MEV vulnerabilities");
+        }
+        
+        // Detect upgradability vulnerabilities
+        let upgradability_warnings = analyzer_upgradability::detect_upgradability_vulnerabilities(self);
+        if !upgradability_warnings.is_empty() {
+            println!("Got {} upgradability vulnerability warnings", upgradability_warnings.len());
+            for warning in upgradability_warnings {
+                println!("Adding upgradability warning: {}", warning.description);
+                warnings.push(warning.description.clone());
+                security_warnings.push(warning);
+            }
         }
         
         // Add the security warnings to the analysis

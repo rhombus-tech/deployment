@@ -244,7 +244,7 @@ mod tests {
         }
         
         assert!(!warnings.is_empty(), "Should detect missing access control");
-        assert_eq!(warnings[0].kind, SecurityWarningKind::AccessControl);
+        assert_eq!(warnings[0].kind, SecurityWarningKind::AccessControlVulnerability);
     }
 
     #[test]

@@ -26,6 +26,7 @@ pub mod analyzer_randomness;
 pub mod analyzer_oracle;
 pub mod analyzer_mev;
 pub mod analyzer_governance;
+pub mod analyzer_upgradability;
 pub mod opcodes;
 #[cfg(test)]
 pub mod tests;

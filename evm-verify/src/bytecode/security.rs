@@ -119,75 +119,60 @@ pub enum SecurityWarningKind {
     ReadOnlyReentrancy,
     /// Cross-function reentrancy vulnerability
     CrossFunctionReentrancy,
-    /// Cross-contract reentrancy vulnerability
-    CrossContractReentrancy,
-    /// Unprotected self destruct
+    /// Unprotected self destruct vulnerability
     UnprotectedSelfDestruct,
-    /// Unprotected delegate call
+    /// Unprotected delegate call vulnerability
     UnprotectedDelegateCall,
-    /// Unprotected external call
-    UnprotectedExternalCall,
-    /// Unchecked return value
-    UncheckedReturnValue,
-    /// Unchecked call return value
-    UncheckedCallReturn,
-    /// Multiple external calls
-    MultipleExternalCalls,
-    /// Integer overflow/underflow (deprecated - use IntegerOverflow or IntegerUnderflow)
-    #[deprecated(note = "Use specific IntegerOverflow or IntegerUnderflow instead")]
-    IntegerArithmetic,
-    /// Use of tx.origin for authorization
-    TxOriginAuth,
-    /// Use of tx.origin
-    TxOriginUsage,
-    /// Uninitialized storage
-    UninitializedStorage,
-    /// Unprotected state variable
-    UnprotectedStateVariable,
-    /// Arbitrary jump
-    ArbitraryJump,
-    /// Timestamp dependence
-    TimestampDependence,
-    /// Timestamp manipulation
-    TimestampManipulation,
-    /// Block number dependence
-    BlockNumberDependence,
-    /// Front-running vulnerability
-    FrontRunning,
-    /// Price manipulation vulnerability
-    PriceManipulation,
-    /// Unchecked math
-    UncheckedMath,
-    /// Unused return value
-    UnusedReturnValue,
-    /// Delegate call misuse
-    DelegateCallMisuse,
-    /// Delegate call in constructor
-    DelegateCallInConstructor,
-    /// Other security issue
-    Other(String),
-    /// Unchecked external call
-    UncheckedExternalCall,
-    /// Gas limit issue
-    GasLimitIssue,
-    /// Access control vulnerability
-    AccessControl,
-    /// Integer underflow vulnerability
-    IntegerUnderflow,
     /// Integer overflow vulnerability
     IntegerOverflow,
-    /// Inconsistent access control patterns
-    InconsistentAccessControl,
-    /// Weak access control implementation
-    WeakAccessControl,
-    /// Hardcoded address in access control
-    HardcodedAccessControl,
+    /// Integer underflow vulnerability
+    IntegerUnderflow,
+    /// Unprotected state variable vulnerability
+    UnprotectedStateVariable,
+    /// Delegate call misuse vulnerability
+    DelegateCallMisuse,
+    /// Delegate call in constructor vulnerability
+    DelegateCallInConstructor,
+    /// Unchecked external call vulnerability
+    UncheckedExternalCall,
+    /// Timestamp dependence vulnerability
+    TimestampDependence,
     /// Flash loan vulnerability
     FlashLoanVulnerability,
-    /// Flash loan state manipulation
+    /// Flash loan state manipulation vulnerability
     FlashLoanStateManipulation,
-    /// Missing slippage protection
+    /// Missing slippage protection vulnerability
     MissingSlippageProtection,
+    /// Insufficient timelock vulnerability
+    InsufficientTimelock,
+    /// Weak quorum requirement vulnerability
+    WeakQuorumRequirement,
+    /// Flash loan voting vulnerability
+    FlashLoanVotingVulnerability,
+    /// Centralized admin control vulnerability
+    CentralizedAdminControl,
+    /// Cross-contract reentrancy vulnerability
+    CrossContractReentrancy,
+    /// Access control vulnerability
+    AccessControlVulnerability,
+    /// Weak access control vulnerability
+    WeakAccessControl,
+    /// Inconsistent access control vulnerability
+    InconsistentAccessControl,
+    /// Hardcoded access control vulnerability
+    HardcodedAccessControl,
+    /// tx.origin usage vulnerability
+    TxOriginUsage,
+    /// Gas limit issue vulnerability
+    GasLimitIssue,
+    /// Unprotected upgrade function vulnerability
+    UnprotectedUpgradeFunction,
+    /// Storage layout incompatibility vulnerability
+    StorageLayoutIncompatibility,
+    /// Missing initializer vulnerability
+    MissingInitializer,
+    /// Untrusted implementation vulnerability
+    UntrustedImplementation,
     /// Denial of Service vulnerability
     DenialOfService,
     /// Signature replay vulnerability
@@ -200,14 +185,30 @@ pub enum SecurityWarningKind {
     ImplementationShadowing,
     /// Weak randomness vulnerability
     WeakRandomness,
-    /// Bitmask vulnerability
-    BitMaskVulnerability,
+    /// Unchecked call return vulnerability
+    UncheckedCallReturn,
+    /// tx.origin for authorization vulnerability
+    TxOriginAuth,
+    /// Front-running vulnerability
+    FrontRunning,
+    /// Price manipulation vulnerability
+    PriceManipulation,
+    /// Block number dependence vulnerability
+    BlockNumberDependence,
+    /// Uninitialized storage vulnerability
+    UninitializedStorage,
+    /// MEV vulnerability
+    MEVVulnerability,
     /// Oracle manipulation vulnerability
     OracleManipulation,
-    /// MEV (Maximal Extractable Value) vulnerability
-    MEVVulnerability,
+    /// Bitmask vulnerability
+    BitMaskVulnerability,
     /// Governance vulnerability
     GovernanceVulnerability,
+    /// Access control vulnerability (alias)
+    AccessControl,
+    /// Other security issue
+    Other(String),
 }
 
 impl Default for SecurityWarningKind {
@@ -482,7 +483,7 @@ impl SecurityWarning {
     /// Create an access control vulnerability warning
     pub fn access_control_vulnerability(pc: u64) -> Self {
         Self::new(
-            SecurityWarningKind::AccessControl,
+            SecurityWarningKind::AccessControlVulnerability,
             SecuritySeverity::High,
             pc,
             "Missing access control for sensitive operation".to_string(),
@@ -590,7 +591,7 @@ impl SecurityWarning {
     /// Create an insufficient timelock warning
     pub fn insufficient_timelock(pc: u64) -> Self {
         Self {
-            kind: SecurityWarningKind::GovernanceVulnerability,
+            kind: SecurityWarningKind::InsufficientTimelock,
             severity: SecuritySeverity::High,
             pc,
             description: "Insufficient timelock mechanism detected in governance function".to_string(),
@@ -602,7 +603,7 @@ impl SecurityWarning {
     /// Create a weak quorum requirement warning
     pub fn weak_quorum_requirement(pc: u64) -> Self {
         Self {
-            kind: SecurityWarningKind::GovernanceVulnerability,
+            kind: SecurityWarningKind::WeakQuorumRequirement,
             severity: SecuritySeverity::High,
             pc,
             description: "Weak quorum requirement detected in governance voting mechanism".to_string(),
@@ -614,7 +615,7 @@ impl SecurityWarning {
     /// Create a flash loan voting vulnerability warning
     pub fn flash_loan_voting_vulnerability(pc: u64) -> Self {
         Self {
-            kind: SecurityWarningKind::GovernanceVulnerability,
+            kind: SecurityWarningKind::FlashLoanVotingVulnerability,
             severity: SecuritySeverity::Critical,
             pc,
             description: "Potential flash loan vulnerability in governance voting mechanism".to_string(),
@@ -626,7 +627,7 @@ impl SecurityWarning {
     /// Create a centralized admin control warning
     pub fn centralized_admin_control(pc: u64) -> Self {
         Self {
-            kind: SecurityWarningKind::GovernanceVulnerability,
+            kind: SecurityWarningKind::CentralizedAdminControl,
             severity: SecuritySeverity::Medium,
             pc,
             description: "Centralized admin control detected in governance mechanism".to_string(),

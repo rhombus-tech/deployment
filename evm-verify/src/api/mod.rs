@@ -1045,7 +1045,7 @@ mod tests {
         
         // Verify the vulnerability is correctly identified
         let vuln = &vulnerabilities[0];
-        assert_eq!(vuln.kind, SecurityWarningKind::GovernanceVulnerability);
+        assert_eq!(vuln.kind, SecurityWarningKind::InsufficientTimelock);
         
         Ok(())
     }
