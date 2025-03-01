@@ -5,10 +5,12 @@ use crate::common::DeploymentData;
 
 pub mod access;
 pub mod constructor;
+pub mod cross_contract_reentrancy;
 pub mod evm_state;
 pub mod flash_loan;
 pub mod front_running;
 pub mod gas_limit;
+pub mod gas_griefing;
 pub mod governance;
 pub mod integer_overflow;
 pub mod mev;
@@ -28,9 +30,11 @@ pub mod upgrade;
 // Import for internal use
 use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
+use cross_contract_reentrancy::CrossContractReentrancyCircuit;
 use evm_state::EVMStateCircuit;
 use front_running::FrontRunningCircuit;
 use gas_limit::GasLimitCircuit;
+use gas_griefing::GasGriefingCircuit;
 use governance::GovernanceCircuit;
 use mev::MEVCircuit;
 use memory::MemorySafetyCircuit;
@@ -212,6 +216,25 @@ impl<F: PrimeField> CircuitBuilder<F> {
 
     /// Build unchecked calls vulnerability detection circuit
     pub fn build_unchecked_calls(&self) -> UncheckedCallsCircuit<F> {
-        UncheckedCallsCircuit::new(self.deployment.clone(), self.runtime.clone())
+        UncheckedCallsCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+    
+    /// Build gas griefing vulnerability detection circuit
+    pub fn build_gas_griefing(&self) -> GasGriefingCircuit<F> {
+        GasGriefingCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+    
+    /// Build cross-contract reentrancy vulnerability detection circuit
+    pub fn build_cross_contract_reentrancy(&self) -> CrossContractReentrancyCircuit<F> {
+        CrossContractReentrancyCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
     }
 }
