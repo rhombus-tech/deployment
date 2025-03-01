@@ -7,7 +7,9 @@ pub mod access;
 pub mod constructor;
 pub mod evm_state;
 pub mod front_running;
+pub mod mev;
 pub mod memory;
+pub mod precision;
 pub mod state;
 pub mod storage;
 pub mod upgrade;
@@ -16,7 +18,9 @@ use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
 use evm_state::EVMStateCircuit;
 use front_running::FrontRunningCircuit;
+use mev::MEVCircuit;
 use memory::MemorySafetyCircuit;
+use precision::PrecisionCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
 use upgrade::UpgradeVerificationCircuit;
@@ -92,6 +96,22 @@ impl<F: PrimeField> CircuitBuilder<F> {
     /// Build front-running circuit
     pub fn build_front_running(&self) -> FrontRunningCircuit<F> {
         FrontRunningCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
+    /// Build MEV vulnerability detection circuit
+    pub fn build_mev(&self) -> MEVCircuit<F> {
+        MEVCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+    
+    /// Build precision vulnerability detection circuit
+    pub fn build_precision(&self) -> PrecisionCircuit<F> {
+        PrecisionCircuit::new(
             self.deployment.clone(),
             self.runtime.clone(),
         )
