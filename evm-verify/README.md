@@ -168,6 +168,39 @@ if !analysis.is_memory_safe() {
 }
 ```
 
+## Unified API (New!)
+
+The Unified API provides a comprehensive interface for analyzing Ethereum smart contracts using both Proof-Carrying Code (PCC) and Proof-Carrying Data (PCD) approaches.
+
+```rust
+use evm_verify::UnifiedVerifier;
+use ethers::types::Bytes;
+
+// Create a unified verifier
+let verifier = UnifiedVerifier::new();
+
+// Analyze bytecode
+let bytecode = Bytes::from_hex("0x6001600055").unwrap(); // PUSH1 1 PUSH1 0 SSTORE
+let report = verifier.analyze_bytecode(bytecode).unwrap();
+
+// Check for vulnerabilities
+if !report.vulnerabilities.is_empty() {
+    println!("Found {} vulnerabilities!", report.vulnerabilities.len());
+    
+    for vuln in &report.vulnerabilities {
+        println!("{}: {}", vuln.title, vuln.description);
+        println!("Severity: {:?}", vuln.severity);
+        println!("Recommendation: {}", vuln.recommendation);
+    }
+}
+
+// Configure the verifier to use only PCC or PCD
+let pcc_verifier = UnifiedVerifier::with_config(false, true); // PCC only
+let pcd_verifier = UnifiedVerifier::with_config(true, false); // PCD only
+```
+
+For more details on the Unified API, see [README-unified-api.md](README-unified-api.md).
+
 ## Dependencies
 
 - `ethers`: Ethereum types and utilities

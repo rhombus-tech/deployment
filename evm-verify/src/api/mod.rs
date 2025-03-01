@@ -6,10 +6,12 @@
 mod types;
 mod config;
 mod report;
+mod unified;
 
 pub use types::*;
 pub use config::*;
 pub use report::*;
+pub use unified::UnifiedVerifier;
 
 use anyhow::{Result, Context};
 use ethers::types::Bytes;
@@ -1164,7 +1166,7 @@ mod tests {
             0x60, 0x0A, // PUSH1 10 (very small timelock of 10 seconds)
             0x11, // GT
             0x60, 0x00, // PUSH1 0
-            0x55, // SSTORE
+            0x57, // JUMPI
         ]);
         
         // Create verifier

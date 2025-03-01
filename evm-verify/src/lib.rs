@@ -2,6 +2,8 @@ use ark_bn254::Bn254;
 use ark_groth16::Groth16;
 use ark_snark::SNARK;
 use ark_ec::pairing::Pairing;
+use ark_ec::AffineRepr;
+use ark_ff::Zero;
 use rand::rngs::OsRng;
 
 use crate::circuits::access::AccessControlCircuit;
@@ -19,6 +21,10 @@ pub mod ethereum;
 pub mod prover;
 pub mod utils;
 pub mod pcc;
+pub mod pcd;
+
+// Re-export the UnifiedVerifier for easier access
+pub use api::UnifiedVerifier;
 
 /// Generate proving key
 pub fn generate_proving_key<C>(circuit: C) -> <Groth16<Bn254> as SNARK<Fr>>::ProvingKey
