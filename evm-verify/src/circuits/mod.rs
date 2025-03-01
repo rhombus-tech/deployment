@@ -7,23 +7,32 @@ pub mod access;
 pub mod constructor;
 pub mod evm_state;
 pub mod front_running;
+pub mod integer_overflow;
 pub mod mev;
 pub mod memory;
+pub mod oracle;
 pub mod precision;
+pub mod reentrancy;
 pub mod state;
 pub mod storage;
 pub mod upgrade;
 
+// Import for internal use
 use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
 use evm_state::EVMStateCircuit;
 use front_running::FrontRunningCircuit;
 use mev::MEVCircuit;
 use memory::MemorySafetyCircuit;
+use oracle::OracleCircuit;
 use precision::PrecisionCircuit;
+use reentrancy::ReentrancyCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
 use upgrade::UpgradeVerificationCircuit;
+
+// Re-export only the IntegerOverflowCircuit for public use
+pub use integer_overflow::IntegerOverflowCircuit;
 
 /// Circuit builder
 pub struct CircuitBuilder<F: PrimeField> {
@@ -117,12 +126,36 @@ impl<F: PrimeField> CircuitBuilder<F> {
         )
     }
 
+    /// Build oracle manipulation vulnerability detection circuit
+    pub fn build_oracle(&self) -> OracleCircuit<F> {
+        OracleCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
+    /// Build reentrancy vulnerability detection circuit
+    pub fn build_reentrancy(&self) -> ReentrancyCircuit<F> {
+        ReentrancyCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+
     /// Build upgrade verification circuit
-    pub fn build_upgrade_verification(&self, new_deployment: DeploymentData) -> UpgradeVerificationCircuit<F> {
+    pub fn build_upgrade_verification(
+        &self,
+        new_deployment: DeploymentData,
+    ) -> UpgradeVerificationCircuit<F> {
         UpgradeVerificationCircuit::new(
             self.deployment.clone(),
             new_deployment,
             self.runtime.clone(),
         )
+    }
+    
+    /// Build integer overflow/underflow vulnerability detection circuit
+    pub fn build_integer_overflow(&self) -> IntegerOverflowCircuit<F> {
+        IntegerOverflowCircuit::new(self.deployment.clone(), self.runtime.clone())
     }
 }
