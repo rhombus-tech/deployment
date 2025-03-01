@@ -69,8 +69,20 @@ pub enum Operation {
     Storage {
         /// Operation type
         op_type: String,
-        /// Storage key
+        /// Storage key (optional)
         key: Option<H256>,
+    },
+    /// Timestamp operation
+    Timestamp,
+    /// Comparison operation
+    Comparison {
+        /// Comparison type
+        op_type: String,
+    },
+    /// Random operation
+    Random {
+        /// Random source
+        source: String,
     },
     /// Cryptography operation
     Cryptography {
@@ -215,6 +227,12 @@ pub enum SecurityWarningKind {
     EventEmissionVulnerability,
     /// Gas price dependency vulnerability (front-running related)
     GasPriceDependency,
+    /// Block timestamp dependency vulnerability
+    BlockTimestampDependency,
+    /// Unsafe timestamp comparison vulnerability
+    UnsafeTimestampComparison,
+    /// Time-based randomness vulnerability
+    TimeBasedRandomness,
     /// Other security issue
     Other(String),
 }

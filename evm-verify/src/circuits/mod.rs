@@ -6,15 +6,19 @@ use crate::common::DeploymentData;
 pub mod access;
 pub mod constructor;
 pub mod evm_state;
+pub mod flash_loan;
 pub mod front_running;
 pub mod integer_overflow;
 pub mod mev;
 pub mod memory;
 pub mod oracle;
 pub mod precision;
+pub mod proxy;
 pub mod reentrancy;
+pub mod signature_replay;
 pub mod state;
 pub mod storage;
+pub mod timestamp_dependency;
 pub mod upgrade;
 
 // Import for internal use
@@ -26,13 +30,17 @@ use mev::MEVCircuit;
 use memory::MemorySafetyCircuit;
 use oracle::OracleCircuit;
 use precision::PrecisionCircuit;
+use proxy::ProxyCircuit;
 use reentrancy::ReentrancyCircuit;
+use signature_replay::SignatureReplayCircuit;
 use state::StateTransitionCircuit;
 use storage::StorageCircuit;
+use timestamp_dependency::TimestampDependencyCircuit;
 use upgrade::UpgradeVerificationCircuit;
 
-// Re-export only the IntegerOverflowCircuit for public use
+// Re-export circuits for public use
 pub use integer_overflow::IntegerOverflowCircuit;
+pub use flash_loan::FlashLoanCircuit;
 
 /// Circuit builder
 pub struct CircuitBuilder<F: PrimeField> {
@@ -157,5 +165,25 @@ impl<F: PrimeField> CircuitBuilder<F> {
     /// Build integer overflow/underflow vulnerability detection circuit
     pub fn build_integer_overflow(&self) -> IntegerOverflowCircuit<F> {
         IntegerOverflowCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+    
+    /// Build flash loan vulnerability detection circuit
+    pub fn build_flash_loan(&self) -> FlashLoanCircuit<F> {
+        FlashLoanCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+    
+    /// Build signature replay vulnerability detection circuit
+    pub fn build_signature_replay(&self) -> SignatureReplayCircuit<F> {
+        SignatureReplayCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+    
+    /// Build proxy vulnerability detection circuit
+    pub fn build_proxy(&self) -> ProxyCircuit<F> {
+        ProxyCircuit::new(self.deployment.clone(), self.runtime.clone())
+    }
+    
+    /// Build timestamp dependency vulnerability detection circuit
+    pub fn build_timestamp_dependency(&self) -> TimestampDependencyCircuit<F> {
+        TimestampDependencyCircuit::<F>::new(self.deployment.clone(), self.runtime.clone())
     }
 }
