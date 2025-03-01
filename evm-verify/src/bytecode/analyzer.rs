@@ -14,6 +14,7 @@ use crate::bytecode::analyzer_dos;
 use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_randomness;
+use crate::bytecode::analyzer_oracle;
 
 /// Analyzes EVM bytecode for safety properties
 #[derive(Debug)]
@@ -409,6 +410,17 @@ impl BytecodeAnalyzer {
             println!("Adding randomness vulnerability warning: {}", warning.description);
             warnings.push(warning.description.clone());
             security_warnings.push(warning);
+        }
+        
+        // Detect oracle manipulation vulnerabilities
+        if let Ok(oracle_warnings) = self.detect_oracle_manipulation() {
+            for warning in oracle_warnings {
+                println!("Adding oracle manipulation warning: {}", warning.description);
+                warnings.push(warning.description.clone());
+                security_warnings.push(warning);
+            }
+        } else {
+            println!("Error detecting oracle manipulation vulnerabilities");
         }
         
         // Add the security warnings to the analysis
@@ -2685,6 +2697,12 @@ impl BytecodeAnalyzer {
         
         // Call the standalone function from analyzer_flashloan module
         let warnings = detect_flash_loan_vulnerabilities(self);
+        Ok(warnings)
+    }
+
+    /// Detect oracle manipulation vulnerabilities
+    pub fn detect_oracle_manipulation(&self) -> Result<Vec<SecurityWarning>> {
+        let warnings = analyzer_oracle::detect_oracle_vulnerabilities(self);
         Ok(warnings)
     }
 }

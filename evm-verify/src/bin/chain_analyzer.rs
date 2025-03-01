@@ -84,6 +84,7 @@ fn main() -> Result<()> {
                     detect_access_control: true,
                     detect_delegate_call: true,
                     detect_flash_loan: true,
+                    detect_oracle_manipulation: true,
                 });
                 
                 // Create a public method to generate a report

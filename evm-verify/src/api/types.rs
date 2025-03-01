@@ -91,6 +91,8 @@ impl VulnerabilitySeverity {
             Self::High
         } else if warning_lower.contains("uninitialized proxy") || warning_lower.contains("proxy") {
             Self::Medium
+        } else if warning_lower.contains("oracle manipulation") || warning_lower.contains("oracle") {
+            Self::High
         } else {
             Self::Low
         }
@@ -148,6 +150,9 @@ pub enum VulnerabilityType {
     /// Proxy contract vulnerability
     ProxyVulnerability,
     
+    /// Oracle manipulation vulnerability
+    OracleManipulation,
+    
     /// Unknown vulnerability type
     Unknown,
 
@@ -194,6 +199,9 @@ pub struct AnalysisConfig {
     
     /// Whether to detect flash loan vulnerabilities
     pub detect_flash_loan: bool,
+    
+    /// Whether to detect oracle manipulation vulnerabilities
+    pub detect_oracle_manipulation: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -207,6 +215,7 @@ impl Default for AnalysisConfig {
             detect_access_control: true,
             detect_delegate_call: true,
             detect_flash_loan: true,
+            detect_oracle_manipulation: true,
         }
     }
 }

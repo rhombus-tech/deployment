@@ -25,6 +25,7 @@ use crate::bytecode::analyzer_underflow;
 use crate::bytecode::analyzer_timestamp;
 use crate::bytecode::analyzer_signature_replay;
 use crate::bytecode::analyzer_proxy;
+use crate::bytecode::analyzer_oracle;
 
 /// Main API for EVM Verify
 /// 
@@ -592,6 +593,46 @@ impl EVMVerify {
         Ok(warnings)
     }
 
+    /// Analyze bytecode specifically for oracle manipulation vulnerabilities
+    /// 
+    /// This method analyzes EVM bytecode to detect potential oracle manipulation vulnerabilities,
+    /// such as using untrusted oracles, or failing to validate oracle responses.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bytecode` - The bytecode to analyze
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of security warnings or an error
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use evm_verify::api::EVMVerify;
+    /// use ethers::types::Bytes;
+    /// 
+    /// let verifier = EVMVerify::new();
+    /// let bytecode = Bytes::from(vec![0x1b, 0x60, 0x00, 0x52]); // ECRECOVER PUSH1 0 MSTORE
+    /// let vulnerabilities = verifier.analyze_oracle_manipulation(bytecode).unwrap();
+    /// 
+    /// for vuln in vulnerabilities {
+    ///     println!("{:?}: {}", vuln.kind, vuln.description);
+    /// }
+    /// ```
+    pub fn analyze_oracle_manipulation(&self, bytecode: Bytes) -> Result<Vec<SecurityWarning>> {
+        // Create bytecode analyzer
+        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        
+        // Run the analysis
+        analyzer.analyze()?;
+        
+        // Get oracle manipulation vulnerabilities
+        let warnings = analyzer_oracle::detect_oracle_vulnerabilities(&analyzer);
+        
+        Ok(warnings)
+    }
+
     /// Generate a comprehensive analysis report
     fn generate_report(&self, results: AnalysisResults) -> Result<AnalysisReport> {
         // Extract vulnerabilities
@@ -630,6 +671,8 @@ impl EVMVerify {
                     VulnerabilityType::SignatureReplay
                 } else if warning.contains("uninitialized proxy") || warning.contains("proxy") {
                     VulnerabilityType::ProxyVulnerability
+                } else if warning.contains("oracle manipulation") || warning.contains("oracle") {
+                    VulnerabilityType::OracleManipulation
                 } else {
                     VulnerabilityType::Other
                 };
@@ -672,6 +715,8 @@ impl EVMVerify {
                         "Implement signature replay protection mechanisms".to_string(),
                     VulnerabilityType::ProxyVulnerability => 
                         "Implement proxy vulnerability protection mechanisms".to_string(),
+                    VulnerabilityType::OracleManipulation => 
+                        "Implement oracle manipulation protection mechanisms".to_string(),
                 };
                 
                 Vulnerability {

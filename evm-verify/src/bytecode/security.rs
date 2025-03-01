@@ -200,6 +200,8 @@ pub enum SecurityWarningKind {
     WeakRandomness,
     /// Bitmask vulnerability
     BitMaskVulnerability,
+    /// Oracle manipulation vulnerability
+    OracleManipulation,
 }
 
 impl Default for SecurityWarningKind {
