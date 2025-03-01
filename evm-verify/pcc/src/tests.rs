@@ -160,15 +160,20 @@ mod tests {
     fn test_memory_safety_circuit() {
         // Create a simple memory safety circuit
         let accesses = vec![
-            (ethers::types::U256::from(0), ethers::types::U256::from(32)),
-            (ethers::types::U256::from(32), ethers::types::U256::from(32)),
+            (ethers::types::U256::from(10), ethers::types::U256::from(20)),
         ];
         
         let allocations = vec![
             (ethers::types::U256::from(0), ethers::types::U256::from(64)),
         ];
         
-        let circuit = MemorySafetyCircuit::<Fr>::new(accesses, allocations);
+        let circuit = MemorySafetyCircuit::<Fr>::new(
+            accesses, 
+            allocations,
+            None, // memory_hash
+            ethers::types::U256::from(1024), // max_memory_size
+            false // enforce_temporal_safety
+        );
         
         // Generate proving key
         let result = generate_proving_key(&circuit);
@@ -184,7 +189,12 @@ mod tests {
         let gas_usage = ethers::types::U256::from(1000);
         let complexity = 5;
         
-        let circuit = BytecodeSafetyCircuit::<Fr>::new(&vulnerabilities, gas_usage, complexity);
+        let circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &vulnerabilities, 
+            gas_usage, 
+            complexity,
+            None // bytecode_hash
+        );
         
         // Generate proving key
         let result = generate_proving_key(&circuit);

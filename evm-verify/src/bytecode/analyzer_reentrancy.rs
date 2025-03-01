@@ -44,14 +44,17 @@ pub fn detect_reentrancy(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
         i += 1;
     }
     
-    // Check for classic reentrancy pattern: storage write after external call
+    // Check for complete reentrancy pattern: storage read before external call followed by storage write after external call
     for &call_pos in &external_calls {
-        for &write_pos in &storage_writes {
-            if write_pos > call_pos {
-                // This is a potential reentrancy vulnerability
-                warnings.push(SecurityWarning::reentrancy(call_pos as u64, H256::zero()));
-                break; // Only report one warning per call
-            }
+        // Check if there's any storage read before this call
+        let has_read_before = storage_reads.iter().any(|&read_pos| read_pos < call_pos);
+        
+        // Check if there's any storage write after this call
+        let has_write_after = storage_writes.iter().any(|&write_pos| write_pos > call_pos);
+        
+        // If both conditions are met, this is a potential reentrancy vulnerability
+        if has_read_before && has_write_after {
+            warnings.push(SecurityWarning::reentrancy(call_pos as u64, H256::zero()));
         }
     }
     

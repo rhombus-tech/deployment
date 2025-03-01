@@ -24,6 +24,7 @@ ark-std = "0.4.0"
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
 
 [dev-dependencies]
 rand = "0.8"

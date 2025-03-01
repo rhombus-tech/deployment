@@ -6,12 +6,16 @@
 use anyhow::{Result, Context};
 use ethers::types::Bytes;
 use ark_bn254::Bn254;
-use ark_groth16::Proof;
+use ark_groth16::{Proof, generate_random_parameters, create_random_proof, prepare_verifying_key, verify_proof};
 use ark_ec::pairing::Pairing;
+use ark_std::rand::thread_rng;
+use ark_relations::r1cs::ConstraintSynthesizer;
 
 use crate::bytecode::BytecodeAnalyzer;
 use crate::bytecode::security::SecurityWarning;
 use crate::api::types::{Vulnerability, VulnerabilityType, VulnerabilitySeverity, VulnerabilityLocation};
+use crate::bytecode::analyzer::VulnerabilityType as AnalyzerVulnerabilityType;
+use pcc::circuits::bytecode::BytecodeSafetyCircuit;
 
 // Define Fr as the scalar field for Bn254
 type Fr = <Bn254 as Pairing>::ScalarField;
@@ -32,27 +36,83 @@ pub fn analyze_bytecode(bytecode: &Bytes) -> Result<Vec<Vulnerability>> {
 
 /// Generate a proof for the security properties of the bytecode
 pub fn generate_proof(bytecode: &Bytes) -> Result<Proof<Bn254>> {
-    // This is a placeholder implementation
-    // In a real implementation, this would generate a ZK proof
+    // Create a bytecode analyzer
+    let analyzer = BytecodeAnalyzer::new(bytecode.to_vec());
     
-    // Create a dummy proof
-    let proof = Proof::<Bn254>::default();
+    // Perform analysis
+    let analysis_results = analyzer.analyze()?;
+    
+    // Convert analyzer vulnerability types to circuit vulnerability types
+    let vulnerability_types = convert_analyzer_to_circuit_vulnerabilities(&analysis_results.security_warnings);
+    
+    // Calculate gas usage and complexity
+    let gas_usage = analysis_results.gas_usage;
+    let complexity = analysis_results.complexity;
+    
+    // Calculate bytecode hash
+    let mut bytecode_hash = [0u8; 32];
+    let mut keccak = tiny_keccak::Keccak::v256();
+    keccak.update(bytecode.as_ref());
+    keccak.finalize(&mut bytecode_hash);
+    
+    // Create a bytecode safety circuit with the actual bytecode
+    let circuit = BytecodeSafetyCircuit::<Fr>::new_with_bytecode(
+        &vulnerability_types,
+        gas_usage,
+        complexity,
+        Some(bytecode_hash),
+        bytecode.to_vec()
+    );
+    
+    // Generate parameters for the circuit
+    let params = generate_random_parameters::<Bn254, _, _>(circuit.clone(), &mut thread_rng())?;
+    
+    // Create a proof
+    let proof = create_random_proof(circuit, &params, &mut thread_rng())?;
     
     Ok(proof)
 }
 
 /// Verify a proof for the security properties of the bytecode
 pub fn verify_proof(bytecode: &Bytes, proof: &Proof<Bn254>) -> Result<bool> {
-    // This is a placeholder implementation
-    // In a real implementation, this would verify a ZK proof
+    // Create a bytecode analyzer
+    let analyzer = BytecodeAnalyzer::new(bytecode.to_vec());
     
-    // For now, just perform a basic analysis and return true if no critical vulnerabilities
-    let vulnerabilities = analyze_bytecode(bytecode)?;
+    // Perform analysis
+    let analysis_results = analyzer.analyze()?;
     
-    let has_critical = vulnerabilities.iter()
-        .any(|v| v.severity == VulnerabilitySeverity::Critical);
+    // Convert analyzer vulnerability types to circuit vulnerability types
+    let vulnerability_types = convert_analyzer_to_circuit_vulnerabilities(&analysis_results.security_warnings);
     
-    Ok(!has_critical)
+    // Calculate gas usage and complexity
+    let gas_usage = analysis_results.gas_usage;
+    let complexity = analysis_results.complexity;
+    
+    // Calculate bytecode hash
+    let mut bytecode_hash = [0u8; 32];
+    let mut keccak = tiny_keccak::Keccak::v256();
+    keccak.update(bytecode.as_ref());
+    keccak.finalize(&mut bytecode_hash);
+    
+    // Create a bytecode safety circuit with the actual bytecode
+    let circuit = BytecodeSafetyCircuit::<Fr>::new_with_bytecode(
+        &vulnerability_types,
+        gas_usage,
+        complexity,
+        Some(bytecode_hash),
+        bytecode.to_vec()
+    );
+    
+    // Generate parameters for the circuit
+    let params = generate_random_parameters::<Bn254, _, _>(circuit, &mut thread_rng())?;
+    
+    // Prepare verifying key
+    let pvk = prepare_verifying_key(&params.vk);
+    
+    // Verify the proof
+    let result = verify_proof(&pvk, proof, &[])?;
+    
+    Ok(result)
 }
 
 /// Convert security warnings to vulnerabilities
@@ -100,6 +160,61 @@ fn convert_warnings_to_vulnerabilities(warnings: &[SecurityWarning]) -> Vec<Vuln
             }
         })
         .collect()
+}
+
+/// Convert analyzer vulnerability types to circuit vulnerability types
+fn convert_analyzer_to_circuit_vulnerabilities(warnings: &[SecurityWarning]) -> Vec<AnalyzerVulnerabilityType> {
+    let mut vulnerability_types = Vec::new();
+    
+    for warning in warnings {
+        match warning.kind {
+            crate::bytecode::security::SecurityWarningKind::Reentrancy => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::Reentrancy);
+            },
+            crate::bytecode::security::SecurityWarningKind::IntegerOverflow => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::IntegerOverflow);
+            },
+            crate::bytecode::security::SecurityWarningKind::UnboundedOperation => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::UnboundedLoop);
+            },
+            crate::bytecode::security::SecurityWarningKind::UncheckedCall => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::UncheckedCall);
+            },
+            crate::bytecode::security::SecurityWarningKind::AccessControl => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::AccessControl);
+            },
+            crate::bytecode::security::SecurityWarningKind::OracleManipulation => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::OracleManipulation);
+            },
+            crate::bytecode::security::SecurityWarningKind::MEVVulnerability => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::MEVVulnerability);
+            },
+            crate::bytecode::security::SecurityWarningKind::FrontRunning => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::FrontRunning);
+            },
+            crate::bytecode::security::SecurityWarningKind::PriceManipulation => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::PriceManipulation);
+            },
+            crate::bytecode::security::SecurityWarningKind::BlockNumberDependence => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::BlockNumberDependence);
+            },
+            crate::bytecode::security::SecurityWarningKind::UninitializedStorage => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::UninitializedStorage);
+            },
+            crate::bytecode::security::SecurityWarningKind::GovernanceVulnerability => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::GovernanceVulnerability);
+            },
+            crate::bytecode::security::SecurityWarningKind::BitMaskVulnerability => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::BitMaskVulnerability);
+            },
+            _ => {
+                // Other vulnerability types not yet supported in the circuit
+                println!("Warning: Unsupported vulnerability type in circuit: {:?}", warning.kind);
+            }
+        }
+    }
+    
+    vulnerability_types
 }
 
 /// Sample vulnerabilities for testing

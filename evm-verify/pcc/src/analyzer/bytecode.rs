@@ -10,6 +10,14 @@ pub enum VulnerabilityType {
     UnboundedLoop,
     UncheckedCall,
     AccessControl,
+    OracleManipulation,
+    MEVVulnerability,
+    FrontRunning,
+    PriceManipulation,
+    BlockNumberDependence,
+    UninitializedStorage,
+    GovernanceVulnerability,
+    BitMaskVulnerability,
     Other(String),
 }
 
@@ -29,6 +37,7 @@ pub struct BytecodeSafetyProofData {
     pub vulnerabilities: Vec<VulnerabilityData>,
     pub gas_usage: U256,
     pub complexity: u32,
+    pub bytecode_hash: Option<[u8; 32]>,
 }
 
 /// Bytecode safety property verifier
@@ -51,6 +60,7 @@ impl Property for BytecodeSafetyProperty {
             vulnerabilities,
             gas_usage,
             complexity,
+            bytecode_hash: None,
         })
     }
 }
@@ -61,18 +71,24 @@ pub struct BytecodeAnalyzer {
     vulnerabilities: Vec<VulnerabilityData>,
     gas_usage: U256,
     complexity: u32,
-    stack: Vec<U256>,
     jumpdests: Vec<usize>,
+    stack: Vec<U256>,
+    storage_reads: Vec<usize>,
+    storage_writes: Vec<usize>,
+    external_calls: Vec<usize>,
 }
 
 impl BytecodeAnalyzer {
     pub fn new() -> Self {
         Self {
             vulnerabilities: Vec::new(),
-            gas_usage: U256::from(0),
+            gas_usage: U256::zero(),
             complexity: 0,
-            stack: Vec::new(),
             jumpdests: Vec::new(),
+            stack: Vec::new(),
+            storage_reads: Vec::new(),
+            storage_writes: Vec::new(),
+            external_calls: Vec::new(),
         }
     }
 
@@ -106,17 +122,16 @@ impl BytecodeAnalyzer {
                 _ => U256::from(1),
             };
             
-            // Check for vulnerabilities
+            // Track storage operations and external calls
             match opcode {
+                0x54 => { // SLOAD - Storage read
+                    self.storage_reads.push(i);
+                },
+                0x55 => { // SSTORE - Storage write
+                    self.storage_writes.push(i);
+                },
                 0xF1 | 0xF2 | 0xF4 | 0xFA => { // CALL, CALLCODE, DELEGATECALL, STATICCALL
-                    // Check for reentrancy vulnerability
-                    // For simplicity, we'll just flag all external calls as potential reentrancy vulnerabilities
-                    self.vulnerabilities.push(VulnerabilityData {
-                        vulnerability_type: VulnerabilityType::Reentrancy,
-                        offset: i,
-                        description: "External call detected without proper reentrancy protection".to_string(),
-                        severity: 4,
-                    });
+                    self.external_calls.push(i);
                 },
                 0x01 | 0x02 => { // ADD, MUL
                     // Check for integer overflow
@@ -171,7 +186,36 @@ impl BytecodeAnalyzer {
             i += 1;
         }
         
+        // After analyzing all opcodes, check for reentrancy pattern
+        self.detect_reentrancy();
+        
         Ok(())
+    }
+
+    // Add a new method to detect reentrancy vulnerabilities
+    fn detect_reentrancy(&mut self) {
+        // Check for reentrancy pattern: storage read -> external call -> storage write
+        for &call_pos in &self.external_calls {
+            // Find storage reads before the call
+            let reads_before_call: Vec<_> = self.storage_reads.iter()
+                .filter(|&&pos| pos < call_pos)
+                .collect();
+            
+            // Find storage writes after the call
+            let writes_after_call: Vec<_> = self.storage_writes.iter()
+                .filter(|&&pos| pos > call_pos)
+                .collect();
+            
+            // If we have both reads before and writes after, potential reentrancy
+            if !reads_before_call.is_empty() && !writes_after_call.is_empty() {
+                self.vulnerabilities.push(VulnerabilityData {
+                    vulnerability_type: VulnerabilityType::Reentrancy,
+                    offset: call_pos,
+                    description: "Reentrancy vulnerability detected: storage read before external call followed by storage write after call".to_string(),
+                    severity: 4,
+                });
+            }
+        }
     }
 
     pub fn get_vulnerabilities(&self) -> &[VulnerabilityData] {

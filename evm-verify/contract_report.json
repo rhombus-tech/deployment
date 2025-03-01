@@ -1,0 +1,251 @@
+{
+  "timestamp": "2025-03-01T22:17:56.543813Z",
+  "contract_size": 199,
+  "vulnerabilities": [
+    {
+      "title": "Usage of tx.origin detected. This can lead to phishing-style attacks and is vulnerable to front-running.",
+      "description": "Usage of tx.origin detected. This can lead to phishing-style attacks and is vulnerable to front-running.",
+      "severity": "Low",
+      "vulnerability_type": "TxOrigin",
+      "location": "Unknown",
+      "recommendation": "Use msg.sender instead of tx.origin for authentication"
+    },
+    {
+      "title": "tx.origin usage detected. This may lead to security vulnerabilities.",
+      "description": "tx.origin usage detected. This may lead to security vulnerabilities.",
+      "severity": "Low",
+      "vulnerability_type": "TxOrigin",
+      "location": "Unknown",
+      "recommendation": "Use msg.sender instead of tx.origin for authentication"
+    },
+    {
+      "title": "Potential gas-intensive loop detected. This may hit the block gas limit with large inputs.",
+      "description": "Potential gas-intensive loop detected. This may hit the block gas limit with large inputs.",
+      "severity": "Low",
+      "vulnerability_type": "GasLimit",
+      "location": "Unknown",
+      "recommendation": "Avoid loops with unbounded iterations"
+    },
+    {
+      "title": "Flash loan vulnerability detected. Price oracle dependency without manipulation protection.",
+      "description": "Flash loan vulnerability detected. Price oracle dependency without manipulation protection.",
+      "severity": "High",
+      "vulnerability_type": "OracleManipulation",
+      "location": "Unknown",
+      "recommendation": "Implement oracle manipulation protection mechanisms"
+    },
+    {
+      "title": "Missing access control for sensitive operation",
+      "description": "Missing access control for sensitive operation",
+      "severity": "High",
+      "vulnerability_type": "AccessControl",
+      "location": "Unknown",
+      "recommendation": "Implement proper access control mechanisms"
+    },
+    {
+      "title": "Potential integer underflow detected",
+      "description": "Potential integer underflow detected",
+      "severity": "Medium",
+      "vulnerability_type": "IntegerUnderflow",
+      "location": "Unknown",
+      "recommendation": "Use SafeMath or Solidity 0.8+ for automatic underflow checks"
+    },
+    {
+      "title": "Potential integer overflow detected",
+      "description": "Potential integer overflow detected",
+      "severity": "Medium",
+      "vulnerability_type": "IntegerOverflow",
+      "location": "Unknown",
+      "recommendation": "Use SafeMath or Solidity 0.8+ for automatic overflow checks"
+    },
+    {
+      "title": "Potential integer overflow detected",
+      "description": "Potential integer overflow detected",
+      "severity": "Medium",
+      "vulnerability_type": "IntegerOverflow",
+      "location": "Unknown",
+      "recommendation": "Use SafeMath or Solidity 0.8+ for automatic overflow checks"
+    },
+    {
+      "title": "Potential integer overflow detected",
+      "description": "Potential integer overflow detected",
+      "severity": "Medium",
+      "vulnerability_type": "IntegerOverflow",
+      "location": "Unknown",
+      "recommendation": "Use SafeMath or Solidity 0.8+ for automatic overflow checks"
+    },
+    {
+      "title": "Potential uninitialized storage read detected. Reading from storage before initialization can lead to unexpected behavior.",
+      "description": "Potential uninitialized storage read detected. Reading from storage before initialization can lead to unexpected behavior.",
+      "severity": "Low",
+      "vulnerability_type": "UninitializedStorage",
+      "location": "Unknown",
+      "recommendation": "Initialize all storage variables before reading from them"
+    },
+    {
+      "title": "Potential uninitialized storage read detected. Reading from storage before initialization can lead to unexpected behavior.",
+      "description": "Potential uninitialized storage read detected. Reading from storage before initialization can lead to unexpected behavior.",
+      "severity": "Low",
+      "vulnerability_type": "UninitializedStorage",
+      "location": "Unknown",
+      "recommendation": "Initialize all storage variables before reading from them"
+    },
+    {
+      "title": "Missing access control for sensitive operation",
+      "description": "Missing access control for sensitive operation",
+      "severity": "High",
+      "vulnerability_type": "AccessControl",
+      "location": "Unknown",
+      "recommendation": "Implement proper access control mechanisms"
+    },
+    {
+      "title": "Weak randomness: blockhash used as entropy source",
+      "description": "Weak randomness: blockhash used as entropy source",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Weak randomness: blockhash used as entropy source",
+      "description": "Weak randomness: blockhash used as entropy source",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Weak randomness: blockhash used as entropy source",
+      "description": "Weak randomness: blockhash used as entropy source",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Weak randomness: blockhash used as entropy source",
+      "description": "Weak randomness: blockhash used as entropy source",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Weak randomness: block.number used as entropy source",
+      "description": "Weak randomness: block.number used as entropy source",
+      "severity": "Low",
+      "vulnerability_type": "BlockNumberDependency",
+      "location": "Unknown",
+      "recommendation": "Avoid using block.number for critical decisions"
+    },
+    {
+      "title": "Incomplete event parameters detected at position 146. LOG2 requires 4 stack items.",
+      "description": "Incomplete event parameters detected at position 146. LOG2 requires 4 stack items.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Incomplete event parameters detected at position 166. LOG2 requires 4 stack items.",
+      "description": "Incomplete event parameters detected at position 166. LOG2 requires 4 stack items.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "State change at position 142 without a nearby event emission. This may hinder off-chain monitoring.",
+      "description": "State change at position 142 without a nearby event emission. This may hinder off-chain monitoring.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Potential missing initializer detected",
+      "description": "Potential missing initializer detected",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Missing access control for sensitive operation",
+      "description": "Missing access control for sensitive operation",
+      "severity": "High",
+      "vulnerability_type": "AccessControl",
+      "location": "Unknown",
+      "recommendation": "Implement proper access control mechanisms"
+    },
+    {
+      "title": "Expensive operation (55) detected in a loop, which may lead to gas griefing",
+      "description": "Expensive operation (55) detected in a loop, which may lead to gas griefing",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Potential improper scaling detected in division operation",
+      "description": "Potential improper scaling detected in division operation",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Integer division may cause truncation and precision loss",
+      "description": "Integer division may cause truncation and precision loss",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Incomplete event parameters detected at position 146. LOG2 requires 4 stack items.",
+      "description": "Incomplete event parameters detected at position 146. LOG2 requires 4 stack items.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "Incomplete event parameters detected at position 166. LOG2 requires 4 stack items.",
+      "description": "Incomplete event parameters detected at position 166. LOG2 requires 4 stack items.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    },
+    {
+      "title": "State change at position 142 without a nearby event emission. This may hinder off-chain monitoring.",
+      "description": "State change at position 142 without a nearby event emission. This may hinder off-chain monitoring.",
+      "severity": "Low",
+      "vulnerability_type": "Other",
+      "location": "Unknown",
+      "recommendation": "Review and fix the identified issue"
+    }
+  ],
+  "delegate_calls": 0,
+  "memory_accesses": 2,
+  "storage_accesses": 0,
+  "analysis_config": {
+    "analyze_constructor": true,
+    "analyze_runtime": true,
+    "max_depth": 100,
+    "detect_reentrancy": true,
+    "detect_cross_contract_reentrancy": true,
+    "detect_arithmetic": true,
+    "detect_access_control": true,
+    "detect_delegate_call": true,
+    "detect_flash_loan": true,
+    "detect_oracle_manipulation": true,
+    "detect_governance": true,
+    "detect_gas_griefing": true,
+    "detect_precision_loss": true,
+    "detect_event_emission": true,
+    "detect_front_running": true,
+    "test_mode": false
+  }
+}
