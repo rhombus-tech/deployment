@@ -211,6 +211,8 @@ pub enum SecurityWarningKind {
     GasGriefing,
     /// Precision loss vulnerability
     PrecisionLoss,
+    /// Event emission vulnerability
+    EventEmissionVulnerability,
     /// Other security issue
     Other(String),
 }

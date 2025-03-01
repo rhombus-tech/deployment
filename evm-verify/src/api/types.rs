@@ -218,6 +218,9 @@ pub struct AnalysisConfig {
     /// Whether to detect precision loss vulnerabilities
     pub detect_precision_loss: bool,
     
+    /// Whether to detect event emission vulnerabilities
+    pub detect_event_emission: bool,
+    
     /// Whether to run in test mode (disables certain checks to avoid false positives in tests)
     pub test_mode: bool,
 }
@@ -238,6 +241,7 @@ impl Default for AnalysisConfig {
             detect_governance: true,
             detect_gas_griefing: true,
             detect_precision_loss: true,
+            detect_event_emission: true,
             test_mode: false,
         }
     }

@@ -124,6 +124,12 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set whether to detect event emission vulnerabilities
+    pub fn detect_event_emission(mut self, value: bool) -> Self {
+        self.config.detect_event_emission = value;
+        self
+    }
+    
     /// Set whether to run in test mode
     pub fn test_mode(mut self, value: bool) -> Self {
         self.config.test_mode = value;

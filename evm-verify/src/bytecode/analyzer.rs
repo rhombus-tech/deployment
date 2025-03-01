@@ -436,6 +436,19 @@ impl BytecodeAnalyzer {
             println!("Error detecting MEV vulnerabilities");
         }
         
+        // Detect event emission vulnerabilities
+        if !self.is_test_mode() || cfg!(test) {
+            let event_emission_warnings = self.analyze_event_emission_vulnerabilities();
+            if !event_emission_warnings.is_empty() {
+                println!("Got {} event emission vulnerability warnings", event_emission_warnings.len());
+                for warning in &event_emission_warnings {
+                    println!("Adding event emission warning: {}", warning.description);
+                    warnings.push(warning.description.clone());
+                    security_warnings.push(warning.clone());
+                }
+            }
+        }
+        
         // Detect upgradability vulnerabilities
         let upgradability_warnings = analyzer_upgradability::detect_upgradability_vulnerabilities(self);
         if !upgradability_warnings.is_empty() {

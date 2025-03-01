@@ -89,6 +89,7 @@ fn main() -> Result<()> {
                     detect_governance: true,
                     detect_gas_griefing: true,
                     detect_precision_loss: true,
+                    detect_event_emission: true,
                     test_mode: false,
                 });
                 

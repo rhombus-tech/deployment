@@ -29,6 +29,7 @@ pub mod analyzer_governance;
 pub mod analyzer_upgradability;
 pub mod analyzer_gas_griefing;
 pub mod analyzer_precision;
+pub mod analyzer_events;
 pub mod opcodes;
 #[cfg(test)]
 pub mod tests;

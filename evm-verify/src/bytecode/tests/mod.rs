@@ -41,6 +41,8 @@ mod test_upgradability;
 mod test_gas_griefing;
 #[cfg(test)]
 mod test_precision;
+#[cfg(test)]
+mod test_events;
 
 #[cfg(test)]
 mod tests {

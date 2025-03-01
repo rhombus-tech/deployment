@@ -199,6 +199,14 @@ impl EVMVerify {
             }
         }
         
+        // Detect event emission vulnerabilities if enabled
+        if self.config.detect_event_emission {
+            let event_emission_warnings = analyzer.analyze_event_emission_vulnerabilities();
+            for warning in event_emission_warnings {
+                results.add_warning(warning.description.clone());
+            }
+        }
+        
         self.generate_report(results)
     }
     
