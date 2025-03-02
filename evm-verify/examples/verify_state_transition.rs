@@ -60,12 +60,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Generate a proof
     println!("\nGenerating PCD proof...");
     match verifier.generate_pcd_proof(&bytecode) {
-        Ok(proof) => {
+        Ok((proof, public_inputs, verifying_key)) => {
             println!("Proof generated successfully!");
             
             // Verify the proof
             println!("\nVerifying proof...");
-            match verifier.verify_pcd_proof(&bytecode, &proof) {
+            match verifier.verify_pcd_proof(&bytecode, &proof, &public_inputs, &verifying_key) {
                 Ok(valid) => {
                     if valid {
                         println!("Proof verification successful!");
@@ -73,10 +73,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                         println!("Proof verification failed!");
                     }
                 },
-                Err(e) => println!("Error verifying proof: {}", e),
+                Err(e) => {
+                    println!("Error verifying proof: {}", e);
+                }
             }
         },
-        Err(e) => println!("Error generating proof: {}", e),
+        Err(e) => {
+            println!("Error generating proof: {}", e);
+        }
     }
     
     println!("\n-----------------------------------\n");

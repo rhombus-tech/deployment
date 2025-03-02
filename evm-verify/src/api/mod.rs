@@ -3,7 +3,7 @@
 // This module provides a unified interface for interacting with the EVM Verify tool.
 // It serves as the main entry point for users and integrates all the analysis components.
 
-mod types;
+pub mod types;
 mod config;
 mod report;
 pub mod unified;

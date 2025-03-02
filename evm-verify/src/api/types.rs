@@ -179,7 +179,7 @@ pub enum VulnerabilityType {
     Other,
 }
 
-/// Location of a vulnerability in the bytecode
+/// Location of a vulnerability
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VulnerabilityLocation {
     /// Specific program counter
@@ -187,6 +187,14 @@ pub enum VulnerabilityLocation {
     
     /// Storage slot
     StorageSlot(String),
+    
+    /// State transition
+    StateTransition {
+        /// From state
+        from_state: String,
+        /// To state
+        to_state: String,
+    },
     
     /// Unknown location
     Unknown,

@@ -5,6 +5,9 @@ use ark_r1cs_std::{fields::fp::FpVar, prelude::*};
 mod data;
 pub use data::*;
 
+mod reentrancy;
+pub use reentrancy::*;
+
 /// A circuit that verifies a proof-carrying data chain
 #[derive(Clone)]
 pub struct PCDCircuit {

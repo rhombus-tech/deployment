@@ -55,12 +55,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Generate PCD proof - these methods take &Bytes (reference)
     println!("\nGenerating PCD proof...");
-    let pcd_proof = verifier.generate_pcd_proof(&bytecode)?;
+    let (pcd_proof, pcd_public_inputs, pcd_verifying_key) = verifier.generate_pcd_proof(&bytecode)?;
     println!("PCD proof generated successfully");
     
     // Verify PCD proof - these methods take &Bytes (reference)
     println!("\nVerifying PCD proof...");
-    let pcd_verification_result = verifier.verify_pcd_proof(&bytecode, &pcd_proof)?;
+    let pcd_verification_result = verifier.verify_pcd_proof(&bytecode, &pcd_proof, &pcd_public_inputs, &pcd_verifying_key)?;
     println!("PCD proof verification result: {}", pcd_verification_result);
     
     // Example with a more complex bytecode (this is still a simple example)
@@ -92,8 +92,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Generate and verify PCD proof for complex bytecode
     println!("\nGenerating and verifying PCD proof for complex bytecode...");
-    let complex_pcd_proof = verifier.generate_pcd_proof(&complex_bytecode)?;
-    let complex_pcd_result = verifier.verify_pcd_proof(&complex_bytecode, &complex_pcd_proof)?;
+    let (complex_pcd_proof, complex_pcd_public_inputs, complex_pcd_verifying_key) = verifier.generate_pcd_proof(&complex_bytecode)?;
+    let complex_pcd_result = verifier.verify_pcd_proof(&complex_bytecode, &complex_pcd_proof, &complex_pcd_public_inputs, &complex_pcd_verifying_key)?;
     println!("Complex bytecode PCD verification result: {}", complex_pcd_result);
     
     Ok(())

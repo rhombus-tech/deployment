@@ -2,16 +2,22 @@ use ark_ff::PrimeField;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_r1cs_std::{fields::fp::FpVar, prelude::*};
 
+/// Trait for circuits that implement data predicates
+pub trait DataPredicateCircuit<F: PrimeField> {
+    /// Get the predicate inputs for verification
+    fn get_predicate_inputs(&self) -> Vec<F>;
+}
+
 /// A circuit that verifies data predicates
 #[derive(Clone)]
-pub struct DataPredicateCircuit<F: PrimeField> {
+pub struct BasicDataPredicateCircuit<F: PrimeField> {
     /// Input data
     pub input: Vec<F>,
     /// Output data
     pub output: Vec<F>,
 }
 
-impl<F: PrimeField> ConstraintSynthesizer<F> for DataPredicateCircuit<F> {
+impl<F: PrimeField> ConstraintSynthesizer<F> for BasicDataPredicateCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // Create variables for input and output as public inputs
         let input_vars: Vec<FpVar<F>> = self.input
@@ -33,6 +39,12 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DataPredicateCircuit<F> {
     }
 }
 
+impl<F: PrimeField> DataPredicateCircuit<F> for BasicDataPredicateCircuit<F> {
+    fn get_predicate_inputs(&self) -> Vec<F> {
+        self.input.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,7 +55,7 @@ mod tests {
     fn test_data_predicate() {
         let cs = ConstraintSystem::<Fr>::new_ref();
         
-        let circuit = DataPredicateCircuit {
+        let circuit = BasicDataPredicateCircuit {
             input: vec![Fr::from(1u32)],
             output: vec![Fr::from(1u32)],
         };

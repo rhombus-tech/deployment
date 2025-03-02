@@ -5,8 +5,6 @@ use ark_std::rand::{RngCore, CryptoRng};
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, Compress, Validate};
 use ark_snark::SNARK;
 
-use crate::circuits::{PCDCircuit, DataPredicateCircuit};
-
 /// Generate proving key for a circuit
 pub fn generate_proving_key<C, R>(
     circuit: C,
@@ -36,6 +34,12 @@ where
     Ok(proof_bytes)
 }
 
+/// Deserialize a proof from bytes
+pub fn deserialize_proof(proof_bytes: &[u8]) -> Result<Proof<Bn254>, anyhow::Error> {
+    let proof = Proof::deserialize_with_mode(proof_bytes, Compress::Yes, Validate::Yes)?;
+    Ok(proof)
+}
+
 /// Verify a proof
 pub fn verify_proof(
     verifying_key: &VerifyingKey<Bn254>,
@@ -43,7 +47,7 @@ pub fn verify_proof(
     public_inputs: &[Fr],
 ) -> Result<bool, anyhow::Error>
 {
-    let proof = Proof::deserialize_with_mode(proof_bytes, Compress::Yes, Validate::Yes)?;
+    let proof = deserialize_proof(proof_bytes)?;
     Ok(Groth16::<Bn254>::verify(verifying_key, public_inputs, &proof)?)
 }
 
@@ -51,6 +55,7 @@ pub fn verify_proof(
 mod tests {
     use super::*;
     use ark_std::rand::thread_rng;
+    use crate::circuits::{PCDCircuit, BasicDataPredicateCircuit};
 
     #[test]
     fn test_simple_circuit() -> Result<(), anyhow::Error> {
@@ -92,7 +97,7 @@ mod tests {
         let input = vec![Fr::from(1u32)];
         let output = vec![Fr::from(1u32)];
         
-        let circuit = DataPredicateCircuit {
+        let circuit = BasicDataPredicateCircuit {
             input: input.clone(),
             output: output.clone(),
         };
