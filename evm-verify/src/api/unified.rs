@@ -6,6 +6,7 @@
 use anyhow::Result;
 use ethers::types::Bytes;
 use chrono::Utc;
+use blake3;
 
 use crate::bytecode::BytecodeAnalyzer;
 use crate::bytecode::security::{SecuritySeverity, SecurityWarningKind};
@@ -216,29 +217,64 @@ impl UnifiedVerifier {
         }
     }
 
-    /// Generate proof for bytecode using PCD
-    pub fn generate_pcd_proof(&self, bytecode_bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
-        // Convert to Bytes
-        let bytecode = Bytes::from(bytecode_bytes.to_vec());
-        
-        // This is a placeholder implementation
-        // In a real implementation, this would generate a PCD proof and verifying key
-        
-        // Generate a dummy proof and verifying key
-        let proof = vec![0u8; 32];
-        let verifying_key = vec![0u8; 32];
-        
-        Ok((proof, verifying_key))
-    }
-
     /// Generate proof for bytecode using PCC
     pub fn generate_pcc_proof(&self, bytecode_bytes: &[u8]) -> Result<Vec<u8>> {
         // Convert to Bytes
         let bytecode = Bytes::from(bytecode_bytes.to_vec());
         
-        // This is a placeholder implementation
-        // In a real implementation, this would generate a PCC proof
-        Ok(vec![0u8; 32])
+        // Create a bytecode analyzer
+        let mut analyzer = BytecodeAnalyzer::new(bytecode.clone());
+        
+        // Analyze the bytecode
+        let _analysis_result = analyzer.analyze()?;
+        
+        // Generate a proof based on the bytecode
+        // This is a simplified implementation that uses the bytecode itself as the proof
+        // In a real implementation, we would generate a cryptographic proof
+        let mut proof = bytecode.to_vec();
+        
+        // Add a simple hash of the bytecode to the proof
+        // This is just for demonstration purposes
+        let hash = blake3::hash(bytecode.as_ref()).as_bytes().to_vec();
+        proof.extend_from_slice(&hash);
+        
+        Ok(proof)
+    }
+
+    /// Generate proof for bytecode using PCD
+    pub fn generate_pcd_proof(&self, bytecode_bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
+        // Convert to Bytes
+        let bytecode = Bytes::from(bytecode_bytes.to_vec());
+        
+        #[cfg(feature = "accumulation")]
+        {
+            use ark_bn254::Fr;
+            use ark_std::rand::thread_rng;
+            use pcd::evm_accumulation::{generate_evm_proof, serialize_proof, serialize_vk};
+            
+            // Create a simple state for demonstration purposes
+            let curr_state = vec![Fr::from(1u64)];
+            
+            // Generate the proof
+            let mut rng = thread_rng();
+            let (proof, vk) = generate_evm_proof(bytecode, None, curr_state, &mut rng)?;
+            
+            // Serialize the proof and verifying key
+            let proof_bytes = serialize_proof(&proof)?;
+            let vk_bytes = serialize_vk(&vk)?;
+            
+            Ok((proof_bytes, vk_bytes))
+        }
+        
+        #[cfg(not(feature = "accumulation"))]
+        {
+            // For non-accumulation mode, we'll just create dummy proof and verifying key
+            // In a real implementation, this would call the appropriate method on pcd_verifier
+            let proof = vec![0u8; 32];
+            let verifying_key = vec![0u8; 32];
+            
+            Ok((proof, verifying_key))
+        }
     }
 
     /// Verify a PCC proof for bytecode
@@ -247,18 +283,37 @@ impl UnifiedVerifier {
         let bytecode = Bytes::from(bytecode_bytes.to_vec());
         
         // Create a bytecode analyzer
-        let mut analyzer = BytecodeAnalyzer::new(bytecode);
+        let mut analyzer = BytecodeAnalyzer::new(bytecode.clone());
         
         // Set test mode to false
         analyzer.set_test_mode(false);
         
         // Analyze the bytecode
-        let analysis_result = analyzer.analyze()?;
+        let _analysis_result = analyzer.analyze()?;
         
-        // In a real implementation, this would verify the PCC proof
-        // For now, we just return is_valid: true as a placeholder
+        // Extract the original bytecode and hash from the proof
+        if proof.len() <= bytecode.len() {
+            return Ok(VerificationResult {
+                is_valid: false,
+                vulnerabilities: vec!["Invalid proof format".to_string()],
+            });
+        }
+        
+        let proof_bytecode = &proof[0..bytecode.len()];
+        let proof_hash = &proof[bytecode.len()..];
+        
+        // Verify that the bytecode in the proof matches the provided bytecode
+        let bytecode_matches = proof_bytecode == bytecode.as_ref();
+        
+        // Verify that the hash in the proof matches the computed hash
+        let hash = blake3::hash(bytecode.as_ref()).as_bytes().to_vec();
+        let hash_matches = proof_hash == hash;
+        
+        // The proof is valid if both the bytecode and hash match
+        let is_valid = bytecode_matches && hash_matches;
+        
         Ok(VerificationResult {
-            is_valid: true, // Always return true for now
+            is_valid,
             vulnerabilities: Vec::new(),
         })
     }
@@ -268,12 +323,37 @@ impl UnifiedVerifier {
         // Convert to Bytes
         let bytecode = Bytes::from(bytecode_bytes.to_vec());
         
-        // In a real implementation, this would verify the PCD proof
-        // For now, we just return is_valid: true as a placeholder
-        Ok(VerificationResult {
-            is_valid: true, // Always return true for now
-            vulnerabilities: Vec::new(),
-        })
+        #[cfg(feature = "accumulation")]
+        {
+            use pcd::evm_accumulation::{deserialize_proof, deserialize_vk, verify_evm_proof};
+            use ark_bn254::Fr;
+            
+            // Deserialize the proof and verifying key
+            let proof_obj = deserialize_proof(proof)?;
+            let vk_obj = deserialize_vk(verifying_key)?;
+            
+            // Create a simple state for demonstration purposes (same as in generate_pcd_proof)
+            let curr_state = vec![Fr::from(1u64)];
+            
+            // Verify the proof
+            let is_valid = verify_evm_proof(&proof_obj, &vk_obj, &curr_state)?;
+            
+            Ok(VerificationResult {
+                is_valid,
+                vulnerabilities: Vec::new(),
+            })
+        }
+        
+        #[cfg(not(feature = "accumulation"))]
+        {
+            // Use the traditional PCD verifier
+            let result = self.pcd_verifier.verify_proof(proof, verifying_key)?;
+            
+            Ok(VerificationResult {
+                is_valid: result,
+                vulnerabilities: Vec::new(),
+            })
+        }
     }
 }
 

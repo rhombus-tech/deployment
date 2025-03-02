@@ -81,7 +81,6 @@ fn test_bytecode_integrity() {
     // Verify proof with tampered bytecode
     let verification_result = verifier.verify_pcc_proof(tampered_bytes.as_ref(), proof.as_ref()).unwrap();
     
-    // NOTE: We've modified the verify_pcc_proof method to always return is_valid: true,
-    // so this assertion will always pass. In a real implementation, this should fail.
-    // assert!(!verification_result.is_valid, "Proof verification succeeded with tampered bytecode");
+    // The proof should not verify with tampered bytecode
+    assert!(!verification_result.is_valid, "Proof verification succeeded with tampered bytecode");
 }
