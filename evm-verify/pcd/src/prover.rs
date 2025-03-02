@@ -222,13 +222,11 @@ mod tests {
         let mut rng = thread_rng();
         
         // Create a simple circuit
-        let circuit = PCDCircuit::<Fr> {
-            bytecode: Bytes::from(vec![0u8]),
-            prev_state: None,
-            curr_state: vec![Fr::from(42u64)],
-            security_warnings: Vec::new(),
-            _field: PhantomData,
-        };
+        let circuit = PCDCircuit::<Fr>::new_with_analysis(
+            Bytes::from(vec![0u8]),
+            None,
+            vec![Fr::from(42u64)],
+        )?;
         
         // Generate the parameters
         let (pk, vk) = Groth16::<Bn254>::circuit_specific_setup(circuit.clone(), &mut rng)
@@ -256,13 +254,11 @@ mod tests {
         
         // Create a simple circuit with a single state element
         let curr_state = vec![Fr::from(42u64)];
-        let circuit = PCDCircuit::<Fr> {
-            bytecode: ethers::types::Bytes::from(vec![0u8]),
-            prev_state: None,
-            curr_state: curr_state.clone(),
-            security_warnings: Vec::new(),
-            _field: PhantomData,
-        };
+        let circuit = PCDCircuit::<Fr>::new_with_analysis(
+            ethers::types::Bytes::from(vec![0u8]),
+            None,
+            curr_state.clone(),
+        )?;
         
         println!("Debug: Setting up circuit");
         // Generate the parameters directly
@@ -282,13 +278,11 @@ mod tests {
         }
         
         // Create a fresh circuit for proving
-        let proving_circuit = PCDCircuit::<Fr> {
-            bytecode: ethers::types::Bytes::from(vec![0u8]),
-            prev_state: None,
-            curr_state: curr_state.clone(),
-            security_warnings: Vec::new(),
-            _field: PhantomData,
-        };
+        let proving_circuit = PCDCircuit::<Fr>::new_with_analysis(
+            ethers::types::Bytes::from(vec![0u8]),
+            None,
+            curr_state.clone(),
+        )?;
         
         println!("Debug: Generating proof");
         // Generate the proof

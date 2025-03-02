@@ -1,15 +1,22 @@
 use ark_bn254::{Bn254, Fr};
 use ark_groth16::{Groth16, Proof, VerifyingKey};
-use ark_relations::r1cs::ConstraintSystem;
+use ark_relations::r1cs::{ConstraintSystem, ConstraintSynthesizer};
 use ark_snark::SNARK;
 use ark_std::rand::{rngs::StdRng, SeedableRng};
 use ark_std::One;
 use ethers::types::Bytes;
-use std::marker::PhantomData;
 use anyhow::Result;
 
-use pcd::bytecode_analyzer::{BytecodeAnalyzer, SecurityWarning, SecurityWarningKind, SecuritySeverity};
 use pcd::circuit_impl::PCDCircuit;
+
+// Example EVM opcodes
+const SLOAD: u8 = 0x54;
+const SSTORE: u8 = 0x55;
+const CALL: u8 = 0xF1;
+const POP: u8 = 0x50;
+const PUSH1: u8 = 0x60;
+const ISZERO: u8 = 0x15;
+const JUMPI: u8 = 0x57;
 
 // Example EVM bytecode with a reentrancy vulnerability
 // This is a simplified example - in a real-world scenario, you would use actual EVM bytecode
@@ -27,17 +34,17 @@ fn create_vulnerable_bytecode() -> Bytes {
     // SSTORE (0x55) - Store 1 at storage key 0
     
     Bytes::from(vec![
-        0x60, 0x00, // PUSH1 0x00
-        0x54,       // SLOAD
-        0x60, 0x00, // PUSH1 0x00
-        0x60, 0x00, // PUSH1 0x00
-        0x60, 0x00, // PUSH1 0x00
-        0x60, 0x00, // PUSH1 0x00
-        0xF1,       // CALL
-        0x50,       // POP
-        0x60, 0x01, // PUSH1 0x01
-        0x60, 0x00, // PUSH1 0x00
-        0x55,       // SSTORE
+        PUSH1, 0x00, // PUSH1 0x00
+        SLOAD,       // SLOAD
+        PUSH1, 0x00, // PUSH1 0x00
+        PUSH1, 0x00, // PUSH1 0x00
+        PUSH1, 0x00, // PUSH1 0x00
+        PUSH1, 0x00, // PUSH1 0x00
+        CALL,        // CALL
+        POP,         // POP
+        PUSH1, 0x01, // PUSH1 0x01
+        PUSH1, 0x00, // PUSH1 0x00
+        SSTORE,      // SSTORE
     ])
 }
 
@@ -50,46 +57,45 @@ fn create_safe_bytecode() -> Bytes {
     // SLOAD (0x54) - Load from storage at key 0
     
     Bytes::from(vec![
-        0x60, 0x01, // PUSH1 0x01
-        0x60, 0x00, // PUSH1 0x00
-        0x55,       // SSTORE
-        0x60, 0x00, // PUSH1 0x00
-        0x54,       // SLOAD
+        PUSH1, 0x01, // PUSH1 0x01
+        PUSH1, 0x00, // PUSH1 0x00
+        SSTORE,      // SSTORE
+        PUSH1, 0x00, // PUSH1 0x00
+        SLOAD,       // SLOAD
     ])
 }
 
-// Manually analyze bytecode and create a circuit
-fn create_circuit_with_manual_analysis(bytecode: Bytes) -> Result<PCDCircuit<Fr>> {
-    // Analyze the bytecode
-    let mut analyzer = BytecodeAnalyzer::new(bytecode.clone());
-    let analysis_results = analyzer.analyze()?;
-    
-    // Print the security warnings
-    println!("Security warnings: {}", analysis_results.security_warnings.len());
-    for warning in &analysis_results.security_warnings {
-        println!("  - {:?}: {}", warning.kind, warning.description);
-    }
-    
-    // Create a circuit WITHOUT security warnings for testing
-    // This is a temporary fix to make the example work
-    let circuit = PCDCircuit {
+// Create a circuit with in-circuit bytecode analysis
+fn create_circuit_with_analysis(bytecode: Bytes) -> Result<PCDCircuit<Fr>> {
+    // Create a circuit with the bytecode
+    let circuit = PCDCircuit::<Fr>::new_with_analysis(
         bytecode,
-        prev_state: None,
-        curr_state: vec![Fr::from(42u32)],
-        security_warnings: Vec::new(), // No security warnings for now
-        _field: PhantomData,
-    };
+        None,
+        vec![Fr::from(42u32)],
+    )?;
+    
+    // Print circuit info
+    println!("Circuit created with {} bytecode bytes", circuit.bytecode.len());
+    println!("Bytecode elements: {} field elements", circuit.bytecode_elements.len());
     
     Ok(circuit)
 }
 
 // Generate a proof for a circuit
 fn generate_proof(circuit: PCDCircuit<Fr>) -> Result<(Proof<Bn254>, VerifyingKey<Bn254>)> {
-    // Create a deterministic RNG for testing
-    let seed: [u8; 32] = [42; 32];
-    let mut rng = StdRng::from_seed(seed);
+    // Create a constraint system
+    let cs = ConstraintSystem::<Fr>::new_ref();
     
-    // Generate a proving key and verifying key
+    // Generate constraints
+    <PCDCircuit<Fr> as ConstraintSynthesizer<Fr>>::generate_constraints(circuit.clone(), cs.clone())?;
+    
+    // Check if constraints are satisfied
+    let is_satisfied = cs.is_satisfied()?;
+    println!("Constraint system satisfied: {}", is_satisfied);
+    println!("Number of constraints: {}", cs.num_constraints());
+    
+    // Generate a proving key and verification key
+    let mut rng = StdRng::seed_from_u64(42);
     let (pk, vk) = Groth16::<Bn254>::circuit_specific_setup(circuit.clone(), &mut rng)?;
     
     // Generate a proof
@@ -111,7 +117,7 @@ fn main() -> Result<()> {
     // Create vulnerable bytecode
     println!("\nAnalyzing vulnerable bytecode...");
     let vulnerable_bytecode = create_vulnerable_bytecode();
-    let vulnerable_circuit = create_circuit_with_manual_analysis(vulnerable_bytecode)?;
+    let vulnerable_circuit = create_circuit_with_analysis(vulnerable_bytecode)?;
     
     // Generate a proof for the vulnerable bytecode
     println!("\nGenerating proof for vulnerable bytecode...");
@@ -126,7 +132,7 @@ fn main() -> Result<()> {
     // Create safe bytecode
     println!("\nAnalyzing safe bytecode...");
     let safe_bytecode = create_safe_bytecode();
-    let safe_circuit = create_circuit_with_manual_analysis(safe_bytecode)?;
+    let safe_circuit = create_circuit_with_analysis(safe_bytecode)?;
     
     // Generate a proof for the safe bytecode
     println!("\nGenerating proof for safe bytecode...");

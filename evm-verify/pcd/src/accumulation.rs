@@ -235,7 +235,8 @@ mod tests {
 
 // Define the AccumulationCircuit struct
 #[cfg(feature = "accumulation")]
-struct AccumulationCircuit<E: PairingEngine> {
+#[derive(Clone)]
+pub struct AccumulationCircuit<E: PairingEngine> {
     proofs: Vec<Proof<E>>,
     vks: Vec<VerifyingKey<E>>,
     _phantom: PhantomData<E>,
@@ -264,4 +265,29 @@ impl<E: PairingEngine> ConstraintSynthesizer<E::Fr> for AccumulationCircuit<E> {
         
         Ok(())
     }
+}
+
+// Create an accumulation circuit from proofs, verifying keys, and public inputs
+#[cfg(feature = "accumulation")]
+pub fn create_accumulation_circuit(
+    proofs: &[Proof<Bn254>],
+    vks: &[VerifyingKey<Bn254>],
+    public_inputs: &[Vec<Fr>],
+) -> Result<AccumulationCircuit<Bn254>, anyhow::Error> {
+    if proofs.len() != vks.len() || proofs.len() != public_inputs.len() {
+        return Err(anyhow!("Mismatched number of proofs, vks, and public inputs"));
+    }
+    
+    if proofs.is_empty() {
+        return Err(anyhow!("No proofs to accumulate"));
+    }
+    
+    // Create an accumulation circuit
+    let circuit = AccumulationCircuit {
+        proofs: proofs.to_vec(),
+        vks: vks.to_vec(),
+        _phantom: PhantomData,
+    };
+    
+    Ok(circuit)
 }

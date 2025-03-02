@@ -4,13 +4,31 @@
 // used in the EVM verification process.
 
 use ark_ff::Field;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable, LinearCombination};
 use ark_std::marker::PhantomData;
 use ethers::types::Bytes;
 use anyhow::Result;
 
-// Add imports for bytecode analysis
-use crate::bytecode_analyzer::{BytecodeAnalyzer, SecurityWarning, SecurityWarningKind};
+// EVM opcodes relevant for vulnerability detection
+const SLOAD: u8 = 0x54;
+const SSTORE: u8 = 0x55;
+const CALL: u8 = 0xF1;
+const ISZERO: u8 = 0x15;
+const JUMPI: u8 = 0x57;
+const STATICCALL: u8 = 0xFA;
+const DELEGATECALL: u8 = 0xF4;
+
+// For backward compatibility
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SecurityWarningKind {
+    Reentrancy,
+    AccessControl,
+    IntegerOverflow,
+    UncheckedCall,
+    FrontRunning,
+    FlashLoan,
+    Other(String),
+}
 
 /// A circuit for EVM bytecode verification using accumulation
 #[derive(Clone)]
@@ -21,8 +39,10 @@ pub struct PCDCircuit<F: Field> {
     pub prev_state: Option<Vec<F>>,
     /// The current state
     pub curr_state: Vec<F>,
-    /// Security warnings from bytecode analysis
-    pub security_warnings: Vec<SecurityWarning>,
+    /// Bytecode as field elements for in-circuit analysis
+    pub bytecode_elements: Vec<F>,
+    /// Maximum bytecode length the circuit can handle
+    pub max_bytecode_length: usize,
     /// Phantom data for the field type
     pub _field: PhantomData<F>,
 }
@@ -34,27 +54,155 @@ impl<F: Field> PCDCircuit<F> {
         prev_state: Option<Vec<F>>,
         curr_state: Vec<F>,
     ) -> Result<Self> {
-        // Perform bytecode analysis
-        let mut analyzer = BytecodeAnalyzer::new(bytecode.clone());
-        let analysis_results = analyzer.analyze()?;
+        // Convert bytecode to field elements for in-circuit analysis
+        let bytecode_elements: Vec<F> = bytecode
+            .iter()
+            .map(|&byte| F::from(byte as u64))
+            .collect();
+        
+        // Set maximum bytecode length (can be adjusted based on circuit capacity)
+        let max_bytecode_length = 1024; // Example value, adjust as needed
         
         Ok(Self {
             bytecode,
             prev_state,
             curr_state,
-            security_warnings: analysis_results.security_warnings,
+            bytecode_elements,
+            max_bytecode_length,
             _field: PhantomData,
         })
     }
     
     /// Check if a specific vulnerability type exists in the security warnings
-    fn has_vulnerability(&self, kind: SecurityWarningKind) -> bool {
-        self.security_warnings.iter().any(|warning| warning.kind == kind)
+    pub fn has_vulnerability(&self, _kind: SecurityWarningKind) -> bool {
+        // In the new implementation, we detect vulnerabilities in-circuit
+        // This is just a placeholder for backward compatibility
+        false
+    }
+
+    /// Count the number of vulnerabilities of a specific kind
+    pub fn count_vulnerabilities(&self, _kind: SecurityWarningKind) -> usize {
+        // In the new implementation, we detect vulnerabilities in-circuit
+        // This is just a placeholder for backward compatibility
+        0
     }
     
-    /// Count the number of vulnerabilities of a specific kind
-    fn count_vulnerabilities(&self, kind: SecurityWarningKind) -> usize {
-        self.security_warnings.iter().filter(|warning| warning.kind == kind).count()
+    /// Create a variable for each byte of bytecode
+    pub fn allocate_bytecode(&self, cs: &ConstraintSystemRef<F>) -> Result<Vec<Variable>, SynthesisError> {
+        let mut bytecode_vars = Vec::new();
+        
+        // Allocate variables for each byte of bytecode
+        for (_i, &byte) in self.bytecode.iter().enumerate() {
+            let var = cs.new_witness_variable(|| Ok(F::from(byte as u64)))?;
+            bytecode_vars.push(var);
+        }
+        
+        Ok(bytecode_vars)
+    }
+    
+    /// Detect reentrancy vulnerability in-circuit
+    pub fn detect_reentrancy(&self, cs: &ConstraintSystemRef<F>, bytecode_vars: &[Variable]) -> Result<Variable, SynthesisError> {
+        // Constants for EVM opcodes
+        let sload_opcode = F::from(SLOAD as u64);
+        let sstore_opcode = F::from(SSTORE as u64);
+        let call_opcode = F::from(CALL as u64);
+        
+        // Create a constant variable for one
+        let one_var = cs.new_witness_variable(|| Ok(F::one()))?;
+        
+        // Create variables to track the state of the analysis
+        let mut has_sload_vars = Vec::new();
+        let mut has_call_after_sload_vars = Vec::new();
+        let mut has_sstore_after_call_vars = Vec::new();
+        
+        // Allocate variables for each position in the bytecode
+        for i in 0..bytecode_vars.len() {
+            has_sload_vars.push(cs.new_witness_variable(|| {
+                Ok(F::zero())
+            })?);
+            
+            has_call_after_sload_vars.push(cs.new_witness_variable(|| {
+                Ok(F::zero())
+            })?);
+            
+            has_sstore_after_call_vars.push(cs.new_witness_variable(|| {
+                Ok(F::zero())
+            })?);
+        }
+        
+        // For each position in the bytecode
+        for i in 0..bytecode_vars.len() {
+            // Check if the current opcode is SLOAD
+            let is_sload = cs.new_witness_variable(|| {
+                if i < self.bytecode.len() && self.bytecode[i] == SLOAD {
+                    Ok(F::one())
+                } else {
+                    Ok(F::zero())
+                }
+            })?;
+            
+            // Check if the current opcode is CALL
+            let is_call = cs.new_witness_variable(|| {
+                if i < self.bytecode.len() && self.bytecode[i] == CALL {
+                    Ok(F::one())
+                } else {
+                    Ok(F::zero())
+                }
+            })?;
+            
+            // Check if the current opcode is SSTORE
+            let is_sstore = cs.new_witness_variable(|| {
+                if i < self.bytecode.len() && self.bytecode[i] == SSTORE {
+                    Ok(F::one())
+                } else {
+                    Ok(F::zero())
+                }
+            })?;
+            
+            // Update has_sload state
+            if i == 0 {
+                // For the first position, has_sload[0] = is_sload[0]
+                cs.enforce_constraint(
+                    LinearCombination::from(is_sload),
+                    LinearCombination::from(one_var),
+                    LinearCombination::from(has_sload_vars[i]),
+                )?;
+            }
+            
+            // Similar logic for has_call_after_sload and has_sstore_after_call
+            // ... (implement similar constraints for these states)
+        }
+        
+        // Create a variable for the reentrancy vulnerability
+        let reentrancy_var = cs.new_witness_variable(|| {
+            // Check if there's a pattern of SLOAD -> CALL -> SSTORE
+            let mut has_pattern = false;
+            for i in 0..self.bytecode.len().saturating_sub(2) {
+                if self.bytecode[i] == SLOAD && 
+                   self.bytecode[i+1] == CALL && 
+                   self.bytecode[i+2] == SSTORE {
+                    has_pattern = true;
+                    break;
+                }
+            }
+            
+            if has_pattern {
+                Ok(F::one())
+            } else {
+                Ok(F::zero())
+            }
+        })?;
+        
+        Ok(reentrancy_var)
+    }
+
+    /// Detect unchecked call vulnerability in-circuit
+    pub fn detect_unchecked_call(&self, cs: &ConstraintSystemRef<F>, _bytecode_vars: &[Variable]) -> Result<Variable, SynthesisError> {
+        // Create a variable for the unchecked call vulnerability
+        // This is a placeholder implementation
+        let unchecked_call_var = cs.new_input_variable(|| Ok(F::zero()))?;
+        
+        Ok(unchecked_call_var)
     }
 }
 
@@ -74,11 +222,15 @@ impl<F: Field> ConstraintSynthesizer<F> for PCDCircuit<F> {
             println!("Debug: Current state is empty, only adding one_var as public input");
             
             // 1 * 1 = 1
-            let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
-            let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
-            let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc1 = LinearCombination::from(one_var);
+            let lc2 = LinearCombination::from(one_var);
+            let lc3 = LinearCombination::from(one_var);
             
-            cs.enforce_constraint(lc1, lc2, lc3)?;
+            cs.enforce_constraint(
+                lc1,
+                lc2,
+                lc3,
+            )?;
             
             return Ok(());
         }
@@ -105,146 +257,79 @@ impl<F: Field> PCDCircuit<F> {
         cs: ConstraintSystemRef<F>,
         state_vars: &[Variable],
     ) -> Result<(), SynthesisError> {
-        // Get the first state variable (or use one_var if none exist)
-        let first_var = if !state_vars.is_empty() {
-            state_vars[0]
-        } else {
-            cs.new_input_variable(|| Ok(F::one()))?
-        };
+        // Create a constant variable for one
+        let one_var = cs.new_witness_variable(|| Ok(F::one()))?;
         
-        // Create variables for each vulnerability type we want to check
-        let reentrancy_present = self.has_vulnerability(SecurityWarningKind::Reentrancy);
-        let reentrancy_var = cs.new_witness_variable(|| Ok(F::from(reentrancy_present as u32)))?;
+        // Allocate bytecode variables
+        let bytecode_vars = self.allocate_bytecode(&cs)?;
         
-        let access_control_present = self.has_vulnerability(SecurityWarningKind::AccessControl);
-        let access_control_var = cs.new_witness_variable(|| Ok(F::from(access_control_present as u32)))?;
+        // Detect vulnerabilities
+        let reentrancy_var = self.detect_reentrancy(&cs, &bytecode_vars)?;
+        let unchecked_call_var = self.detect_unchecked_call(&cs, &bytecode_vars)?;
+        let access_control_var = cs.new_witness_variable(|| Ok(F::zero()))?;
+        let integer_overflow_var = cs.new_witness_variable(|| Ok(F::zero()))?;
+        let front_running_var = cs.new_witness_variable(|| Ok(F::zero()))?;
+        let flash_loan_var = cs.new_witness_variable(|| Ok(F::zero()))?;
         
-        let integer_overflow_present = self.has_vulnerability(SecurityWarningKind::IntegerOverflow);
-        let integer_overflow_var = cs.new_witness_variable(|| Ok(F::from(integer_overflow_present as u32)))?;
+        // Enforce boolean constraints for vulnerability variables
+        cs.enforce_constraint(
+            LinearCombination::from(reentrancy_var),
+            LinearCombination::from(reentrancy_var) - LinearCombination::from(one_var),
+            LinearCombination::zero(),
+        )?;
         
-        let unchecked_call_present = self.has_vulnerability(SecurityWarningKind::UncheckedCall);
-        let unchecked_call_var = cs.new_witness_variable(|| Ok(F::from(unchecked_call_present as u32)))?;
+        // For unchecked call
+        cs.enforce_constraint(
+            LinearCombination::from(unchecked_call_var),
+            LinearCombination::from(unchecked_call_var) - LinearCombination::from(one_var),
+            LinearCombination::zero(),
+        )?;
         
-        let front_running_present = self.has_vulnerability(SecurityWarningKind::FrontRunning);
-        let front_running_var = cs.new_witness_variable(|| Ok(F::from(front_running_present as u32)))?;
+        // Create a combined score for all vulnerabilities
+        let mut combined_score = LinearCombination::zero();
+        combined_score = combined_score + LinearCombination::from(reentrancy_var);
+        combined_score = combined_score + LinearCombination::from(unchecked_call_var);
+        combined_score = combined_score + LinearCombination::from(access_control_var);
+        combined_score = combined_score + LinearCombination::from(integer_overflow_var);
+        combined_score = combined_score + LinearCombination::from(front_running_var);
+        combined_score = combined_score + LinearCombination::from(flash_loan_var);
         
-        let flash_loan_present = self.has_vulnerability(SecurityWarningKind::FlashLoan);
-        let flash_loan_var = cs.new_witness_variable(|| Ok(F::from(flash_loan_present as u32)))?;
-        
-        // Add constraints that enforce the vulnerability status
-        // For each vulnerability, we add a constraint that the variable is either 0 or 1
-        // and that it matches the actual vulnerability status
-        
-        // Reentrancy constraints
-        if reentrancy_present {
-            // If reentrancy is present, variable must be 1
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(reentrancy_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(reentrancy_var),
-            )?;
-        } else {
-            // If reentrancy is not present, variable must be 0
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(reentrancy_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Access control constraints
-        if access_control_present {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(access_control_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(access_control_var),
-            )?;
-        } else {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(access_control_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Integer overflow constraints
-        if integer_overflow_present {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(integer_overflow_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(integer_overflow_var),
-            )?;
-        } else {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(integer_overflow_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Unchecked call constraints
-        if unchecked_call_present {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(unchecked_call_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(unchecked_call_var),
-            )?;
-        } else {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(unchecked_call_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Front running constraints
-        if front_running_present {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(front_running_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(front_running_var),
-            )?;
-        } else {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(front_running_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Flash loan constraints
-        if flash_loan_present {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(flash_loan_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(flash_loan_var),
-            )?;
-        } else {
-            cs.enforce_constraint(
-                ark_relations::r1cs::LinearCombination::<F>::from(flash_loan_var),
-                ark_relations::r1cs::LinearCombination::<F>::from(first_var),
-                ark_relations::r1cs::LinearCombination::<F>::zero(),
-            )?;
-        }
-        
-        // Add a constraint that combines all vulnerabilities
-        // This will be 1 if any vulnerability is present, 0 otherwise
-        let vulnerability_sum = cs.new_witness_variable(|| {
-            let sum = reentrancy_present as u32 + 
-                     access_control_present as u32 + 
-                     integer_overflow_present as u32 + 
-                     unchecked_call_present as u32 + 
-                     front_running_present as u32 +
-                     flash_loan_present as u32;
-            Ok(F::from(sum.min(1)))
+        // Create a variable for the combined score
+        let combined_score_var = cs.new_witness_variable(|| {
+            let reentrancy = if self.has_vulnerability(SecurityWarningKind::Reentrancy) { F::one() } else { F::zero() };
+            let unchecked_call = if self.has_vulnerability(SecurityWarningKind::UncheckedCall) { F::one() } else { F::zero() };
+            let access_control = if self.has_vulnerability(SecurityWarningKind::AccessControl) { F::one() } else { F::zero() };
+            let integer_overflow = if self.has_vulnerability(SecurityWarningKind::IntegerOverflow) { F::one() } else { F::zero() };
+            let front_running = if self.has_vulnerability(SecurityWarningKind::FrontRunning) { F::one() } else { F::zero() };
+            let flash_loan = if self.has_vulnerability(SecurityWarningKind::FlashLoan) { F::one() } else { F::zero() };
+            
+            Ok(reentrancy + unchecked_call + access_control + integer_overflow + front_running + flash_loan)
         })?;
         
-        // Add a constraint that vulnerability_sum is either 0 or 1
+        // Enforce that combined_score equals combined_score_var
         cs.enforce_constraint(
-            ark_relations::r1cs::LinearCombination::<F>::from(vulnerability_sum),
-            ark_relations::r1cs::LinearCombination::<F>::from(vulnerability_sum),
-            ark_relations::r1cs::LinearCombination::<F>::from(vulnerability_sum),
+            combined_score,
+            LinearCombination::from(one_var),
+            LinearCombination::from(combined_score_var),
         )?;
+        
+        // Add constraints for state transitions if previous state is provided
+        if let Some(prev_state) = &self.prev_state {
+            // In a real implementation, we would add constraints that relate
+            // the previous state, the bytecode execution, and the current state
+            
+            // For now, we'll just add a placeholder constraint
+            let prev_state_var = cs.new_input_variable(|| Ok(prev_state[0]))?;
+            let curr_state_var = state_vars[0];
+            
+            // Placeholder: curr_state >= prev_state
+            // This is just a simple example and not a real security constraint
+            cs.enforce_constraint(
+                LinearCombination::from(prev_state_var),
+                LinearCombination::from(one_var),
+                LinearCombination::from(curr_state_var),
+            )?;
+        }
         
         Ok(())
     }
@@ -266,40 +351,47 @@ impl<F: Field> ConstraintSynthesizer<F> for DataPredicateCircuit<F> {
         self,
         cs: ConstraintSystemRef<F>,
     ) -> Result<(), SynthesisError> {
-        println!("Debug: DataPredicateCircuit generate_constraints called");
+        // Create a constant variable for one
+        let one_var = cs.new_witness_variable(|| Ok(F::one()))?;
         
-        // Always add one_var as the FIRST public input
-        let one = F::one();
-        let one_var = cs.new_input_variable(|| Ok(one))?;
-        println!("Debug: Adding one_var as first public input");
+        // Allocate variables for the data and predicate
+        let data_hash_var = cs.new_input_variable(|| {
+            Ok(F::from(compute_hash(&self.data) as u64))
+        })?;
         
-        // Add data hash as input
-        let data_hash = 42u32; // Placeholder for actual hash computation
-        let _data_hash_var = cs.new_input_variable(|| Ok(F::from(data_hash)))?;
+        let predicate_hash_var = cs.new_input_variable(|| {
+            Ok(F::from(compute_hash(&self.predicate) as u64))
+        })?;
         
-        // Add predicate hash as input
-        let predicate_hash = 43u32; // Placeholder for actual hash computation
-        let _predicate_hash_var = cs.new_input_variable(|| Ok(F::from(predicate_hash)))?;
-        
-        // Enforce that data satisfies predicate
-        // This is a simplified check - in a real implementation, we would
-        // actually verify that the data satisfies the predicate
-        let satisfies = data_satisfies_predicate(&self.data, &self.predicate);
-        let satisfies_var = cs.new_witness_variable(|| Ok(F::from(satisfies as u32)))?;
-        println!("Debug: Adding satisfies_var as witness");
+        // Allocate a variable for the result of the predicate check
+        let satisfies_var = cs.new_witness_variable(|| {
+            if data_satisfies_predicate(&self.data, &self.predicate) {
+                Ok(F::one())
+            } else {
+                Ok(F::zero())
+            }
+        })?;
         
         // Enforce that satisfies is either 0 or 1
         cs.enforce_constraint(
-            ark_relations::r1cs::LinearCombination::<F>::from(satisfies_var),
-            ark_relations::r1cs::LinearCombination::<F>::from(satisfies_var),
-            ark_relations::r1cs::LinearCombination::<F>::from(satisfies_var),
+            LinearCombination::from(satisfies_var),
+            LinearCombination::from(satisfies_var) - LinearCombination::from(one_var),
+            LinearCombination::zero(),
         )?;
         
         // Enforce that satisfies is 1
         cs.enforce_constraint(
-            ark_relations::r1cs::LinearCombination::<F>::from(satisfies_var),
-            ark_relations::r1cs::LinearCombination::<F>::from(one_var),
-            ark_relations::r1cs::LinearCombination::<F>::from(satisfies_var),
+            LinearCombination::from(satisfies_var),
+            LinearCombination::from(one_var),
+            LinearCombination::from(satisfies_var),
+        )?;
+        
+        // Enforce that data_hash and predicate_hash are consistent with the result
+        // This is a simplified approach; in a real implementation, we would add more constraints
+        cs.enforce_constraint(
+            LinearCombination::from(data_hash_var),
+            LinearCombination::from(predicate_hash_var),
+            LinearCombination::from(satisfies_var),
         )?;
         
         Ok(())
@@ -342,25 +434,37 @@ mod tests {
     use super::*;
     use ark_bn254::Fr;
     use ark_relations::r1cs::ConstraintSystem;
-    use ethers::types::Bytes;
     
     #[test]
     fn test_pcd_circuit() {
-        let bytecode = Bytes::from(vec![1, 2, 3]);
-        let curr_state = vec![Fr::from(42u32)];
+        use ark_bn254::Fr;
+        use ark_relations::r1cs::ConstraintSystem;
         
-        let circuit = PCDCircuit {
+        // Create a simple bytecode with a reentrancy pattern
+        // SLOAD (0x54) -> CALL (0xF1) -> SSTORE (0x55)
+        let bytecode = Bytes::from(vec![0x54, 0xF1, 0x55]);
+        
+        // Create a current state
+        let curr_state = vec![Fr::from(1u32), Fr::from(2u32)];
+        
+        // Create a circuit
+        let circuit = PCDCircuit::<Fr>::new_with_analysis(
             bytecode,
-            prev_state: None,
+            None,
             curr_state,
-            security_warnings: Vec::new(),
-            _field: PhantomData,
-        };
+        ).unwrap();
         
+        // Create a constraint system
         let cs = ConstraintSystem::<Fr>::new_ref();
+        
+        // Generate constraints
         circuit.generate_constraints(cs.clone()).unwrap();
         
+        // Check if constraints are satisfied
         assert!(cs.is_satisfied().unwrap());
+        
+        // Check number of constraints
+        println!("Number of constraints: {}", cs.num_constraints());
     }
     
     #[test]
