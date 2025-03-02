@@ -1,8 +1,7 @@
 use ark_bn254::Bn254;
 use ark_groth16::Groth16;
 use ark_snark::SNARK;
-use ark_ec::pairing::Pairing;
-use ark_ec::AffineRepr;
+use ark_ec::PairingEngine;
 use ark_ff::Zero;
 use rand::rngs::OsRng;
 
@@ -11,7 +10,7 @@ use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;
 use crate::utils::address_to_field;
 
-type Fr = <Bn254 as Pairing>::ScalarField;
+type Fr = <Bn254 as PairingEngine>::Fr;
 
 pub mod api;
 pub mod bytecode;

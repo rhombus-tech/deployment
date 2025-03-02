@@ -1,7 +1,6 @@
 use ark_bn254::{Bn254, Fr};
 use ark_groth16::{
     Groth16,
-    prepare_verifying_key,
     Proof, ProvingKey, VerifyingKey,
 };
 use ark_relations::r1cs::ConstraintSynthesizer;
@@ -43,8 +42,8 @@ pub fn verify_memory_proof(
     verifying_key: &VerifyingKey<Bn254>,
     public_inputs: &[Fr],
 ) -> Result<bool> {
-    let pvk = prepare_verifying_key(verifying_key);
-    Ok(Groth16::<Bn254>::verify_proof(&pvk, proof, public_inputs)?)
+    // Use the correct verify method with correct parameter order
+    Ok(Groth16::<Bn254>::verify(verifying_key, public_inputs, proof)?)
 }
 
 /// Verify a bytecode safety proof
@@ -53,6 +52,6 @@ pub fn verify_bytecode_proof(
     verifying_key: &VerifyingKey<Bn254>,
     public_inputs: &[Fr],
 ) -> Result<bool> {
-    let pvk = prepare_verifying_key(verifying_key);
-    Ok(Groth16::<Bn254>::verify_proof(&pvk, proof, public_inputs)?)
+    // Use the correct verify method with correct parameter order
+    Ok(Groth16::<Bn254>::verify(verifying_key, public_inputs, proof)?)
 }

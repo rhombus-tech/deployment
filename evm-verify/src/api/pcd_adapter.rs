@@ -6,6 +6,7 @@
 
 use ethers::types::Bytes;
 use std::sync::Arc;
+use std::marker::PhantomData;
 use anyhow::{anyhow, Result};
 
 use crate::api::pcd::PCDVerifier;
@@ -19,8 +20,9 @@ use pcd::{
     },
 };
 
+// Import the correct Fr type from ark_bn254
 #[cfg(feature = "accumulation")]
-use ark_bn254::Fr;
+use ark_bn254::Fr as Bn254Fr;
 
 /// Result of proof generation
 #[cfg(feature = "accumulation")]
@@ -57,13 +59,13 @@ impl PCDAdapter {
     /// Generate a proof for bytecode
     #[cfg(feature = "accumulation")]
     pub fn generate_proof_for_bytecode(&self, bytecode: Vec<u8>) -> Result<ProofGenerationResult> {
-        use ark_bn254::Fr;
-        use ark_std::rand::thread_rng;
+        use ark_std::rand::{thread_rng, CryptoRng, RngCore};
         use pcd::evm_accumulation::{generate_evm_proof, serialize_proof, serialize_vk};
+        use std::marker::PhantomData;
         
         // Create a simple state transition
         let prev_state = None;
-        let curr_state = vec![Fr::from(1u32)]; // Example state
+        let curr_state = vec![Bn254Fr::from(1u32)]; // Example state
         
         // Generate proof
         let mut rng = thread_rng();
@@ -88,20 +90,20 @@ impl PCDAdapter {
     pub fn verify_bytecode(&self, bytecode: Bytes) -> Result<VerificationResult> {
         #[cfg(feature = "accumulation")]
         {
-            use ark_bn254::Fr;
-            use ark_std::rand::thread_rng;
+            use ark_std::rand::{thread_rng, CryptoRng, RngCore};
             use pcd::evm_accumulation::{generate_evm_proof, verify_evm_proof};
+            use std::marker::PhantomData;
             
             // Create a simple state transition
             let prev_state = None;
-            let curr_state = vec![Fr::from(1u32)]; // Example state
+            let curr_state = vec![Bn254Fr::from(1u32)]; // Example state
             
             // Generate proof
             let mut rng = thread_rng();
             let (proof, vk) = generate_evm_proof(
                 bytecode.clone(),
                 prev_state,
-                curr_state,
+                curr_state.clone(),
                 &mut rng,
             )?;
             
@@ -110,7 +112,7 @@ impl PCDAdapter {
                 bytecode,
                 &proof,
                 &vk,
-                Vec::new(), // Empty state for now, could derive from public inputs if needed
+                curr_state,
             )?;
             
             Ok(VerificationResult {
@@ -134,18 +136,22 @@ impl PCDAdapter {
     /// Verify a proof
     #[cfg(feature = "accumulation")]
     pub fn verify_proof(&self, bytecode: Vec<u8>, proof_bytes: Vec<u8>, verifying_key: Vec<u8>) -> Result<VerificationResult> {
+        use std::marker::PhantomData;
         use pcd::evm_accumulation::{deserialize_proof, deserialize_vk, verify_evm_proof};
         
         // Deserialize proof and verifying key
         let proof = deserialize_proof(&proof_bytes)?;
         let vk = deserialize_vk(&verifying_key)?;
         
+        // Create a simple state for verification (this should match what was used in generation)
+        let curr_state = vec![Bn254Fr::from(1u32)];
+        
         // Verify the proof
         let is_valid = verify_evm_proof(
             Bytes::from(bytecode),
             &proof,
             &vk,
-            Vec::new(), // Empty state for now, could derive from public inputs if needed
+            curr_state,
         )?;
         
         Ok(VerificationResult {

@@ -33,16 +33,16 @@ hex = "0.4"
 hex-literal = "0.4"
 
 # Cryptographic proof systems
-ark-ff = "0.4"
-ark-ec = "0.4"
-ark-bn254 = { version = "0.4" }
-ark-bls12-381 = "0.4"
-ark-std = { version = "0.4" }
-ark-r1cs-std = { version = "0.4" }
-ark-relations = { version = "0.4" }
-ark-groth16 = { version = "0.4" }
-ark-snark = "0.4.0"
-ark-serialize = "0.4.0"
+ark-ff = "0.3"
+ark-ec = "0.3"
+ark-bn254 = { version = "0.3" }
+ark-bls12-381 = "0.3"
+ark-std = { version = "0.3" }
+ark-r1cs-std = { version = "0.3" }
+ark-relations = { version = "0.3" }
+ark-groth16 = { version = "0.3" }
+ark-snark = "0.3.0"
+ark-serialize = "0.3.0"
 
 # Error handling and utilities
 anyhow = "1.0"
@@ -74,3 +74,8 @@ tempfile = "3.8"
 
 [dev-dependencies]
 hex-literal = "0.4"
+
+[[example]]
+name = "pcc_example"
+path = "examples/pcc_example.rs"
+required-features = ["pcc"]
