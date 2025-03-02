@@ -15,7 +15,9 @@ use crate::bytecode::BytecodeAnalyzer;
 use crate::bytecode::security::SecurityWarning;
 use crate::api::types::{Vulnerability, VulnerabilityType, VulnerabilitySeverity, VulnerabilityLocation};
 use crate::bytecode::analyzer::VulnerabilityType as AnalyzerVulnerabilityType;
-use pcc::circuits::bytecode::BytecodeSafetyCircuit;
+// Updated to use the external pcc crate
+extern crate pcc;
+use ::pcc::circuits::bytecode::BytecodeSafetyCircuit;
 
 // Define Fr as the scalar field for Bn254
 type Fr = <Bn254 as Pairing>::ScalarField;

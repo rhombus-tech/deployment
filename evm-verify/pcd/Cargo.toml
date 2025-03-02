@@ -4,40 +4,29 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-evm-verify-common = { path = "../common" }
-
-# Ethereum - minimal features to avoid c-kzg
+anyhow = "1.0.31"
+ark-accumulation = { path = "../accumulation", default-features = false, features = ["hp-as", "r1cs-nark-as", "std"], optional = true }
+ark-bn254 = { version = "^0.3.0", features = ["curve"] }
+ark-ec = { version = "^0.3.0", default-features = false }
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-groth16 = { version = "^0.3.0", default-features = false }
+ark-poly = { version = "^0.3.0", default-features = false, optional = true }
+ark-poly-commit = { version = "^0.3.0", default-features = false, optional = true }
+ark-relations = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false, features = ["derive"] }
+ark-snark = { version = "^0.3.0", default-features = false }
+ark-sponge = { version = "^0.3.0", default-features = false, optional = true }
+ark-std = { version = "^0.3.0", default-features = false }
+base64 = "0.13.0"
+bincode = "1.3.3"
+blake2 = { version = "0.9.1", default-features = false }
+digest = { version = "0.9.0", default-features = false }
 ethers = { version = "2.0", default-features = false, features = ["abigen"] }
-revm = { version = "3.0", default-features = false }
-
-# Cryptographic primitives
-ark-ff = { version = "0.3.0", default-features = false }
-ark-ec = { version = "0.3.0", default-features = false }
-ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
-ark-groth16 = { version = "0.3.0", default-features = false }
-ark-relations = { version = "0.3.0", default-features = false }
-ark-snark = { version = "0.3.0", default-features = false }
-ark-r1cs-std = { version = "0.3.0", default-features = false }
-ark-std = { version = "0.3.0", default-features = false }
-ark-serialize = { version = "0.3.0", default-features = false }
-ark-sponge = { version = "0.3.0", default-features = false, optional = true }
-ark-poly = { version = "0.3.0", default-features = false, optional = true }
-ark-poly-commit = { version = "0.3.0", default-features = false, optional = true }
-
-# Accumulation library
-ark-accumulation = { path = "../accumulation", default-features = false, features = ["r1cs-nark-as", "std", "r1cs"], optional = true }
-ark-crypto-primitives = { version = "0.3.0", default-features = false, optional = true }
-
-# Random number generation
-rand = "0.8"
-
-# Error handling
-thiserror = "1.0"
-anyhow = "1.0"
-
-# Hashing
-blake2 = { version = "0.9", default-features = false }
-digest = { version = "0.9", default-features = false }
+hex = "0.4.3"
+rand = { version = "0.8", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.81"
+thiserror = "1.0.31"
 
 [dev-dependencies]
 ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
@@ -45,10 +34,9 @@ ark-r1cs-std = { version = "0.3.0", default-features = false }
 ark-relations = { version = "0.3.0", default-features = false }
 
 [features]
-default = []
+default = ["accumulation"]
 accumulation = [
     "ark-accumulation",
-    "ark-crypto-primitives",
     "ark-sponge",
     "ark-poly",
     "ark-poly-commit",

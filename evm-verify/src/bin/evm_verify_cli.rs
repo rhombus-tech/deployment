@@ -1,13 +1,11 @@
-use anyhow::Result;
-use bincode;
-use clap::{Parser, Subcommand};
-use ethers::types::Bytes;
 use std::fs;
 use std::path::PathBuf;
-
+use anyhow::Result;
+use clap::{Parser, Subcommand};
 use evm_verify::api::unified::UnifiedVerifier;
+use hex;
 
-/// EVM Verify - A tool for verifying EVM bytecode
+/// EVM Verify CLI
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -17,52 +15,44 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Analyze bytecode for vulnerabilities
+    /// Analyze a smart contract for vulnerabilities
     Analyze {
-        /// Path to bytecode file
+        /// Path to the bytecode file
         #[clap(short, long)]
         file: PathBuf,
         
-        /// Enable PCD verification
-        #[clap(short, long)]
-        pcd: bool,
-        
-        /// Enable PCC verification
-        #[clap(short, long)]
-        pcc: bool,
-        
-        /// Output format (json or text)
-        #[clap(short, long, default_value = "text")]
-        format: String,
+        /// Type of analysis to perform (pcc, pcd, or both)
+        #[clap(short, long, default_value = "both")]
+        analysis_type: String,
     },
     
-    /// Generate proof for bytecode
-    Generate {
-        /// Path to bytecode file
+    /// Generate a proof for a smart contract
+    GenerateProof {
+        /// Path to the bytecode file
         #[clap(short, long)]
         file: PathBuf,
         
-        /// Output file for proof
+        /// Path to the output file
         #[clap(short, long)]
         output: PathBuf,
         
-        /// Proof type (pcd or pcc)
-        #[clap(short, long, default_value = "pcd")]
+        /// Type of proof to generate (pcc or pcd)
+        #[clap(short, long)]
         proof_type: String,
     },
     
-    /// Verify proof for bytecode
-    Verify {
-        /// Path to bytecode file
+    /// Verify a proof for a smart contract
+    VerifyProof {
+        /// Path to the bytecode file
         #[clap(short, long)]
         file: PathBuf,
         
-        /// Path to proof file
+        /// Path to the proof file
         #[clap(short, long)]
         proof: PathBuf,
         
-        /// Proof type (pcd or pcc)
-        #[clap(short, long, default_value = "pcd")]
+        /// Type of proof to verify (pcc or pcd)
+        #[clap(short, long)]
         proof_type: String,
     },
 }
@@ -70,38 +60,47 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     
-    match cli.command {
-        Commands::Analyze { file, pcd, pcc, format } => {
-            analyze_bytecode(file, pcd, pcc, format)
+    match &cli.command {
+        Commands::Analyze { file, analysis_type } => {
+            analyze_bytecode(file.clone(), analysis_type.clone())?;
         },
-        Commands::Generate { file, output, proof_type } => {
-            generate_proof(file, output, proof_type)
+        Commands::GenerateProof { file, output, proof_type } => {
+            generate_proof(file.clone(), output.clone(), proof_type.clone())?;
         },
-        Commands::Verify { file, proof, proof_type } => {
-            verify_proof(file, proof, proof_type)
+        Commands::VerifyProof { file, proof, proof_type } => {
+            verify_proof(file.clone(), proof.clone(), proof_type.clone())?;
         },
     }
+    
+    Ok(())
 }
 
-fn analyze_bytecode(file: PathBuf, pcd: bool, pcc: bool, format: String) -> Result<()> {
+fn analyze_bytecode(file: PathBuf, analysis_type: String) -> Result<()> {
     // Read bytecode from file
     let bytecode_hex = fs::read_to_string(file)?;
     let bytecode_bytes = hex::decode(bytecode_hex.trim_start_matches("0x"))?;
     
-    // Create a unified verifier with the specified configuration
-    let verifier = UnifiedVerifier::with_config(pcd, pcc);
+    // Create a unified verifier
+    let verifier = match analysis_type.as_str() {
+        "pcc" => UnifiedVerifier::with_config(false, true),
+        "pcd" => UnifiedVerifier::with_config(true, false),
+        _ => UnifiedVerifier::new(),
+    };
     
     // Analyze the bytecode
     let report = verifier.analyze_bytecode(&bytecode_bytes)?;
     
-    // Output the report
-    match format.as_str() {
-        "json" => {
-            println!("{}", serde_json::to_string_pretty(&report)?);
-        },
-        _ => {
-            print_text_report(&report);
-        },
+    // Print the results
+    println!("Analysis Report:");
+    println!("Contract Size: {} bytes", report.contract_size);
+    println!("Vulnerabilities Found: {}", report.vulnerabilities.len());
+    
+    for (i, vulnerability) in report.vulnerabilities.iter().enumerate() {
+        println!("Vulnerability #{}: {}", i + 1, vulnerability.title);
+        println!("  Description: {}", vulnerability.description);
+        println!("  Severity: {:?}", vulnerability.severity);
+        println!("  Type: {:?}", vulnerability.vulnerability_type);
+        println!("  Recommendation: {}", vulnerability.recommendation);
     }
     
     Ok(())
@@ -122,7 +121,7 @@ fn generate_proof(file: PathBuf, output: PathBuf, proof_type: String) -> Result<
             
             // Serialize the proof
             #[cfg(feature = "accumulation")]
-            let proof_bytes = pcd::accumulation::serialize_proof(&proof)?;
+            let proof_bytes = proof;
             
             #[cfg(not(feature = "accumulation"))]
             let proof_bytes = bincode::serialize(&(proof, verifying_key))?;
@@ -165,12 +164,9 @@ fn verify_proof(file: PathBuf, proof_file: PathBuf, proof_type: String) -> Resul
             // Deserialize the proof
             #[cfg(feature = "accumulation")]
             let (proof, verifying_key) = {
-                use ark_bn254::{Bn254, Fr};
-                use ark_groth16::Proof;
-                
-                let proof = pcd::accumulation::deserialize_proof(&proof_bytes)?;
-                let verifying_key = vec![0u8; 32]; // In a real implementation, this would be extracted from the proof
-                (proof, verifying_key)
+                // In a real implementation, this would extract the proof and verifying key from proof_bytes
+                // For now, we just use the raw bytes
+                (proof_bytes.clone(), vec![0u8; 32])
             };
             
             #[cfg(not(feature = "accumulation"))]
@@ -193,6 +189,13 @@ fn verify_proof(file: PathBuf, proof_file: PathBuf, proof_type: String) -> Resul
                 println!("PCC proof verification successful");
             } else {
                 println!("PCC proof verification failed");
+                
+                if !result.vulnerabilities.is_empty() {
+                    println!("Vulnerabilities found:");
+                    for (i, vulnerability) in result.vulnerabilities.iter().enumerate() {
+                        println!("  {}. {}", i + 1, vulnerability);
+                    }
+                }
             }
         },
         _ => {
@@ -201,31 +204,4 @@ fn verify_proof(file: PathBuf, proof_file: PathBuf, proof_type: String) -> Resul
     }
     
     Ok(())
-}
-
-fn print_text_report(report: &evm_verify::api::types::AnalysisReport) {
-    println!("Analysis Report");
-    println!("==============");
-    println!("Timestamp: {}", report.timestamp);
-    println!("Contract Size: {} bytes", report.contract_size);
-    println!("Delegate Calls: {}", report.delegate_calls);
-    println!("Memory Accesses: {}", report.memory_accesses);
-    println!("Storage Accesses: {}", report.storage_accesses);
-    println!();
-    
-    if report.vulnerabilities.is_empty() {
-        println!("No vulnerabilities found");
-    } else {
-        println!("Vulnerabilities");
-        println!("--------------");
-        
-        for (i, vulnerability) in report.vulnerabilities.iter().enumerate() {
-            println!("{}. {} ({})", i + 1, vulnerability.title, vulnerability.severity);
-            println!("   Description: {}", vulnerability.description);
-            println!("   Type: {:?}", vulnerability.vulnerability_type);
-            println!("   Location: {:?}", vulnerability.location);
-            println!("   Recommendation: {}", vulnerability.recommendation);
-            println!();
-        }
-    }
 }

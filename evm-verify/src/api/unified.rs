@@ -16,7 +16,7 @@ use crate::api::types::{AnalysisReport, Vulnerability, AnalysisConfig, Vulnerabi
 use std::sync::Arc;
 
 #[cfg(feature = "accumulation")]
-use crate::pcd::adapter::PCDAdapter;
+use crate::api::pcd_adapter::PCDAdapter;
 
 /// Unified verifier for smart contracts
 ///
@@ -132,6 +132,16 @@ impl UnifiedVerifier {
             all_warnings.extend(mev_warnings);
         }
         
+        // Specifically check for unchecked external calls
+        if let Ok(unchecked_calls_warnings) = analyzer.detect_unchecked_calls() {
+            all_warnings.extend(unchecked_calls_warnings);
+        }
+        
+        // Specifically check for flash loan vulnerabilities
+        if let Ok(flash_loan_warnings) = analyzer.detect_flash_loan_vulnerabilities() {
+            all_warnings.extend(flash_loan_warnings);
+        }
+        
         // Simple bytecode with just a SSTORE operation is definitely missing access controls
         // This is a special case for the test
         if bytecode.len() <= 5 && bytecode.as_ref().contains(&0x55) { // 0x55 is SSTORE
@@ -203,6 +213,32 @@ impl UnifiedVerifier {
                     SecurityWarningKind::FrontRunning => (
                         VulnerabilityType::FrontRunning,
                         VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::IntegerOverflow => (
+                        VulnerabilityType::IntegerOverflow,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::IntegerUnderflow => (
+                        VulnerabilityType::IntegerUnderflow,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::UncheckedExternalCall => (
+                        VulnerabilityType::UncheckedCall,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::UncheckedCallReturn => (
+                        VulnerabilityType::UncheckedCall,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::FlashLoanVulnerability => (
+                        VulnerabilityType::FlashLoan,
+                        match warning.severity {
+                            SecuritySeverity::High => VulnerabilitySeverity::High,
+                            SecuritySeverity::Medium => VulnerabilitySeverity::Medium,
+                            SecuritySeverity::Low => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Info => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
+                        },
                     ),
                     _ => (
                         VulnerabilityType::Other,
@@ -439,11 +475,11 @@ impl UnifiedVerifier {
     }
 
     /// Verify a PCD proof
-    pub fn verify_pcd_proof(&self, _bytecode_bytes: &[u8], _proof: &[u8], _verifying_key: &[u8]) -> Result<VerificationResult> {
+    pub fn verify_pcd_proof(&self, bytecode_bytes: &[u8], proof: &[u8], verifying_key: &[u8]) -> Result<VerificationResult> {
         #[cfg(feature = "accumulation")]
         {
             // Use the PCD adapter to verify the proof
-            let verification_result = self.pcd_adapter.verify_proof(_bytecode_bytes.to_vec(), _proof.to_vec(), _verifying_key.to_vec())?;
+            let verification_result = self.pcd_adapter.verify_proof(bytecode_bytes.to_vec(), proof.to_vec(), verifying_key.to_vec())?;
             
             // Return the verification result
             Ok(verification_result)
@@ -594,7 +630,7 @@ mod tests {
         
         assert!(has_flash_loan_vulnerability, "Expected flash loan vulnerability (a type of reentrancy)");
     }
-    
+
     #[test]
     fn test_access_control_vulnerability_detection() {
         // Create a unified verifier
@@ -625,5 +661,182 @@ mod tests {
         // Check that at least one vulnerability is of type AccessControl
         let has_access_control = vulnerabilities.iter().any(|v| v.vulnerability_type == VulnerabilityType::AccessControl);
         assert!(has_access_control, "Expected at least one AccessControl vulnerability");
+    }
+
+    #[test]
+    fn test_integer_overflow_underflow_detection() {
+        // Skip if the PCD feature is not enabled
+        if !cfg!(feature = "pcd") {
+            println!("Skipping test_integer_overflow_underflow_detection as PCD feature is not enabled");
+            return;
+        }
+
+        // Create bytecode with a potential integer overflow vulnerability
+        // This bytecode contains an ADD operation (0x01) that could overflow
+        let overflow_bytecode = Bytes::from(vec![
+            // PUSH32 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF (max uint256)
+            0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF,
+            // PUSH1 0x01
+            0x60, 0x01,
+            // ADD (add without checking if result will overflow)
+            0x01,
+            // PUSH1 0x00
+            0x60, 0x00,
+            // SSTORE (store result at storage slot 0)
+            0x55
+        ]);
+
+        // Create bytecode with a potential integer underflow vulnerability
+        // This bytecode contains a SUB operation (0x03) that could underflow
+        let underflow_bytecode = Bytes::from(vec![
+            // PUSH1 0x00
+            0x60, 0x00,
+            // PUSH1 0x01
+            0x60, 0x01,
+            // SUB (subtract without checking if result will underflow)
+            0x03,
+            // PUSH1 0x00
+            0x60, 0x00,
+            // SSTORE (store result at storage slot 0)
+            0x55
+        ]);
+
+        // Create a unified verifier
+        let verifier = UnifiedVerifier::new();
+
+        // Test overflow detection
+        println!("Testing integer overflow detection...");
+        let overflow_result = verifier.analyze_bytecode_pcc(overflow_bytecode.as_ref());
+        assert!(overflow_result.is_ok(), "Analysis should succeed");
+        
+        let overflow_vulnerabilities = overflow_result.unwrap();
+        println!("Found {} vulnerabilities for overflow test", overflow_vulnerabilities.len());
+        
+        // Check if we detected an integer overflow vulnerability
+        let has_overflow = overflow_vulnerabilities.iter().any(|vuln| 
+            vuln.vulnerability_type == VulnerabilityType::IntegerOverflow
+        );
+        assert!(has_overflow, "Should have detected integer overflow vulnerability");
+
+        // Test underflow detection
+        println!("Testing integer underflow detection...");
+        let underflow_result = verifier.analyze_bytecode_pcc(underflow_bytecode.as_ref());
+        assert!(underflow_result.is_ok(), "Analysis should succeed");
+        
+        let underflow_vulnerabilities = underflow_result.unwrap();
+        println!("Found {} vulnerabilities for underflow test", underflow_vulnerabilities.len());
+        
+        // Check if we detected an integer underflow vulnerability
+        let has_underflow = underflow_vulnerabilities.iter().any(|vuln| 
+            vuln.vulnerability_type == VulnerabilityType::IntegerUnderflow
+        );
+        assert!(has_underflow, "Should have detected integer underflow vulnerability");
+
+        println!("Integer overflow and underflow detection tests passed!");
+    }
+
+    #[test]
+    fn test_unchecked_external_calls_detection() {
+        // Skip if the PCD feature is not enabled
+        if !cfg!(feature = "pcd") {
+            println!("Skipping test_unchecked_external_calls_detection as PCD feature is not enabled");
+            return;
+        }
+
+        // Create bytecode with a potential unchecked external call vulnerability
+        // This bytecode contains a CALL operation (0xF1) without checking the return value
+        let unchecked_call_bytecode = Bytes::from(vec![
+            // PUSH1 0x00 (gas)
+            0x60, 0x00,
+            // PUSH20 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF (address)
+            0x73, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            // PUSH1 0x00 (value)
+            0x60, 0x00,
+            // PUSH1 0x00 (in offset)
+            0x60, 0x00,
+            // PUSH1 0x00 (in size)
+            0x60, 0x00,
+            // PUSH1 0x00 (out offset)
+            0x60, 0x00,
+            // PUSH1 0x00 (out size)
+            0x60, 0x00,
+            // CALL (call without checking return value)
+            0xF1,
+            // POP (discard the return value without checking it)
+            0x50,
+            // PUSH1 0x01
+            0x60, 0x01,
+            // PUSH1 0x00
+            0x60, 0x00,
+            // SSTORE (store value at storage slot 0)
+            0x55
+        ]);
+
+        // Create bytecode with a properly checked external call
+        let checked_call_bytecode = Bytes::from(vec![
+            // PUSH1 0x00 (gas)
+            0x60, 0x00,
+            // PUSH20 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF (address)
+            0x73, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            // PUSH1 0x00 (value)
+            0x60, 0x00,
+            // PUSH1 0x00 (in offset)
+            0x60, 0x00,
+            // PUSH1 0x00 (in size)
+            0x60, 0x00,
+            // PUSH1 0x00 (out offset)
+            0x60, 0x00,
+            // PUSH1 0x00 (out size)
+            0x60, 0x00,
+            // CALL
+            0xF1,
+            // ISZERO (check if call failed)
+            0x15,
+            // PUSH1 0x05 (jump destination if call failed)
+            0x60, 0x05,
+            // JUMPI (conditional jump)
+            0x57,
+            // PUSH1 0x01
+            0x60, 0x01,
+            // PUSH1 0x00
+            0x60, 0x00,
+            // SSTORE (store value at storage slot 0)
+            0x55
+        ]);
+
+        // Create a unified verifier
+        let verifier = UnifiedVerifier::new();
+
+        // Test unchecked call detection
+        println!("Testing unchecked external call detection...");
+        let unchecked_result = verifier.analyze_bytecode_pcc(unchecked_call_bytecode.as_ref());
+        assert!(unchecked_result.is_ok(), "Analysis should succeed");
+        
+        let unchecked_vulnerabilities = unchecked_result.unwrap();
+        println!("Found {} vulnerabilities for unchecked call test", unchecked_vulnerabilities.len());
+        
+        // Check if we detected an unchecked call vulnerability
+        let has_unchecked_call = unchecked_vulnerabilities.iter().any(|vuln| 
+            vuln.vulnerability_type == VulnerabilityType::UncheckedCall
+        );
+        assert!(has_unchecked_call, "Should have detected unchecked external call vulnerability");
+
+        // Test checked call detection
+        println!("Testing checked external call detection...");
+        let checked_result = verifier.analyze_bytecode_pcc(checked_call_bytecode.as_ref());
+        assert!(checked_result.is_ok(), "Analysis should succeed");
+        
+        let checked_vulnerabilities = checked_result.unwrap();
+        println!("Found {} vulnerabilities for checked call test", checked_vulnerabilities.len());
+        
+        // Check that we did not detect an unchecked call vulnerability in the properly checked code
+        let has_false_positive = checked_vulnerabilities.iter().any(|vuln| 
+            vuln.vulnerability_type == VulnerabilityType::UncheckedCall
+        );
+        assert!(!has_false_positive, "Should not have detected unchecked external call vulnerability in properly checked code");
+
+        println!("Unchecked external call detection tests passed!");
     }
 }

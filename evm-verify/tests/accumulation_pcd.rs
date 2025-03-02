@@ -17,10 +17,10 @@ mod tests {
         let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
         
         // Analyze the bytecode
-        let report = verifier.analyze_bytecode(bytecode.clone())?;
+        let report = verifier.analyze_bytecode(&bytecode.to_vec())?;
         
-        // Check that we got a report
-        assert!(report.timestamp > 0);
+        // Check that we got a report with a valid timestamp
+        assert!(report.timestamp.timestamp() > 0);
         
         Ok(())
     }

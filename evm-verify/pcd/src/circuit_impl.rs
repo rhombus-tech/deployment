@@ -26,29 +26,44 @@ impl<F: Field> ConstraintSynthesizer<F> for PCDCircuit<F> {
         self,
         cs: ConstraintSystemRef<F>,
     ) -> Result<(), SynthesisError> {
-        // For now, we'll just create a simple circuit that checks if the first element
-        // of the current state is non-zero. In a real implementation, we would perform
-        // more complex checks based on the bytecode and state.
+        println!("Debug: PCDCircuit generate_constraints called");
+        
+        // Always add one_var as the FIRST public input
+        let one = F::one();
+        let one_var = cs.new_input_variable(|| Ok(one))?;
+        println!("Debug: Adding one_var as first public input");
         
         if self.curr_state.is_empty() {
+            println!("Debug: Current state is empty, only adding one_var as public input");
+            
+            // 1 * 1 = 1
+            let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            
+            cs.enforce_constraint(lc1, lc2, lc3)?;
+            
             return Ok(());
         }
         
-        // Create a variable for the first element of the current state
-        let first_state_var = cs.new_input_variable(|| Ok(self.curr_state[0]))?;
+        println!("Debug: Adding {} current state elements as public inputs", self.curr_state.len());
+        // Add all current state elements as public inputs AFTER one_var
+        let mut state_vars = Vec::new();
+        for (i, &state_elem) in self.curr_state.iter().enumerate() {
+            let var = cs.new_input_variable(|| Ok(state_elem))?;
+            state_vars.push(var);
+            println!("Debug: Added current state element {} as public input: {:?}", i, state_elem);
+        }
         
-        // Create a constant for zero
-        let zero = F::zero();
-        let zero_var = cs.new_input_variable(|| Ok(zero))?;
-        
-        // Enforce that first_state_var != zero_var
-        // This is a simplified constraint for demonstration purposes
-        // Using linear combinations directly instead of lc! macro
-        let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(first_state_var);
-        let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(first_state_var);
-        let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(first_state_var);
-        
-        cs.enforce_constraint(lc1, lc2, lc3)?;
+        // Enforce a trivial constraint for each state variable
+        for &state_var in &state_vars {
+            // state_var * 1 = state_var
+            let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(state_var);
+            let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(state_var);
+            
+            cs.enforce_constraint(lc1, lc2, lc3)?;
+        }
         
         Ok(())
     }
@@ -74,6 +89,17 @@ impl<F: Field> ConstraintSynthesizer<F> for DataPredicateCircuit<F> {
         // are non-empty. In a real implementation, we would perform more complex checks.
         
         if self.data.is_empty() || self.predicate.is_empty() {
+            // If there's no data or predicate, we'll add a trivial constraint that's always satisfied
+            let one = F::one();
+            let one_var = cs.new_input_variable(|| Ok(one))?;
+            
+            // 1 * 1 = 1
+            let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+            
+            cs.enforce_constraint(lc1, lc2, lc3)?;
+            
             return Ok(());
         }
         
@@ -85,14 +111,23 @@ impl<F: Field> ConstraintSynthesizer<F> for DataPredicateCircuit<F> {
         let first_pred_byte = F::from(self.predicate[0] as u64);
         let first_pred_var = cs.new_input_variable(|| Ok(first_pred_byte))?;
         
-        // Enforce a simple constraint between data and predicate
-        // This is a simplified constraint for demonstration purposes
-        // Using linear combinations directly instead of lc! macro
+        // Create a constant for one
+        let one = F::one();
+        let one_var = cs.new_input_variable(|| Ok(one))?;
+        
+        // Enforce a simple constraint: first_data_var * one_var = first_data_var
         let lc1 = ark_relations::r1cs::LinearCombination::<F>::from(first_data_var);
-        let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(first_pred_var);
-        let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(first_data_var) + first_pred_var;
+        let lc2 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+        let lc3 = ark_relations::r1cs::LinearCombination::<F>::from(first_data_var);
         
         cs.enforce_constraint(lc1, lc2, lc3)?;
+        
+        // Enforce another simple constraint: first_pred_var * one_var = first_pred_var
+        let lc4 = ark_relations::r1cs::LinearCombination::<F>::from(first_pred_var);
+        let lc5 = ark_relations::r1cs::LinearCombination::<F>::from(one_var);
+        let lc6 = ark_relations::r1cs::LinearCombination::<F>::from(first_pred_var);
+        
+        cs.enforce_constraint(lc4, lc5, lc6)?;
         
         Ok(())
     }

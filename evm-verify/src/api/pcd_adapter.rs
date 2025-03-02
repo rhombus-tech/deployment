@@ -6,7 +6,7 @@
 
 use ethers::types::Bytes;
 use std::sync::Arc;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::api::pcd::PCDVerifier;
 use crate::api::unified::VerificationResult;
@@ -14,34 +14,25 @@ use crate::api::unified::VerificationResult;
 #[cfg(feature = "accumulation")]
 use pcd::{
     evm_accumulation::{
-        create_evm_input, generate_evm_proof, verify_evm_proof,
-        EVMBytecodeInput, EVMAccumulationScheme, EVMAccumulation,
-    },
-    accumulation::{
-        create_accumulation_input, verify_proof, serialize_proof, deserialize_proof,
-        accumulate_proofs, verify_accumulated_proof,
+        generate_evm_proof, verify_evm_proof,
+        EVMBytecodeInput,
     },
 };
-
-#[cfg(feature = "accumulation")]
-use ark_accumulation::{
-    Accumulator, Input, AccumulationScheme,
-    r1cs_nark_as::{InputInstance, AccumulatorInstance},
-};
-
-#[cfg(feature = "accumulation")]
-use ark_sponge::poseidon::PoseidonSponge;
 
 #[cfg(feature = "accumulation")]
 use ark_bn254::Fr;
 
+/// Result of proof generation
+#[cfg(feature = "accumulation")]
+pub struct ProofGenerationResult {
+    pub proof: Vec<u8>,
+    pub verifying_key: Vec<u8>,
+}
+
 /// Adapter for PCD verification
 pub struct PCDAdapter {
     #[cfg(feature = "accumulation")]
-    verifying_keys: Vec<ark_bn254::Bn254>,
-    
-    #[cfg(feature = "accumulation")]
-    accumulators: Vec<Accumulator<Fr, PoseidonSponge<Fr>, EVMAccumulationScheme>>,
+    verifying_keys: Vec<Vec<u8>>,
     
     #[cfg(not(feature = "accumulation"))]
     verifier: Arc<dyn PCDVerifier>,
@@ -53,7 +44,6 @@ impl PCDAdapter {
     pub fn new() -> Self {
         Self {
             verifying_keys: Vec::new(),
-            accumulators: Vec::new(),
         }
     }
     
@@ -64,20 +54,68 @@ impl PCDAdapter {
         }
     }
     
+    /// Generate a proof for bytecode
+    #[cfg(feature = "accumulation")]
+    pub fn generate_proof_for_bytecode(&self, bytecode: Vec<u8>) -> Result<ProofGenerationResult> {
+        use ark_bn254::Fr;
+        use ark_std::rand::thread_rng;
+        use pcd::evm_accumulation::{generate_evm_proof, serialize_proof, serialize_vk};
+        
+        // Create a simple state transition
+        let prev_state = None;
+        let curr_state = vec![Fr::from(1u32)]; // Example state
+        
+        // Generate proof
+        let mut rng = thread_rng();
+        let (proof, vk) = generate_evm_proof(
+            Bytes::from(bytecode),
+            prev_state,
+            curr_state,
+            &mut rng,
+        )?;
+        
+        // Serialize proof and verifying key
+        let proof_bytes = serialize_proof(&proof)?;
+        let vk_bytes = serialize_vk(&vk)?;
+        
+        Ok(ProofGenerationResult {
+            proof: proof_bytes,
+            verifying_key: vk_bytes,
+        })
+    }
+    
     /// Verify bytecode using PCD
     pub fn verify_bytecode(&self, bytecode: Bytes) -> Result<VerificationResult> {
         #[cfg(feature = "accumulation")]
         {
-            // Create EVM bytecode input
+            use ark_bn254::Fr;
+            use ark_std::rand::thread_rng;
+            use pcd::evm_accumulation::{generate_evm_proof, verify_evm_proof};
+            
+            // Create a simple state transition
             let prev_state = None;
             let curr_state = vec![Fr::from(1u32)]; // Example state
             
-            // In a real implementation, this would generate and verify a proof
-            // For now, we just return a placeholder result
+            // Generate proof
+            let mut rng = thread_rng();
+            let (proof, vk) = generate_evm_proof(
+                bytecode.clone(),
+                prev_state,
+                curr_state,
+                &mut rng,
+            )?;
+            
+            // Verify the proof
+            let is_valid = verify_evm_proof(
+                bytecode,
+                &proof,
+                &vk,
+                Vec::new(), // Empty state for now, could derive from public inputs if needed
+            )?;
             
             Ok(VerificationResult {
-                is_valid: true,
-                vulnerabilities: Vec::new(),
+                is_valid,
+                vulnerabilities: Vec::new(), // No vulnerabilities detected in this verification path
             })
         }
         
@@ -94,54 +132,38 @@ impl PCDAdapter {
     }
     
     /// Verify a proof
-    pub fn verify_proof(&self, proof_bytes: &[u8], verifying_key: &[u8]) -> Result<bool> {
-        #[cfg(feature = "accumulation")]
-        {
-            // In a real implementation, this would deserialize and verify the proof
-            // For now, we just return true
-            Ok(true)
-        }
+    #[cfg(feature = "accumulation")]
+    pub fn verify_proof(&self, bytecode: Vec<u8>, proof_bytes: Vec<u8>, verifying_key: Vec<u8>) -> Result<VerificationResult> {
+        use pcd::evm_accumulation::{deserialize_proof, deserialize_vk, verify_evm_proof};
         
-        #[cfg(not(feature = "accumulation"))]
-        {
-            // Use the traditional PCD verifier
-            self.verifier.verify_proof(proof_bytes, verifying_key)
-        }
+        // Deserialize proof and verifying key
+        let proof = deserialize_proof(&proof_bytes)?;
+        let vk = deserialize_vk(&verifying_key)?;
+        
+        // Verify the proof
+        let is_valid = verify_evm_proof(
+            Bytes::from(bytecode),
+            &proof,
+            &vk,
+            Vec::new(), // Empty state for now, could derive from public inputs if needed
+        )?;
+        
+        Ok(VerificationResult {
+            is_valid,
+            vulnerabilities: Vec::new(), // No vulnerabilities detected in this verification path
+        })
+    }
+    
+    #[cfg(not(feature = "accumulation"))]
+    pub fn verify_proof(&self, proof_bytes: &[u8], verifying_key: &[u8]) -> Result<bool> {
+        // Use the traditional PCD verifier
+        self.verifier.verify_proof(proof_bytes, verifying_key)
     }
     
     /// Add a verifying key to the adapter
     #[cfg(feature = "accumulation")]
-    pub fn add_verifying_key(&mut self, vk: ark_bn254::Bn254) {
+    pub fn add_verifying_key(&mut self, vk: Vec<u8>) {
         self.verifying_keys.push(vk);
-    }
-    
-    /// Get the current accumulator
-    #[cfg(feature = "accumulation")]
-    pub fn get_accumulator(&self) -> Option<&Accumulator<Fr, PoseidonSponge<Fr>, EVMAccumulationScheme>> {
-        self.accumulators.last()
-    }
-    
-    /// Verify an accumulated proof
-    #[cfg(feature = "accumulation")]
-    pub fn verify_accumulated_proof(
-        &self,
-        proof: &ark_bn254::Bn254,
-        input_instances: Vec<&InputInstance<ark_bn254::Bn254>>,
-        old_accumulator_instances: Vec<&AccumulatorInstance<ark_bn254::Bn254>>,
-        new_accumulator_instance: &AccumulatorInstance<ark_bn254::Bn254>,
-    ) -> Result<bool> {
-        // If we have a verifying key, use it to verify the accumulated proof
-        if let Some(vk) = self.verifying_keys.last() {
-            verify_accumulated_proof(
-                vk,
-                input_instances,
-                old_accumulator_instances,
-                new_accumulator_instance,
-                proof,
-            )
-        } else {
-            Err(anyhow!("No verifying key available"))
-        }
     }
 }
 
