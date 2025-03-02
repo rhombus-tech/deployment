@@ -12,6 +12,10 @@ members = [
     "test-wasm",
 ]
 
+[features]
+default = []
+accumulation = ["pcd/accumulation"]
+
 [dependencies]
 # WASM parsing and analysis
 wasmparser = "0.110.0"
@@ -46,3 +50,9 @@ hex = "0.4.3"
 
 [dev-dependencies]
 wat = "1.0"  # For parsing WAT in tests
+proptest = "1.1.0"
+criterion = "0.4.0"
+
+[[bench]]
+name = "wasm_analysis"
+harness = false

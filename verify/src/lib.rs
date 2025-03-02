@@ -1,5 +1,4 @@
-extern crate ark_relations;
-
+// EVM Verify Library - Core verification functionality
 pub mod circuits;
 pub mod parser;
 pub mod proofs;
