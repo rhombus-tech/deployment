@@ -18,7 +18,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Sample bytecode for a simple contract that increments a counter
     let bytecode_hex = "608060405234801561001057600080fd5b5060b28061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80636d4ce63c146037578063d09de08a146053575b600080fd5b603d605b565b6040518082815260200191505060405180910390f35b6059606a565b005b60008054905090565b60016000540160008190555056fea2646970667358221220c7845a1e7cbde4c43ab6a25f6c0d6a1c6c3a9af3f0c2b4b8e220e7c25d66709c64736f6c63430007060033";
-    let bytecode = Bytes::from(hex::decode(bytecode_hex)?);
+    let bytecode_bytes = hex::decode(bytecode_hex)?;
+    let bytecode = Bytes::from(bytecode_bytes.clone());
     
     println!("Analyzing contract bytecode...");
     println!("Bytecode size: {} bytes\n", bytecode.len());
@@ -51,15 +52,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("\nGenerating PCC proof...");
     let unified_verifier = UnifiedVerifier::new();
     
-    match unified_verifier.generate_pcc_proof(&bytecode) {
+    match unified_verifier.generate_pcc_proof(bytecode_bytes.as_ref()) {
         Ok(proof) => {
             println!("Proof generated successfully!");
             
             // Verify the proof
             println!("\nVerifying proof...");
-            match unified_verifier.verify_pcc_proof(&bytecode, &proof) {
-                Ok(valid) => {
-                    if valid {
+            match unified_verifier.verify_pcc_proof(bytecode_bytes.as_ref(), proof.as_ref()) {
+                Ok(result) => {
+                    if result.is_valid {
                         println!("Proof verification successful!");
                     } else {
                         println!("Proof verification failed!");

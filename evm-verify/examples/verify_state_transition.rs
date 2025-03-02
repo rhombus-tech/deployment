@@ -5,10 +5,10 @@
 
 use evm_verify::UnifiedVerifier;
 use evm_verify::api::{Vulnerability, VulnerabilityType};
-use ethers::types::{Bytes, Address, U256};
+use ethers::types::{Address, U256, Bytes};
 use std::error::Error;
-use hex;
 use std::str::FromStr;
+use hex;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("EVM Verify - State Transition Verification Example");
@@ -19,13 +19,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Sample bytecode for a simple token transfer
     let bytecode_hex = "608060405234801561001057600080fd5b506004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063a9059cbb14610051575b600080fd5b6100a76004803603810190808035600019169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610109565b604051808215151515815260200191505060405180910390f35b60008273ffffffffffffffffffffffffffffffffffffffff16828460405180828152602001915050600060405180830381858888f19350505050905092915050565b";
-    let bytecode = Bytes::from(hex::decode(bytecode_hex)?);
+    let bytecode_bytes_vec = hex::decode(bytecode_hex)?;
+    let bytecode_bytes = Bytes::from(bytecode_bytes_vec);
     
     println!("Analyzing contract bytecode...");
-    println!("Bytecode size: {} bytes\n", bytecode.len());
+    println!("Bytecode size: {} bytes\n", bytecode_bytes.len());
     
     // Analyze the bytecode using the unified verifier
-    let report = verifier.analyze_bytecode(bytecode.clone())?;
+    let report = verifier.analyze_bytecode(bytecode_bytes.as_ref())?;
     
     println!("Analysis completed at: {}", report.timestamp);
     println!("Found {} vulnerabilities\n", report.vulnerabilities.len());
@@ -59,15 +60,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Generate a proof
     println!("\nGenerating PCD proof...");
-    match verifier.generate_pcd_proof(&bytecode) {
-        Ok((proof, public_inputs, verifying_key)) => {
+    match verifier.generate_pcd_proof(bytecode_bytes.as_ref()) {
+        Ok((proof, verifying_key)) => {
             println!("Proof generated successfully!");
             
             // Verify the proof
             println!("\nVerifying proof...");
-            match verifier.verify_pcd_proof(&bytecode, &proof, &public_inputs, &verifying_key) {
-                Ok(valid) => {
-                    if valid {
+            match verifier.verify_pcd_proof(bytecode_bytes.as_ref(), proof.as_ref(), verifying_key.as_ref()) {
+                Ok(result) => {
+                    if result.is_valid {
                         println!("Proof verification successful!");
                     } else {
                         println!("Proof verification failed!");

@@ -1,7 +1,7 @@
 use evm_verify::UnifiedVerifier;
-use ethers::types::Bytes;
 use std::error::Error;
 use hex;
+use ethers::types::Bytes;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Create a unified verifier
@@ -10,13 +10,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // This is a simplified ERC20 token contract bytecode
     // It contains the basic functions: transfer, balanceOf, totalSupply
     let bytecode_hex = "60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806318160ddd1461005157806370a0823114610079575b600080fd5b34801561005d57600080fd5b506100666100d0565b6040518082815260200191505060405180910390f35b34801561008557600080fd5b506100ba600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506100d6565b6040518082815260200191505060405180910390f35b60005481565b60008060008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020549050919050565b";
-    let bytecode = Bytes::from(hex::decode(bytecode_hex)?);
+    let bytecode_vec = hex::decode(bytecode_hex)?;
+    let bytecode_bytes = Bytes::from(bytecode_vec);
     
     println!("Analyzing ERC20 token contract bytecode");
-    println!("Bytecode size: {} bytes", bytecode.len());
+    println!("Bytecode size: {} bytes", bytecode_bytes.len());
     
     // Analyze bytecode
-    let report = verifier.analyze_bytecode(bytecode)?;
+    let report = verifier.analyze_bytecode(bytecode_bytes.as_ref())?;
     
     // Print the report
     println!("\nAnalysis Report:");

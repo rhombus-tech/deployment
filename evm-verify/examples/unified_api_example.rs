@@ -1,18 +1,19 @@
-use evm_verify::api::unified::UnifiedVerifier;
-use ethers::types::Bytes;
+use evm_verify::UnifiedVerifier;
 use std::error::Error;
+use ethers::types::Bytes;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Create a unified verifier
     let verifier = UnifiedVerifier::new();
     
     // Simple bytecode example: PUSH1 1 PUSH1 0 SSTORE
-    let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);
+    let bytecode_vec: Vec<u8> = vec![0x60, 0x01, 0x60, 0x00, 0x55];
+    let bytecode_bytes = Bytes::from(bytecode_vec);
     
-    println!("Analyzing bytecode: 0x{}", hex::encode(&bytecode));
+    println!("Analyzing bytecode: 0x{:x?}", bytecode_bytes);
     
-    // Analyze bytecode - this method takes Bytes by value
-    let report = verifier.analyze_bytecode(bytecode.clone())?;
+    // Analyze bytecode - this method takes &[u8]
+    let report = verifier.analyze_bytecode(bytecode_bytes.as_ref())?;
     
     // Print the report
     println!("Analysis completed at: {}", report.timestamp);
@@ -32,41 +33,41 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Try with different configurations
     println!("\n--- PCC Only Analysis ---");
     let pcc_verifier = UnifiedVerifier::with_config(false, true);
-    let pcc_report = pcc_verifier.analyze_bytecode(bytecode.clone())?;
+    let pcc_report = pcc_verifier.analyze_bytecode(bytecode_bytes.as_ref())?;
     println!("Found {} vulnerabilities", pcc_report.vulnerabilities.len());
     
     println!("\n--- PCD Only Analysis ---");
     let pcd_verifier = UnifiedVerifier::with_config(true, false);
-    let pcd_report = pcd_verifier.analyze_bytecode(bytecode.clone())?;
+    let pcd_report = pcd_verifier.analyze_bytecode(bytecode_bytes.as_ref())?;
     println!("Found {} vulnerabilities", pcd_report.vulnerabilities.len());
     
     // Demonstrate proof generation and verification
     println!("\n--- Proof Generation and Verification ---");
     
-    // Generate PCC proof - these methods take &Bytes (reference)
+    // Generate PCC proof - these methods take &[u8]
     println!("\nGenerating PCC proof...");
-    let pcc_proof = verifier.generate_pcc_proof(&bytecode)?;
+    let pcc_proof = verifier.generate_pcc_proof(bytecode_bytes.as_ref())?;
     println!("PCC proof generated successfully");
     
-    // Verify PCC proof - these methods take &Bytes (reference)
+    // Verify PCC proof - these methods take &[u8]
     println!("\nVerifying PCC proof...");
-    let pcc_verification_result = verifier.verify_pcc_proof(&bytecode, &pcc_proof)?;
-    println!("PCC proof verification result: {}", pcc_verification_result);
+    let pcc_verification_result = verifier.verify_pcc_proof(bytecode_bytes.as_ref(), pcc_proof.as_ref())?;
+    println!("PCC proof verification result: {:?}", pcc_verification_result);
     
-    // Generate PCD proof - these methods take &Bytes (reference)
+    // Generate PCD proof - these methods take &[u8]
     println!("\nGenerating PCD proof...");
-    let (pcd_proof, pcd_public_inputs, pcd_verifying_key) = verifier.generate_pcd_proof(&bytecode)?;
+    let (pcd_proof, pcd_verifying_key) = verifier.generate_pcd_proof(bytecode_bytes.as_ref())?;
     println!("PCD proof generated successfully");
     
-    // Verify PCD proof - these methods take &Bytes (reference)
+    // Verify PCD proof - these methods take &[u8]
     println!("\nVerifying PCD proof...");
-    let pcd_verification_result = verifier.verify_pcd_proof(&bytecode, &pcd_proof, &pcd_public_inputs, &pcd_verifying_key)?;
-    println!("PCD proof verification result: {}", pcd_verification_result);
+    let pcd_verification_result = verifier.verify_pcd_proof(bytecode_bytes.as_ref(), pcd_proof.as_ref(), pcd_verifying_key.as_ref())?;
+    println!("PCD proof verification result: {:?}", pcd_verification_result);
     
     // Example with a more complex bytecode (this is still a simple example)
     println!("\n--- Testing with more complex bytecode ---");
     // This bytecode includes a simple loop pattern
-    let complex_bytecode = Bytes::from(vec![
+    let complex_bytecode_vec: Vec<u8> = vec![
         0x60, 0x0A, // PUSH1 10 (counter)
         0x60, 0x00, // PUSH1 0 (index)
         0x5B,       // JUMPDEST (loop start)
@@ -80,21 +81,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         0x56,       // JUMP (jump back to loop start)
         0x5B,       // JUMPDEST (exit)
         0x00        // STOP
-    ]);
+    ];
+    let complex_bytecode_bytes = Bytes::from(complex_bytecode_vec);
     
-    println!("Complex bytecode: 0x{}", hex::encode(&complex_bytecode));
+    println!("Complex bytecode: 0x{:x?}", complex_bytecode_bytes);
     
     // Generate and verify PCC proof for complex bytecode
     println!("\nGenerating and verifying PCC proof for complex bytecode...");
-    let complex_pcc_proof = verifier.generate_pcc_proof(&complex_bytecode)?;
-    let complex_pcc_result = verifier.verify_pcc_proof(&complex_bytecode, &complex_pcc_proof)?;
-    println!("Complex bytecode PCC verification result: {}", complex_pcc_result);
+    let complex_pcc_proof = verifier.generate_pcc_proof(complex_bytecode_bytes.as_ref())?;
+    let complex_pcc_result = verifier.verify_pcc_proof(complex_bytecode_bytes.as_ref(), complex_pcc_proof.as_ref())?;
+    println!("Complex bytecode PCC verification result: {:?}", complex_pcc_result);
     
     // Generate and verify PCD proof for complex bytecode
     println!("\nGenerating and verifying PCD proof for complex bytecode...");
-    let (complex_pcd_proof, complex_pcd_public_inputs, complex_pcd_verifying_key) = verifier.generate_pcd_proof(&complex_bytecode)?;
-    let complex_pcd_result = verifier.verify_pcd_proof(&complex_bytecode, &complex_pcd_proof, &complex_pcd_public_inputs, &complex_pcd_verifying_key)?;
-    println!("Complex bytecode PCD verification result: {}", complex_pcd_result);
+    let (complex_pcd_proof, complex_pcd_verifying_key) = verifier.generate_pcd_proof(complex_bytecode_bytes.as_ref())?;
+    let complex_pcd_result = verifier.verify_pcd_proof(complex_bytecode_bytes.as_ref(), complex_pcd_proof.as_ref(), complex_pcd_verifying_key.as_ref())?;
+    println!("Complex bytecode PCD verification result: {:?}", complex_pcd_result);
     
     Ok(())
 }

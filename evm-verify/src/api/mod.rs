@@ -7,11 +7,14 @@ pub mod types;
 mod config;
 mod report;
 pub mod unified;
+pub mod pcd_adapter;
+pub mod pcd;
 
 pub use types::*;
 pub use config::*;
 pub use report::*;
 pub use unified::UnifiedVerifier;
+pub use pcd_adapter::PCDAdapter;
 
 use anyhow::{Result, Context};
 use ethers::types::Bytes;

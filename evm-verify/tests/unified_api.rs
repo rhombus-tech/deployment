@@ -10,7 +10,7 @@ fn test_unified_verifier() {
     let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);
     
     // Analyze bytecode
-    let report = verifier.analyze_bytecode(bytecode).unwrap();
+    let report = verifier.analyze_bytecode(&bytecode).unwrap();
     
     // Check that the report was generated
     assert_eq!(report.contract_size, 5);
@@ -28,7 +28,7 @@ fn test_unified_verifier_with_config() {
     let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);
     
     // Analyze bytecode
-    let report = verifier.analyze_bytecode(bytecode).unwrap();
+    let report = verifier.analyze_bytecode(&bytecode).unwrap();
     
     // Check that the report was generated
     assert_eq!(report.contract_size, 5);
@@ -47,7 +47,7 @@ fn test_unified_verifier_with_pcd_only() {
     let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);
     
     // Analyze bytecode
-    let report = verifier.analyze_bytecode(bytecode).unwrap();
+    let report = verifier.analyze_bytecode(&bytecode).unwrap();
     
     // Check that the report was generated
     assert_eq!(report.contract_size, 5);

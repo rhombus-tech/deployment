@@ -30,14 +30,63 @@ When you deploy a smart contract, you want to be 100% sure it's safe. That's wha
 
 ## Overview
 
-EVM Verify uses formal methods to prove properties about smart contract bytecode, ensuring security and correctness. Unlike traditional security tools that look for known vulnerability patterns, formal verification mathematically proves that certain properties must hold true for all possible executions of the contract.
+EVM Verify is a comprehensive tool for formally verifying Ethereum smart contracts. It uses a combination of static analysis, symbolic execution, and cryptographic proof systems to provide mathematical guarantees about contract safety and behavior.
 
-For example, instead of just checking if a contract might have reentrancy, we prove that reentrancy is impossible by showing that no execution path can violate our security properties. This means:
+Key features include:
 
-- **Completeness**: We analyze all possible execution paths, not just common cases
-- **Mathematical Proof**: Properties are proven to be true, not just likely or suggested
-- **Zero False Negatives**: If we prove a property, it's guaranteed to hold
-- **Compile-Time Guarantees**: Issues are caught before deployment, not at runtime
+- **Bytecode Analysis**: Detects common vulnerabilities in EVM bytecode
+- **Proof-Carrying Code (PCC)**: Verifies that a contract satisfies certain safety properties
+- **Proof-Carrying Data (PCD)**: Ensures that contract state transitions are valid
+- **Accumulation-Based Verification**: Efficiently verify multiple proofs using an accumulation scheme
+
+## Accumulation-Based PCD Implementation
+
+The latest version of EVM Verify includes a new accumulation-based Proof-Carrying Data (PCD) implementation. This implementation provides several advantages over the traditional PCD approach:
+
+- **Efficient Proof Aggregation**: Combine multiple proofs into a single proof that can be verified more efficiently
+- **Reduced Verification Overhead**: Verify multiple proofs in a single operation
+- **Incremental Verification**: Add new proofs to an existing accumulator without re-verifying all previous proofs
+- **Enhanced Security**: Maintain the same security guarantees as the traditional PCD approach
+
+### Technical Details
+
+The accumulation-based PCD implementation uses the following components:
+
+- **Accumulation Scheme**: Based on the arkworks accumulation library
+- **Cryptographic Primitives**: Uses the Bn254 elliptic curve for compatibility with Ethereum
+- **Proof System**: Uses the Groth16 zk-SNARK proof system
+- **Sponge Construction**: Uses PoseidonSponge for cryptographic operations
+
+### Usage
+
+To use the accumulation-based PCD implementation, enable the `accumulation` feature flag:
+
+```bash
+# Build with accumulation feature
+cargo build --features accumulation
+
+# Run with accumulation feature
+cargo run --features accumulation
+```
+
+In your code, you can use the `PCDAdapter` with the accumulation feature:
+
+```rust
+// Create a new PCDAdapter with accumulation
+let pcd_adapter = PCDAdapter::new();
+
+// Verify bytecode
+let verification_result = pcd_adapter.verify_bytecode(bytecode)?;
+
+// Generate proof
+let (proof, public_inputs, vk) = pcd_adapter.generate_proof(bytecode)?;
+
+// Accumulate proofs
+let accumulated_proof = pcd_adapter.accumulate_proofs(&[proof1, proof2])?;
+
+// Verify accumulated proof
+let is_valid = pcd_adapter.verify_accumulated_proof(&accumulated_proof)?;
+```
 
 ## How We're Different
 
@@ -121,6 +170,27 @@ Through Proof-Carrying Code (PCC) and Proof-Carrying Data (PCD), we will soon pr
    - Anyone can independently verify proofs
    - No need to trust the analysis tool
    - Permanent proof of contract properties
+
+## Recent Updates
+
+### Accumulation-Based PCD Implementation
+
+We've recently upgraded our Proof-Carrying Data (PCD) implementation to use the arkworks-rs/accumulation library, which provides a more efficient and flexible approach to accumulating proofs across multiple computations.
+
+Key benefits of the new implementation:
+
+- **Improved Efficiency**: The accumulation-based approach allows for more efficient verification of complex proof chains
+- **Better Scalability**: Handles larger and more complex smart contracts with better performance
+- **Enhanced Flexibility**: Supports a wider range of security properties and verification scenarios
+- **Stronger Security Guarantees**: Provides even more robust mathematical guarantees about contract behavior
+
+To use the new implementation, enable the `accumulation` feature flag:
+
+```bash
+cargo build --features accumulation
+```
+
+The new implementation is fully compatible with the existing API, so you can switch between implementations without changing your code.
 
 ## Running Tests
 

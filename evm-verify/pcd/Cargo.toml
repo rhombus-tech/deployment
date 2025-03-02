@@ -11,15 +11,22 @@ ethers = { version = "2.0", default-features = false, features = ["abigen"] }
 revm = { version = "3.0", default-features = false }
 
 # Cryptographic primitives
-ark-ff = "0.4.0"
-ark-ec = "0.4.0"
-ark-bn254 = "0.4.0"
-ark-groth16 = "0.4.0"
-ark-relations = "0.4.0"
-ark-snark = "0.4.0"
-ark-r1cs-std = "0.4.0"
-ark-std = "0.4.0"
-ark-serialize = "0.4.0"
+ark-ff = { version = "0.3.0", default-features = false }
+ark-ec = { version = "0.3.0", default-features = false }
+ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
+ark-groth16 = { version = "0.3.0", default-features = false }
+ark-relations = { version = "0.3.0", default-features = false }
+ark-snark = { version = "0.3.0", default-features = false }
+ark-r1cs-std = { version = "0.3.0", default-features = false }
+ark-std = { version = "0.3.0", default-features = false }
+ark-serialize = { version = "0.3.0", default-features = false }
+ark-sponge = { version = "0.3.0", default-features = false, optional = true }
+ark-poly = { version = "0.3.0", default-features = false, optional = true }
+ark-poly-commit = { version = "0.3.0", default-features = false, optional = true }
+
+# Accumulation library
+ark-accumulation = { path = "../accumulation", default-features = false, features = ["r1cs-nark-as", "std", "r1cs"], optional = true }
+ark-crypto-primitives = { version = "0.3.0", default-features = false, optional = true }
 
 # Random number generation
 rand = "0.8"
@@ -28,7 +35,21 @@ rand = "0.8"
 thiserror = "1.0"
 anyhow = "1.0"
 
+# Hashing
+blake2 = { version = "0.9", default-features = false }
+digest = { version = "0.9", default-features = false }
+
 [dev-dependencies]
-ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
-ark-r1cs-std = { version = "0.4.0", default-features = false }
-ark-relations = { version = "0.4.0", default-features = false }
+ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
+ark-r1cs-std = { version = "0.3.0", default-features = false }
+ark-relations = { version = "0.3.0", default-features = false }
+
+[features]
+default = []
+accumulation = [
+    "ark-accumulation",
+    "ark-crypto-primitives",
+    "ark-sponge",
+    "ark-poly",
+    "ark-poly-commit",
+]
