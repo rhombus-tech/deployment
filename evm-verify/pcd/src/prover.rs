@@ -226,6 +226,7 @@ mod tests {
             bytecode: Bytes::from(vec![0u8]),
             prev_state: None,
             curr_state: vec![Fr::from(42u64)],
+            security_warnings: Vec::new(),
             _field: PhantomData,
         };
         
@@ -259,6 +260,7 @@ mod tests {
             bytecode: ethers::types::Bytes::from(vec![0u8]),
             prev_state: None,
             curr_state: curr_state.clone(),
+            security_warnings: Vec::new(),
             _field: PhantomData,
         };
         
@@ -284,6 +286,7 @@ mod tests {
             bytecode: ethers::types::Bytes::from(vec![0u8]),
             prev_state: None,
             curr_state: curr_state.clone(),
+            security_warnings: Vec::new(),
             _field: PhantomData,
         };
         

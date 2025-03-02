@@ -2,6 +2,7 @@ pub mod circuit_impl;
 pub mod prover;
 pub mod accumulation;
 pub mod evm_accumulation;
+pub mod bytecode_analyzer;
 
 // Export the main circuit types
 #[cfg(feature = "accumulation")]

@@ -79,3 +79,7 @@ hex-literal = "0.4"
 name = "pcc_example"
 path = "examples/pcc_example.rs"
 required-features = ["pcc"]
+
+[[example]]
+name = "bytecode_circuit_example"
+path = "examples/bytecode_circuit_example.rs"
