@@ -233,6 +233,7 @@ impl BytecodeAnalyzer {
         // After analyzing all opcodes, check for reentrancy pattern
         self.detect_reentrancy();
         self.detect_cross_contract_reentrancy();
+        self.detect_bitmask_vulnerability();
         
         Ok(())
     }
@@ -360,6 +361,266 @@ impl BytecodeAnalyzer {
                 description: "Cross-contract reentrancy vulnerability detected: multiple contract calls with state changes".to_string(),
                 severity: 5, // Higher severity than regular reentrancy
             });
+        }
+    }
+
+    fn detect_bitmask_vulnerability(&mut self) {
+        // Bitmask vulnerabilities occur when bit manipulation operations are used incorrectly,
+        // potentially leading to unexpected behavior or security issues.
+        
+        // Common patterns to look for:
+        // 1. Improper bit masking (AND, OR, XOR, NOT operations)
+        // 2. Incorrect bit shifting (SHL, SHR)
+        // 3. Inconsistent bit manipulation patterns
+        
+        // Track bit manipulation operations
+        let mut bit_ops = Vec::new();
+        
+        // EVM opcodes for bit operations
+        const AND: u8 = 0x16;  // Bitwise AND
+        const OR: u8 = 0x17;   // Bitwise OR
+        const XOR: u8 = 0x18;  // Bitwise XOR
+        const NOT: u8 = 0x19;  // Bitwise NOT
+        const SHL: u8 = 0x1b;  // Shift left
+        const SHR: u8 = 0x1c;  // Logical shift right
+        const SAR: u8 = 0x1d;  // Arithmetic shift right
+        
+        // Scan bytecode for bit manipulation operations
+        for i in 0..self.bytecode.len() {
+            let opcode = self.bytecode[i];
+            
+            // Check if this is a bit manipulation opcode
+            if opcode == AND || opcode == OR || opcode == XOR || opcode == NOT || 
+               opcode == SHL || opcode == SHR || opcode == SAR {
+                bit_ops.push((i, opcode));
+            }
+        }
+        
+        // If we don't have enough bit operations, no vulnerability
+        if bit_ops.len() < 2 {
+            return;
+        }
+        
+        // Look for vulnerability patterns
+        
+        // Pattern 1: Inconsistent masking - using different masks for the same data
+        let mut has_inconsistent_masking = false;
+        let mut masks = Vec::new();
+        
+        // Extract potential mask values (often these are PUSH operations before AND)
+        for &(pos, opcode) in &bit_ops {
+            if opcode == AND && pos > 0 {
+                // Look for PUSH operations before AND (simplified approach)
+                let mut push_pos = pos;
+                while push_pos > 0 && push_pos > pos.saturating_sub(10) {
+                    push_pos -= 1;
+                    if self.bytecode[push_pos] >= 0x60 && self.bytecode[push_pos] <= 0x7f {
+                        // Found a PUSH operation
+                        let push_size = (self.bytecode[push_pos] - 0x60 + 1) as usize;
+                        if push_pos + push_size < self.bytecode.len() {
+                            // Extract the mask value
+                            let mask_bytes = &self.bytecode[push_pos+1..push_pos+1+push_size];
+                            masks.push(mask_bytes.to_vec());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Check for inconsistent masks - we consider it suspicious if there are multiple different masks
+        // being used in bit operations, especially if they have similar but not identical patterns
+        if masks.len() >= 2 {
+            // Compare masks for suspicious patterns
+            for i in 0..masks.len() {
+                for j in i+1..masks.len() {
+                    // Skip comparison if masks are of different lengths
+                    if masks[i].len() != masks[j].len() {
+                        continue;
+                    }
+                    
+                    // Check if masks are similar but not identical
+                    let mut differences = 0;
+                    let mut total_bits = 0;
+                    
+                    for k in 0..masks[i].len() {
+                        let byte_i = masks[i][k];
+                        let byte_j = masks[j][k];
+                        
+                        if byte_i != byte_j {
+                            // Count differing bits
+                            let diff_bits = (byte_i ^ byte_j).count_ones();
+                            differences += diff_bits;
+                        }
+                        
+                        total_bits += 8; // 8 bits per byte
+                    }
+                    
+                    // If masks differ by only a few bits, this might indicate a mistake
+                    // We use a threshold of 25% different bits
+                    if differences > 0 && (differences as f64) / (total_bits as f64) < 0.25 {
+                        has_inconsistent_masking = true;
+                        break;
+                    }
+                }
+                
+                if has_inconsistent_masking {
+                    break;
+                }
+            }
+        }
+        
+        // Pattern 2: Shift followed by incorrect masking
+        let mut has_shift_mask_issue = false;
+        
+        for i in 0..bit_ops.len().saturating_sub(1) {
+            let (pos1, op1) = bit_ops[i];
+            let (pos2, op2) = bit_ops[i + 1];
+            
+            // Check for shift followed by AND
+            if (op1 == SHL || op1 == SHR || op1 == SAR) && op2 == AND {
+                // This is a potential issue if the mask doesn't account for the shift
+                // We need to check if the mask is appropriate for the shift
+                
+                // For a proper implementation, we would track the stack state to verify this
+                // For now, we'll use a heuristic: check if the mask value accounts for the shift
+                
+                // Look for PUSH operations before AND to get the mask value
+                if pos2 > 0 {
+                    let mut push_pos = pos2;
+                    let mut found_mask = false;
+                    let mut mask_value = Vec::new();
+                    
+                    while push_pos > 0 && push_pos > pos2.saturating_sub(10) && !found_mask {
+                        push_pos -= 1;
+                        if self.bytecode[push_pos] >= 0x60 && self.bytecode[push_pos] <= 0x7f {
+                            // Found a PUSH operation
+                            let push_size = (self.bytecode[push_pos] - 0x60 + 1) as usize;
+                            if push_pos + push_size < self.bytecode.len() {
+                                // Extract the mask value
+                                mask_value = self.bytecode[push_pos+1..push_pos+1+push_size].to_vec();
+                                found_mask = true;
+                            }
+                        }
+                    }
+                    
+                    // Look for PUSH operations before SHL/SHR/SAR to get the shift amount
+                    let mut _shift_amount = 0;
+                    let shift_pos = pos1;
+                    
+                    // Check if the shift amount is a constant (PUSH)
+                    if shift_pos > 0 && self.bytecode[shift_pos-1] >= 0x60 && self.bytecode[shift_pos-1] <= 0x7f {
+                        // PUSH operation before shift, extract the value
+                        let push_size = (self.bytecode[shift_pos-1] - 0x60 + 1) as usize;
+                        if shift_pos >= push_size {
+                            // Extract the shift amount
+                            _shift_amount = self.bytecode[shift_pos+1] as u32;
+                        }
+                    }
+                    
+                    // If we found both the mask and shift amount, check if the mask is appropriate
+                    if found_mask && pos2 > pos1 && pos2 - pos1 < 5 {
+                        // Check if there are any other operations between the shift and AND
+                        let mut has_other_ops = false;
+                        for j in pos1+1..pos2 {
+                            if self.bytecode[j] < 0x60 || self.bytecode[j] > 0x7f {
+                                // Found a non-PUSH operation
+                                has_other_ops = true;
+                                break;
+                            }
+                        }
+                        
+                        // If there are no other operations, it's more likely to be a vulnerability
+                        if !has_other_ops {
+                            has_shift_mask_issue = true;
+                        }
+                    }
+                }
+                
+                // If we couldn't determine the mask appropriateness, use proximity as a fallback heuristic
+                if !has_shift_mask_issue && pos2 > pos1 && pos2 - pos1 < 5 {
+                    // Check if there are any other operations between the shift and AND
+                    let mut has_other_ops = false;
+                    for j in pos1+1..pos2 {
+                        if self.bytecode[j] < 0x60 || self.bytecode[j] > 0x7f {
+                            // Found a non-PUSH operation
+                            has_other_ops = true;
+                            break;
+                        }
+                    }
+                    
+                    // If there are no other operations, it's more likely to be a vulnerability
+                    if !has_other_ops {
+                        has_shift_mask_issue = true;
+                    }
+                }
+            }
+        }
+        
+        // Pattern 3: Multiple bit operations without proper validation
+        let mut has_complex_bit_sequence = false;
+        
+        // Instead of just counting operations, look for specific problematic sequences
+        for i in 0..bit_ops.len().saturating_sub(2) {
+            let (pos1, op1) = bit_ops[i];
+            let (pos2, op2) = bit_ops[i + 1];
+            let (pos3, op3) = bit_ops[i + 2];
+            
+            // Check if the operations are close together (within 10 bytes)
+            if pos3 > pos1 && pos3 - pos1 < 10 {
+                // Check for problematic sequences like:
+                // 1. Multiple shifts without proper masking
+                let all_shifts = (op1 == SHL || op1 == SHR || op1 == SAR) && 
+                                (op2 == SHL || op2 == SHR || op2 == SAR) && 
+                                (op3 != AND); // No masking after shifts
+                
+                // 2. Complex bit manipulation without validation
+                let complex_sequence = (op1 == AND || op1 == OR || op1 == XOR) && 
+                                      (op2 == AND || op2 == OR || op2 == XOR) && 
+                                      (op3 == AND || op3 == OR || op3 == XOR);
+                
+                // Check if there's any validation between operations
+                let mut has_validation = false;
+                for j in pos1..pos3 {
+                    // Look for comparison operations (EQ, GT, LT, etc.) that might indicate validation
+                    if self.bytecode[j] >= 0x10 && self.bytecode[j] <= 0x14 {
+                        has_validation = true;
+                        break;
+                    }
+                }
+                
+                if all_shifts || (complex_sequence && !has_validation) {
+                    has_complex_bit_sequence = true;
+                    break;
+                }
+            }
+        }
+        
+        // If any of our patterns are detected, report the vulnerability
+        if has_inconsistent_masking || has_shift_mask_issue || has_complex_bit_sequence {
+            let mut description = "Potential bitmask vulnerability detected: ".to_string();
+            
+            if has_inconsistent_masking {
+                description.push_str("inconsistent bit masks used; ");
+            }
+            
+            if has_shift_mask_issue {
+                description.push_str("shift operation followed by potentially incorrect masking; ");
+            }
+            
+            if has_complex_bit_sequence {
+                description.push_str("complex sequence of bit operations without proper validation; ");
+            }
+            
+            // Report the vulnerability at the position of the first bit operation
+            if !bit_ops.is_empty() {
+                self.vulnerabilities.push(VulnerabilityData {
+                    vulnerability_type: VulnerabilityType::BitmaskVulnerability,
+                    offset: bit_ops[0].0,
+                    description,
+                    severity: 3, // Medium severity
+                });
+            }
         }
     }
 

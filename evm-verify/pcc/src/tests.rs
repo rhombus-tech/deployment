@@ -1083,6 +1083,76 @@ mod tests {
         
         // Check if the constraint system is satisfied
         assert!(cs.is_satisfied().unwrap());
+        
+        // Now test a safe bytecode without the vulnerability
+        // This bytecode has a proper timelock and no flash loan voting vulnerability
+        let safe_bytecode = vec![
+            // TIMESTAMP (0x42)
+            0x42,
+            // PUSH2 (0x61) with value 86400 (24 hours in seconds, which is a good timelock)
+            0x61, 0x01, 0x51, 0x80,
+            // GT (0x11) - check if current time is greater than required timestamp
+            0x11,
+            
+            // Some other operations...
+            0x50, 0x51, 0x52,
+            
+            // CALLER (0x33)
+            0x33,
+            // PUSH1 (0x60) with an address
+            0x60, 0x01,
+            // EQ (0x14) - check if caller is a specific address
+            0x14,
+            // JUMPI (0x57) - conditional jump
+            0x57,
+            // PUSH1 (0x60) with a jump destination
+            0x60, 0x20,
+            
+            // SSTORE (0x55) - privileged operation
+            0x55,
+        ];
+        
+        // Create a circuit for detection testing
+        let circuit_for_detection = BytecodeSafetyCircuit::<Fr>::new(
+            &[VulnerabilityType::GovernanceVulnerability],
+            U256::from(100),
+            10,
+            safe_bytecode.clone(),
+            None
+        );
+        
+        // Check if governance vulnerabilities were detected
+        let has_centralized_admin = circuit_for_detection.detect_centralized_admin(&safe_bytecode);
+        let has_flash_loan_voting = circuit_for_detection.detect_flash_loan_voting(&safe_bytecode);
+        
+        // Print the detection results for debugging
+        println!("Detection results:");
+        println!("  Centralized admin: {}", has_centralized_admin);
+        println!("  Flash loan voting: {}", has_flash_loan_voting);
+        
+        // Assert the detection results
+        assert!(has_centralized_admin, "Should detect centralized admin control");
+        assert!(!has_flash_loan_voting, "Should not detect flash loan voting vulnerability");
+        
+        // Create a circuit for constraint testing
+        let circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &[VulnerabilityType::GovernanceVulnerability],
+            U256::from(100),
+            10,
+            safe_bytecode,
+            None
+        );
+        
+        // Create a constraint system
+        let mut cs = ConstraintSystem::<Fr>::new_ref();
+        
+        // Generate constraints
+        circuit.generate_constraints(cs.clone()).unwrap();
+        
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+        
+        println!("Governance vulnerability detection test completed successfully");
     }
 
     #[test]
@@ -1153,6 +1223,8 @@ mod tests {
         
         // Check if the constraint system is satisfied
         assert!(cs.is_satisfied().unwrap());
+        
+        println!("Safe governance contract test completed successfully");
     }
 
     #[test]
@@ -1568,4 +1640,148 @@ mod tests {
         
         assert!(has_cross_contract_reentrancy, "Cross-contract reentrancy vulnerability not detected by analyzer");
     }
+}
+
+#[test]
+fn test_bitmask_vulnerability_detection() {
+    use ark_ff::{Field, One, Zero};
+    use ark_bls12_381::Fr;
+    use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef};
+    use crate::analyzer::bytecode::{BytecodeAnalyzer, VulnerabilityType};
+    use crate::circuits::bytecode::BytecodeSafetyCircuit;
+    use ethers::types::U256;
+    
+    // Test bytecode with bitmask vulnerability
+    // This simulates a contract that:
+    // 1. Performs a shift operation (SHL)
+    // 2. Immediately follows with an AND operation
+    // 3. Has multiple bit operations in sequence
+    let bytecode_with_vulnerability = vec![
+        // Initial setup
+        0x60, 0x80, 0x60, 0x40, 0x52, // PUSH1 0x80 PUSH1 0x40 MSTORE
+        
+        // Load a value
+        0x60, 0x01, // PUSH1 0x01
+        
+        // Shift left by 8 bits
+        0x60, 0x08, // PUSH1 0x08 (shift amount)
+        0x1b, // SHL
+        
+        // AND with a mask that doesn't account for the shift
+        0x60, 0xff, // PUSH1 0xff (mask)
+        0x16, // AND
+        
+        // More bit operations in sequence
+        0x60, 0xaa, // PUSH1 0xaa
+        0x17, // OR
+        0x60, 0x55, // PUSH1 0x55
+        0x18, // XOR
+        
+        // Return
+        0x60, 0x00, 0x60, 0x00, 0xf3, // PUSH1 0x00 PUSH1 0x00 RETURN
+    ];
+    
+    // Test bytecode without bitmask vulnerability
+    // This simulates a contract that:
+    // 1. Performs a shift operation (SHL)
+    // 2. Uses proper masking after the shift
+    // 3. Has bit operations with proper validation
+    let bytecode_without_vulnerability = vec![
+        // Initial setup
+        0x60, 0x80, 0x60, 0x40, 0x52, // PUSH1 0x80 PUSH1 0x40 MSTORE
+        
+        // Load a value
+        0x60, 0x01, // PUSH1 0x01
+        
+        // Shift left by 8 bits
+        0x60, 0x08, // PUSH1 0x08 (shift amount)
+        0x1b, // SHL
+        
+        // AND with a mask that properly accounts for the shift
+        0x61, 0xff, 0x00, // PUSH2 0xff00 (proper mask after shift)
+        0x16, // AND
+        
+        // Store result
+        0x60, 0x00, 0x52, // PUSH1 0x00 MSTORE
+        
+        // Load another value for bit operations
+        0x60, 0xaa, // PUSH1 0xaa
+        
+        // Some validation check
+        0x60, 0x00, 0x14, // PUSH1 0x00 EQ
+        0x60, 0x1c, 0x57, // PUSH1 0x1c JUMPI
+        
+        // Bit operation
+        0x60, 0x55, // PUSH1 0x55
+        0x17, // OR
+        
+        // Return
+        0x60, 0x00, 0x60, 0x00, 0xf3, // PUSH1 0x00 PUSH1 0x00 RETURN
+    ];
+    
+    // Create a bytecode analyzer and analyze the vulnerable bytecode
+    let mut analyzer = BytecodeAnalyzer::new();
+    analyzer.analyze_bytecode(&bytecode_with_vulnerability).unwrap();
+    
+    // Check that the vulnerability was detected
+    let vulnerabilities = analyzer.get_vulnerabilities();
+    let has_bitmask_vulnerability = vulnerabilities.iter().any(|v| 
+        matches!(v.vulnerability_type, VulnerabilityType::BitmaskVulnerability)
+    );
+    
+    assert!(has_bitmask_vulnerability, "Bitmask vulnerability not detected in vulnerable bytecode");
+    
+    // Create a circuit with the vulnerability
+    let vulnerable_circuit = BytecodeSafetyCircuit::<Fr>::new(
+        &[VulnerabilityType::BitmaskVulnerability],
+        U256::from(1000),
+        10,
+        bytecode_with_vulnerability.clone(),
+        None,
+    );
+    
+    // Create a constraint system
+    let cs = ConstraintSystem::<Fr>::new_ref();
+    
+    // Generate constraints for the vulnerable circuit
+    let vulnerable_result = ark_relations::r1cs::ConstraintSynthesizer::generate_constraints(
+        vulnerable_circuit,
+        cs.clone()
+    );
+    
+    // Create a bytecode analyzer and analyze the safe bytecode
+    let mut analyzer = BytecodeAnalyzer::new();
+    analyzer.analyze_bytecode(&bytecode_without_vulnerability).unwrap();
+    
+    // Check that the vulnerability was not detected
+    let vulnerabilities = analyzer.get_vulnerabilities();
+    let has_bitmask_vulnerability = vulnerabilities.iter().any(|v| 
+        matches!(v.vulnerability_type, VulnerabilityType::BitmaskVulnerability)
+    );
+    
+    assert!(!has_bitmask_vulnerability, "Bitmask vulnerability incorrectly detected in safe bytecode");
+    
+    // Create a circuit without the vulnerability
+    let safe_circuit = BytecodeSafetyCircuit::<Fr>::new(
+        &[],
+        U256::from(1000),
+        10,
+        bytecode_without_vulnerability.clone(),
+        None,
+    );
+    
+    // Create a constraint system
+    let cs = ConstraintSystem::<Fr>::new_ref();
+    
+    // Generate constraints for the safe circuit
+    let safe_result = ark_relations::r1cs::ConstraintSynthesizer::generate_constraints(
+        safe_circuit,
+        cs.clone()
+    );
+    
+    // Check that constraint generation completed successfully
+    assert!(vulnerable_result.is_ok());
+    assert!(safe_result.is_ok());
+    
+    println!("Bitmask vulnerability detection test passed!");
 }
