@@ -1454,4 +1454,118 @@ mod tests {
         
         println!("Unchecked return value vulnerability detection test passed!");
     }
+
+    #[test]
+    fn test_cross_contract_reentrancy_detection() {
+        // Test bytecode with cross-contract reentrancy vulnerability
+        // This simulates a contract that:
+        // 1. Reads from storage
+        // 2. Makes external calls to two different contracts
+        // 3. Writes to storage after the calls
+        let bytecode_with_vulnerability = vec![
+            // Initial setup
+            0x60, 0x80, 0x60, 0x40, 0x52, // PUSH1 0x80 PUSH1 0x40 MSTORE
+            
+            // Read from storage (SLOAD)
+            0x60, 0x00, 0x54, // PUSH1 0x00 SLOAD
+            
+            // First external call setup
+            0x60, 0x00, // PUSH1 0x00 (value)
+            0x73, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, // PUSH20 0x1122334455667788990xaa... (first contract address)
+            0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22, 0x33, 0x44, 0x55,
+            0x60, 0x00, // PUSH1 0x00 (gas)
+            0xf1, // CALL
+            
+            // Second external call setup
+            0x60, 0x00, // PUSH1 0x00 (value)
+            0x73, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22, 0x33, 0x44, // PUSH20 0xaabbccddeeff1122334455... (second contract address)
+            0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee,
+            0x60, 0x00, // PUSH1 0x00 (gas)
+            0xf1, // CALL
+            
+            // Write to storage after calls (SSTORE)
+            0x60, 0x01, 0x60, 0x00, 0x55, // PUSH1 0x01 PUSH1 0x00 SSTORE
+            
+            // Return
+            0x60, 0x00, 0x60, 0x00, 0xf3, // PUSH1 0x00 PUSH1 0x00 RETURN
+        ];
+
+        // Create a circuit with the vulnerability
+        let circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &[VulnerabilityType::CrossContractReentrancy],
+            U256::from(1000),
+            10,
+            bytecode_with_vulnerability.clone(),
+            None,
+        );
+
+        // Create a constraint system
+        let cs = ConstraintSystem::<Fr>::new_ref();
+
+        // Generate constraints
+        circuit.generate_constraints(cs.clone()).unwrap();
+
+        // Check that the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+        
+        // Now test a safe bytecode without the vulnerability
+        // This bytecode has calls to multiple contracts but no state changes after calls
+        let safe_bytecode = vec![
+            // Initial setup
+            0x60, 0x80, 0x60, 0x40, 0x52, // PUSH1 0x80 PUSH1 0x40 MSTORE
+            
+            // Write to storage before calls (SSTORE)
+            0x60, 0x01, 0x60, 0x00, 0x55, // PUSH1 0x01 PUSH1 0x00 SSTORE
+            
+            // First external call setup
+            0x60, 0x00, // PUSH1 0x00 (value)
+            0x73, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, // PUSH20 0x1122334455667788990xaa... (first contract address)
+            0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22, 0x33, 0x44, 0x55,
+            0x60, 0x00, // PUSH1 0x00 (gas)
+            0xf1, // CALL
+            
+            // Second external call setup
+            0x60, 0x00, // PUSH1 0x00 (value)
+            0x73, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22, 0x33, 0x44, // PUSH20 0xaabbccddeeff1122334455... (second contract address)
+            0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee,
+            0x60, 0x00, // PUSH1 0x00 (gas)
+            0xf1, // CALL
+            
+            // Read from storage after calls (SLOAD) but no write
+            0x60, 0x00, 0x54, // PUSH1 0x00 SLOAD
+            
+            // Return
+            0x60, 0x00, 0x60, 0x00, 0xf3, // PUSH1 0x00 PUSH1 0x00 RETURN
+        ];
+
+        // Create a circuit without the vulnerability
+        let safe_circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &[],  // No vulnerabilities
+            U256::from(1000),
+            10,
+            safe_bytecode.clone(),
+            None,
+        );
+
+        // Create a constraint system
+        let safe_cs = ConstraintSystem::<Fr>::new_ref();
+
+        // Generate constraints
+        safe_circuit.generate_constraints(safe_cs.clone()).unwrap();
+
+        // Check that the constraint system is satisfied
+        assert!(safe_cs.is_satisfied().unwrap());
+        
+        // Test the analyzer directly
+        let mut analyzer = crate::analyzer::bytecode::BytecodeAnalyzer::new();
+        analyzer.analyze_bytecode(&bytecode_with_vulnerability).unwrap();
+        
+        // Check that the cross-contract reentrancy vulnerability is detected
+        let vulnerabilities = analyzer.get_vulnerabilities();
+        let has_cross_contract_reentrancy = vulnerabilities.iter().any(|v| 
+            matches!(v.vulnerability_type, VulnerabilityType::CrossContractReentrancy)
+        );
+        
+        assert!(has_cross_contract_reentrancy, "Cross-contract reentrancy vulnerability not detected by analyzer");
+    }
 }

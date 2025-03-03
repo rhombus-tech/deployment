@@ -71,6 +71,9 @@ pub enum VulnerabilityType {
     /// Unchecked return values from external calls
     UncheckedReturnValue,
     
+    /// Cross-contract reentrancy vulnerability across multiple contracts
+    CrossContractReentrancy,
+    
     /// Other vulnerability type
     Other(u8),
     

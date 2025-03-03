@@ -27,6 +27,7 @@ pub enum VulnerabilityType {
     InsufficientSlippageProtection,
     TimelockIssue,
     UncheckedReturnValue,
+    CrossContractReentrancy,
     Other(u8),
 }
 
@@ -55,8 +56,9 @@ impl VulnerabilityType {
             crate::api::VulnerabilityType::InsufficientSlippageProtection => Self::InsufficientSlippageProtection,
             crate::api::VulnerabilityType::TimelockIssue => Self::TimelockIssue,
             crate::api::VulnerabilityType::UncheckedReturnValue => Self::UncheckedReturnValue,
-            crate::api::VulnerabilityType::Other(x) => Self::Other(x),
-            _ => Self::Other(255),
+            crate::api::VulnerabilityType::CrossContractReentrancy => Self::CrossContractReentrancy,
+            crate::api::VulnerabilityType::Other(val) => Self::Other(val),
+            crate::api::VulnerabilityType::Unknown => Self::Other(255),
         }
     }
 }
@@ -116,6 +118,7 @@ pub struct BytecodeAnalyzer {
     storage_reads: Vec<usize>,
     storage_writes: Vec<usize>,
     external_calls: Vec<usize>,
+    bytecode: Bytes,
 }
 
 impl BytecodeAnalyzer {
@@ -129,23 +132,24 @@ impl BytecodeAnalyzer {
             storage_reads: Vec::new(),
             storage_writes: Vec::new(),
             external_calls: Vec::new(),
+            bytecode: Bytes::new(),
         }
     }
 
     pub fn analyze_bytecode(&mut self, bytecode: &[u8]) -> Result<()> {
-        let bytecode = Bytes::from(bytecode.to_vec());
+        self.bytecode = Bytes::from(bytecode.to_vec());
         
         // First pass: collect all JUMPDEST instructions
-        for i in 0..bytecode.len() {
-            if bytecode[i] == 0x5B { // JUMPDEST
+        for i in 0..self.bytecode.len() {
+            if self.bytecode[i] == 0x5B { // JUMPDEST
                 self.jumpdests.push(i);
             }
         }
         
         // Second pass: analyze bytecode for vulnerabilities
         let mut i = 0;
-        while i < bytecode.len() {
-            let opcode = bytecode[i];
+        while i < self.bytecode.len() {
+            let opcode = self.bytecode[i];
             
             // Track gas usage
             self.gas_usage += match opcode {
@@ -176,7 +180,7 @@ impl BytecodeAnalyzer {
                 0x01 | 0x02 => { // ADD, MUL
                     // Check for integer overflow
                     // For simplicity, we'll just check if there's no overflow check before the operation
-                    if i > 0 && bytecode[i-1] != 0x10 { // LT
+                    if i > 0 && self.bytecode[i-1] != 0x10 { // LT
                         self.vulnerabilities.push(VulnerabilityData {
                             vulnerability_type: VulnerabilityType::IntegerOverflow,
                             offset: i,
@@ -204,11 +208,11 @@ impl BytecodeAnalyzer {
                 // PUSH operations
                 0x60..=0x7F => {
                     let num_bytes = (opcode - 0x5F) as usize;
-                    if i + num_bytes < bytecode.len() {
+                    if i + num_bytes < self.bytecode.len() {
                         let mut value = U256::from(0);
                         for j in 0..num_bytes {
-                            if i + 1 + j < bytecode.len() {
-                                value = value * U256::from(256) + U256::from(bytecode[i + 1 + j]);
+                            if i + 1 + j < self.bytecode.len() {
+                                value = value * U256::from(256) + U256::from(self.bytecode[i + 1 + j]);
                             }
                         }
                         self.stack.push(value);
@@ -228,6 +232,7 @@ impl BytecodeAnalyzer {
         
         // After analyzing all opcodes, check for reentrancy pattern
         self.detect_reentrancy();
+        self.detect_cross_contract_reentrancy();
         
         Ok(())
     }
@@ -255,6 +260,106 @@ impl BytecodeAnalyzer {
                     severity: 4,
                 });
             }
+        }
+    }
+
+    // Add a new method to detect cross-contract reentrancy vulnerabilities
+    fn detect_cross_contract_reentrancy(&mut self) {
+        // Check for cross-contract reentrancy pattern:
+        // 1. Multiple external calls to different contracts
+        // 2. State changes after calls
+        // 3. Shared state access patterns
+
+        // First, identify if we have multiple external calls
+        if self.external_calls.len() < 2 {
+            return; // Need at least two calls for cross-contract reentrancy
+        }
+
+        // Track contract addresses being called (approximation based on bytecode patterns)
+        let mut different_contract_calls = false;
+        let mut contract_addresses = Vec::new();
+
+        for &call_pos in &self.external_calls {
+            // In EVM, the contract address is typically loaded onto the stack before the CALL
+            // We'll look for PUSH20 (0x73) opcodes before calls as a heuristic
+            // This is a simplification - in real analysis we'd track stack state
+            
+            // Look up to 30 opcodes before the call for a PUSH20
+            let start_pos = if call_pos > 30 { call_pos - 30 } else { 0 };
+            for i in start_pos..call_pos {
+                if i < self.bytecode.len() && self.bytecode[i] == 0x73 { // PUSH20
+                    // Extract the 20 bytes after PUSH20 as the address
+                    if i + 20 < self.bytecode.len() {
+                        let address = &self.bytecode[i+1..i+21];
+                        
+                        // Check if we've seen this address before
+                        let mut found = false;
+                        for addr in &contract_addresses {
+                            if addr == address {
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if !found {
+                            contract_addresses.push(address.to_vec());
+                            
+                            // If we have at least two different addresses, set the flag
+                            if contract_addresses.len() >= 2 {
+                                different_contract_calls = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if different_contract_calls {
+                break;
+            }
+        }
+
+        // If we don't have calls to different contracts, not a cross-contract issue
+        if !different_contract_calls {
+            return;
+        }
+        
+        // For debugging
+        println!("Analyzer cross-contract reentrancy detection:");
+        println!("  Storage reads: {}", self.storage_reads.len());
+        println!("  External calls: {}", self.external_calls.len());
+        println!("  Storage writes: {}", self.storage_writes.len());
+        println!("  Different contract addresses: {}", contract_addresses.len());
+
+        // Now check for state changes after calls (similar to regular reentrancy)
+        let mut has_vulnerability = false;
+        for &call_pos in &self.external_calls {
+            // Find storage reads before the call
+            let reads_before_call: Vec<_> = self.storage_reads.iter()
+                .filter(|&&pos| pos < call_pos)
+                .collect();
+            
+            // Find storage writes after the call
+            let writes_after_call: Vec<_> = self.storage_writes.iter()
+                .filter(|&&pos| pos > call_pos)
+                .collect();
+            
+            // If we have both reads before and writes after, and multiple contract calls,
+            // this is a potential cross-contract reentrancy vulnerability
+            if !reads_before_call.is_empty() && !writes_after_call.is_empty() {
+                has_vulnerability = true;
+                break;
+            }
+        }
+        
+        // If we have the pattern, report the vulnerability
+        if has_vulnerability {
+            self.vulnerabilities.push(VulnerabilityData {
+                vulnerability_type: VulnerabilityType::CrossContractReentrancy,
+                offset: self.external_calls[0], // Report at the first call
+                description: "Cross-contract reentrancy vulnerability detected: multiple contract calls with state changes".to_string(),
+                severity: 5, // Higher severity than regular reentrancy
+            });
         }
     }
 
@@ -351,6 +456,9 @@ pub fn convert_vulnerability_types(
             }
             crate::api::VulnerabilityType::UncheckedReturnValue => {
                 result.push(VulnerabilityType::UncheckedReturnValue);
+            }
+            crate::api::VulnerabilityType::CrossContractReentrancy => {
+                result.push(VulnerabilityType::CrossContractReentrancy);
             }
             crate::api::VulnerabilityType::Other(x) => {
                 result.push(VulnerabilityType::Other(*x));

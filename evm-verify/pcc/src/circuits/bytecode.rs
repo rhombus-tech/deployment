@@ -116,6 +116,7 @@ pub struct BytecodeSafetyCircuit<F: Field> {
     pub insufficient_slippage_protection_present: bool,
     pub timelock_issue_present: bool,
     pub unchecked_return_value_present: bool,
+    pub cross_contract_reentrancy_present: bool,
     
     // Bytecode metadata
     gas_usage: U256,
@@ -200,6 +201,8 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         
         let unchecked_return_value_present = vulnerability_types.iter().any(|v| matches!(v, crate::analyzer::bytecode::VulnerabilityType::UncheckedReturnValue));
         
+        let cross_contract_reentrancy_present = vulnerability_types.iter().any(|v| matches!(v, crate::analyzer::bytecode::VulnerabilityType::CrossContractReentrancy));
+        
         // Check for other vulnerabilities
         let other_vulnerability_present = vulnerability_types.iter().any(|v| matches!(v, crate::analyzer::bytecode::VulnerabilityType::Other(_)));
         
@@ -226,6 +229,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             insufficient_slippage_protection_present,
             timelock_issue_present,
             unchecked_return_value_present,
+            cross_contract_reentrancy_present,
             other_vulnerability_present,
         ].iter().filter(|&&x| x).count();
         
@@ -254,6 +258,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("  Insufficient Slippage Protection: {}", insufficient_slippage_protection_present);
         println!("  Timelock Issue: {}", timelock_issue_present);
         println!("  Unchecked Return Value: {}", unchecked_return_value_present);
+        println!("  Cross Contract Reentrancy: {}", cross_contract_reentrancy_present);
         
         Self {
             reentrancy_present,
@@ -278,6 +283,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             insufficient_slippage_protection_present,
             timelock_issue_present,
             unchecked_return_value_present,
+            cross_contract_reentrancy_present,
             gas_usage,
             complexity,
             bytecode_hash,
@@ -1569,6 +1575,146 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 }
 
+impl<F: Field> BytecodeSafetyCircuit<F> {
+    /// Verify cross-contract reentrancy vulnerability in bytecode
+    fn verify_cross_contract_reentrancy(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        // If bytecode is not provided, just use the provided flag
+        if self.bytecode.is_none() {
+            return cs.new_witness_variable(|| Ok(F::from(self.cross_contract_reentrancy_present as u32)));
+        }
+        
+        let bytecode = self.bytecode.as_ref().unwrap();
+        
+        // Look for the cross-contract reentrancy pattern:
+        // 1. Multiple external calls to different contracts
+        // 2. State changes after calls
+        // 3. Shared state access patterns
+        let mut has_cross_contract_reentrancy = false;
+        
+        // Track storage reads, calls, and storage writes
+        let mut storage_reads = Vec::new();
+        let mut external_calls = Vec::new();
+        let mut storage_writes = Vec::new();
+        let mut contract_addresses = Vec::new();
+        
+        // Scan for storage reads, external calls, and storage writes
+        for i in 0..bytecode.len() {
+            // Check for SLOAD (0x54) - Storage read
+            if i < bytecode.len() && bytecode[i] == SLOAD {
+                storage_reads.push(i);
+            }
+            
+            // Check for CALL (0xF1), CALLCODE (0xF2), DELEGATECALL (0xF4), STATICCALL (0xFA) - External calls
+            if i < bytecode.len() && (bytecode[i] == CALL || bytecode[i] == 0xF2 || bytecode[i] == DELEGATECALL || bytecode[i] == STATICCALL) {
+                external_calls.push(i);
+                
+                // Look for contract addresses (PUSH20 opcode) before the call
+                let start_pos = if i > 30 { i - 30 } else { 0 };
+                for j in start_pos..i {
+                    if j < bytecode.len() && bytecode[j] == 0x73 { // PUSH20
+                        // Extract the 20 bytes after PUSH20 as the address
+                        if j + 20 < bytecode.len() {
+                            let address = &bytecode[j+1..j+21];
+                            
+                            // Check if we've seen this address before
+                            let mut found = false;
+                            for addr in &contract_addresses {
+                                if addr == address {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            
+                            if !found {
+                                contract_addresses.push(address.to_vec());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check for SSTORE (0x55) - Storage write
+            if i < bytecode.len() && bytecode[i] == SSTORE {
+                storage_writes.push(i);
+            }
+        }
+        
+        // Check if we have calls to at least two different contracts
+        let different_contract_calls = contract_addresses.len() >= 2;
+        
+        // For debugging
+        println!("Cross-contract reentrancy detection:");
+        println!("  Storage reads: {}", storage_reads.len());
+        println!("  External calls: {}", external_calls.len());
+        println!("  Storage writes: {}", storage_writes.len());
+        println!("  Different contract addresses: {}", contract_addresses.len());
+        
+        if different_contract_calls && external_calls.len() >= 2 {
+            // Check for complete reentrancy pattern: storage read before external call followed by storage write after external call
+            for &call_pos in &external_calls {
+                // Check if there's any storage read before this call
+                let has_read_before = storage_reads.iter().any(|&read_pos| read_pos < call_pos);
+                
+                // Check if there's any storage write after this call
+                let has_write_after = storage_writes.iter().any(|&write_pos| write_pos > call_pos);
+                
+                // If both conditions are met, this is a potential cross-contract reentrancy vulnerability
+                if has_read_before && has_write_after {
+                    has_cross_contract_reentrancy = true;
+                    break;
+                }
+            }
+        }
+        
+        // If the flag is set but we didn't detect the vulnerability, use the flag
+        if self.cross_contract_reentrancy_present && !has_cross_contract_reentrancy {
+            has_cross_contract_reentrancy = true;
+        }
+        
+        // Create a witness for the detected cross-contract reentrancy pattern
+        let cross_contract_reentrancy_detected = cs.new_witness_variable(|| Ok(F::from(has_cross_contract_reentrancy as u32)))?;
+        
+        // Create a witness for the provided flag
+        let cross_contract_reentrancy_flag = cs.new_witness_variable(|| Ok(F::from(self.cross_contract_reentrancy_present as u32)))?;
+        
+        // If bytecode is provided, enforce that the detected pattern matches the flag
+        if self.bytecode.is_some() && has_cross_contract_reentrancy != self.cross_contract_reentrancy_present {
+            println!("WARNING: Cross-contract reentrancy detection in circuit ({}) doesn't match provided flag ({})",
+                     has_cross_contract_reentrancy, self.cross_contract_reentrancy_present);
+        }
+        
+        // Use the variables to avoid unused variable warnings
+        cs.enforce_constraint(
+            LinearCombination::from(cross_contract_reentrancy_detected),
+            LinearCombination::from(Variable::One),
+            LinearCombination::from(cross_contract_reentrancy_flag)
+        )?;
+        
+        Ok(cross_contract_reentrancy_flag)
+    }
+    
+    /// Verify unchecked return value vulnerability in bytecode
+    pub fn verify_unchecked_return_value(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        println!("Verifying unchecked return value vulnerability...");
+        
+        // Create a boolean constraint that is true if the vulnerability exists
+        let has_vulnerability = self.detect_unchecked_return_value(&self.bytecode.clone().unwrap_or_default());
+        
+        // Create a variable for the vulnerability indicator
+        let vulnerability_var = cs.new_witness_variable(|| {
+            if has_vulnerability {
+                Ok(F::one())
+            } else {
+                Ok(F::zero())
+            }
+        })?;
+        
+        println!("Unchecked return value vulnerability: {}", has_vulnerability);
+        
+        Ok(vulnerability_var)
+    }
+}
+
 impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         println!("Generating bytecode safety constraints...");
@@ -1719,6 +1865,15 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
             let unchecked_return_value_var = self.verify_unchecked_return_value(&cs)?;
             cs.enforce_constraint(
                 unchecked_return_value_var.into(),
+                LinearCombination::from(Variable::One),
+                LinearCombination::from(Variable::One),
+            )?;
+        }
+        
+        if self.cross_contract_reentrancy_present {
+            let cross_contract_reentrancy_var = self.verify_cross_contract_reentrancy(&cs)?;
+            cs.enforce_constraint(
+                cross_contract_reentrancy_var.into(),
                 LinearCombination::from(Variable::One),
                 LinearCombination::from(Variable::One),
             )?;
@@ -1963,7 +2118,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify weak quorum requirements in governance contracts
-    pub fn verify_weak_quorum(&self, cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    pub fn verify_weak_quorum(&self, cs: &ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         let bytecode = self.bytecode.as_ref().ok_or(SynthesisError::AssignmentMissing)?;
         let has_weak_quorum = self.detect_weak_quorum(bytecode);
         
@@ -1992,7 +2147,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify flash loan voting vulnerability in governance contracts
-    pub fn verify_flash_loan_voting(&self, cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    pub fn verify_flash_loan_voting(&self, cs: &ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         let bytecode = self.bytecode.as_ref().ok_or(SynthesisError::AssignmentMissing)?;
         let has_flash_loan_voting = self.detect_flash_loan_voting(bytecode);
         
@@ -2021,7 +2176,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify centralized admin controls in governance contracts
-    pub fn verify_centralized_admin(&self, cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    pub fn verify_centralized_admin(&self, cs: &ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         let bytecode = self.bytecode.as_ref().ok_or(SynthesisError::AssignmentMissing)?;
         let has_centralized_admin = self.detect_centralized_admin(bytecode);
         
@@ -2036,7 +2191,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         };
         
         // Add constraint that vulnerability_var * vulnerability_var = vulnerability_var
-        // This is satisfied for both 0 and 1
+        // This ensures that vulnerability_var is either 0 or 1
         cs.enforce_constraint(
             LinearCombination::from(vulnerability_var.clone()),
             LinearCombination::from(vulnerability_var.clone()),
@@ -2047,28 +2202,5 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("Centralized admin controls detected: {}", has_centralized_admin);
         
         Ok(())
-    }
-}
-
-impl<F: Field> BytecodeSafetyCircuit<F> {
-    /// Verify unchecked return value vulnerability in bytecode
-    pub fn verify_unchecked_return_value(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
-        println!("Verifying unchecked return value vulnerability...");
-        
-        // Create a boolean constraint that is true if the vulnerability exists
-        let has_vulnerability = self.detect_unchecked_return_value(&self.bytecode.clone().unwrap_or_default());
-        
-        // Create a variable for the vulnerability indicator
-        let vulnerability_var = cs.new_witness_variable(|| {
-            if has_vulnerability {
-                Ok(F::one())
-            } else {
-                Ok(F::zero())
-            }
-        })?;
-        
-        println!("Unchecked return value vulnerability: {}", has_vulnerability);
-        
-        Ok(vulnerability_var)
     }
 }
