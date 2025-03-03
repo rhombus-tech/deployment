@@ -13,7 +13,9 @@ const SSTORE: u8 = 0x55;
 const SLOAD: u8 = 0x54;
 
 // EVM opcodes relevant for unchecked call detection
+#[allow(dead_code)]
 const ISZERO: u8 = 0x15;
+#[allow(dead_code)]
 const JUMPI: u8 = 0x57;
 
 // EVM opcode for self-destruct
@@ -37,6 +39,7 @@ pub struct BytecodeSafetyCircuit<F: Field> {
     price_manipulation_present: bool,
     block_number_dependence_present: bool,
     uninitialized_storage_present: bool,
+    proxy_vulnerability_present: bool,
     governance_vulnerability_present: bool,
     bitmask_vulnerability_present: bool,
     
@@ -112,6 +115,8 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         
         let uninitialized_storage_present = vulnerabilities.contains(&VulnerabilityType::UninitializedStorage);
         
+        let proxy_vulnerability_present = vulnerabilities.contains(&VulnerabilityType::ProxyVulnerability);
+        
         let governance_vulnerability_present = vulnerabilities.iter().any(|v| {
             if let VulnerabilityType::Other(name) = v {
                 name.contains("GovernanceVulnerability")
@@ -141,6 +146,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("  Price Manipulation: {}", price_manipulation_present);
         println!("  Block Number Dependence: {}", block_number_dependence_present);
         println!("  Uninitialized Storage: {}", uninitialized_storage_present);
+        println!("  Proxy Vulnerability: {}", proxy_vulnerability_present);
         println!("  Governance Vulnerability: {}", governance_vulnerability_present);
         println!("  Bitmask Vulnerability: {}", bitmask_vulnerability_present);
         
@@ -157,6 +163,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             price_manipulation_present,
             block_number_dependence_present,
             uninitialized_storage_present,
+            proxy_vulnerability_present,
             governance_vulnerability_present,
             bitmask_vulnerability_present,
             gas_usage,
@@ -168,6 +175,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
     
     /// Verify the bytecode hash properly
+    #[allow(dead_code)]
     fn verify_bytecode_hash(&self, cs: &ConstraintSystemRef<F>, bytecode_hash: [u8; 32]) -> Result<Variable, SynthesisError> {
         // Process the full 32-byte hash in chunks of 8 bytes
         // This provides stronger verification than just using the first 8 bytes
@@ -331,7 +339,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         // If we have bytecode, we can perform more detailed verification
         if let Some(bytecode) = &self.bytecode {
             // Look for SELFDESTRUCT opcodes (0xFF) and check for access control
-            let mut has_unprotected_self_destruct = false;
+            let mut _has_unprotected_self_destruct = false;
             
             for i in 0..bytecode.len() {
                 if i < bytecode.len() && bytecode[i] == SELFDESTRUCT {
@@ -368,7 +376,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
                     }
                     
                     if !has_access_control {
-                        has_unprotected_self_destruct = true;
+                        _has_unprotected_self_destruct = true;
                         break;
                     }
                 }
@@ -396,11 +404,11 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         if let Some(bytecode) = &self.bytecode {
             // Track storage slots that have been written to
             let mut initialized_slots = std::collections::HashSet::new();
-            let mut has_uninitialized_storage = false;
+            let mut _has_uninitialized_storage = false;
             
             // First pass: identify all storage writes (SSTORE operations)
             for i in 0..bytecode.len() {
-                if i < bytecode.len() && bytecode[i] == SSTORE {
+                if bytecode[i] == SSTORE {
                     // In a real implementation, we would try to determine the actual slot being written
                     // This is a simplified version that just notes that some slot was written
                     initialized_slots.insert(i);
@@ -409,11 +417,20 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             
             // Second pass: identify storage reads (SLOAD operations) that might be uninitialized
             for i in 0..bytecode.len() {
-                if i < bytecode.len() && bytecode[i] == SLOAD {
+                if bytecode[i] == SLOAD {
                     // Check if there's any SSTORE before this SLOAD
                     // This is a very simplified heuristic - a real implementation would track specific slots
-                    if initialized_slots.is_empty() || *initialized_slots.iter().min().unwrap_or(&usize::MAX) > i {
-                        has_uninitialized_storage = true;
+                    let min_write_pos = if initialized_slots.is_empty() {
+                        usize::MAX
+                    } else {
+                        match initialized_slots.iter().min() {
+                            Some(&pos) => pos,
+                            None => usize::MAX
+                        }
+                    };
+                    
+                    if min_write_pos > i {
+                        _has_uninitialized_storage = true;
                         break;
                     }
                 }
@@ -428,6 +445,86 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         }
         
         Ok(uninitialized_storage)
+    }
+
+    /// Verify proxy contract vulnerability in bytecode
+    fn verify_proxy_vulnerability(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        println!("Verifying proxy contract vulnerability...");
+        
+        // EVM opcodes relevant for proxy detection
+        const DELEGATECALL: u8 = 0xF4;
+        const CALLCODE: u8 = 0xF2;
+        #[allow(dead_code)]
+        const SSTORE: u8 = 0x55;
+        #[allow(dead_code)]
+        const SLOAD: u8 = 0x54;
+        
+        // Check if we have bytecode to analyze
+        if self.bytecode.is_none() {
+            println!("No bytecode provided for proxy vulnerability analysis");
+            return cs.new_witness_variable(|| Ok(F::from(0u32)));
+        }
+        
+        let bytecode = self.bytecode.as_ref().unwrap();
+        
+        // Proxy vulnerability detection heuristics:
+        // 1. Presence of DELEGATECALL or CALLCODE opcodes
+        // 2. Storage layout issues (complex to detect statically, simplified here)
+        // 3. Initialization patterns
+        
+        // Check for DELEGATECALL or CALLCODE opcodes
+        let mut has_delegate_call = false;
+        let mut storage_slots = std::collections::HashSet::new();
+        let mut storage_writes_before_delegate = 0;
+        let mut delegate_call_positions = Vec::new();
+        
+        // First pass: find DELEGATECALL/CALLCODE opcodes and track their positions
+        for i in 0..bytecode.len() {
+            if bytecode[i] == DELEGATECALL || bytecode[i] == CALLCODE {
+                has_delegate_call = true;
+                delegate_call_positions.push(i);
+            }
+        }
+        
+        // If no DELEGATECALL/CALLCODE, then no proxy vulnerability
+        if !has_delegate_call {
+            println!("No DELEGATECALL/CALLCODE opcodes found, no proxy vulnerability");
+            return cs.new_witness_variable(|| Ok(F::from(0u32)));
+        }
+        
+        // Second pass: analyze storage patterns
+        // Look for storage writes (SSTORE) before DELEGATECALL
+        // This is a simplified heuristic - in a real implementation we would
+        // perform more sophisticated analysis of storage slots
+        for i in 0..bytecode.len() {
+            if bytecode[i] == SSTORE {
+                // Very simplified - in reality we would extract the slot from the stack
+                if i + 1 < bytecode.len() {
+                    let slot_approx = bytecode[i + 1];
+                    storage_slots.insert(slot_approx);
+                }
+                
+                // Count storage writes before the first delegate call
+                if !delegate_call_positions.is_empty() && i < delegate_call_positions[0] {
+                    storage_writes_before_delegate += 1;
+                }
+            }
+        }
+        
+        // Potential vulnerability indicators:
+        // 1. No storage writes before DELEGATECALL (might indicate uninitialized proxy)
+        // 2. Few storage slots used (might indicate storage collision risk)
+        let potential_vulnerability = has_delegate_call && 
+            (storage_writes_before_delegate < 3 || storage_slots.len() < 3);
+        
+        println!("Proxy vulnerability analysis:");
+        println!("  Has DELEGATECALL: {}", has_delegate_call);
+        println!("  Storage writes before DELEGATECALL: {}", storage_writes_before_delegate);
+        println!("  Unique storage slots: {}", storage_slots.len());
+        println!("  Potential vulnerability: {}", potential_vulnerability);
+        
+        // Create a witness for the proxy vulnerability indicator
+        cs.new_witness_variable(|| Ok(F::from(potential_vulnerability as u32)))
     }
 
     /// Verify that the provided bytecode matches the bytecode hash
@@ -486,15 +583,16 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         let price_manipulation = cs.new_witness_variable(|| Ok(F::from(self.price_manipulation_present as u32)))?;
         let block_number_dependence = cs.new_witness_variable(|| Ok(F::from(self.block_number_dependence_present as u32)))?;
         let uninitialized_storage = self.verify_uninitialized_storage(&cs)?;
+        let proxy_vulnerability = self.verify_proxy_vulnerability(&cs)?;
         let governance_vulnerability = cs.new_witness_variable(|| Ok(F::from(self.governance_vulnerability_present as u32)))?;
         let bitmask_vulnerability = cs.new_witness_variable(|| Ok(F::from(self.bitmask_vulnerability_present as u32)))?;
         
         // Create witness for gas usage (convert to u64 for simplicity)
         let gas_usage_u64 = self.gas_usage.as_u64();
-        let gas_usage_var = cs.new_witness_variable(|| Ok(F::from(gas_usage_u64)))?;
+        let _gas_usage_var = cs.new_witness_variable(|| Ok(F::from(gas_usage_u64)))?;
         
         // Create witness for code complexity
-        let complexity_var = cs.new_witness_variable(|| Ok(F::from(self.complexity as u32)))?;
+        let _complexity_var = cs.new_witness_variable(|| Ok(F::from(self.complexity as u32)))?;
         
         // Create a combined vulnerability score
         // This is a simple sum of all vulnerability indicators
@@ -511,6 +609,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         combined_score = combined_score + price_manipulation;
         combined_score = combined_score + block_number_dependence;
         combined_score = combined_score + uninitialized_storage;
+        combined_score = combined_score + proxy_vulnerability;
         combined_score = combined_score + governance_vulnerability;
         combined_score = combined_score + bitmask_vulnerability;
         
@@ -528,6 +627,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.price_manipulation_present as u32 +
                       self.block_number_dependence_present as u32 +
                       self.uninitialized_storage_present as u32 +
+                      self.proxy_vulnerability_present as u32 +
                       self.governance_vulnerability_present as u32 +
                       self.bitmask_vulnerability_present as u32;
             Ok(F::from(sum))
@@ -566,6 +666,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.price_manipulation_present as u32 +
                       self.block_number_dependence_present as u32 +
                       self.uninitialized_storage_present as u32 +
+                      self.proxy_vulnerability_present as u32 +
                       self.governance_vulnerability_present as u32 +
                       self.bitmask_vulnerability_present as u32);
             Ok(F::from(safety_score))

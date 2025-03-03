@@ -16,6 +16,7 @@ pub enum VulnerabilityType {
     PriceManipulation,
     BlockNumberDependency,
     UninitializedStorage,
+    ProxyVulnerability,
     GovernanceVulnerability,
     BitMaskVulnerability,
     SelfDestruct,
@@ -287,6 +288,9 @@ pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]
             }
             crate::api::VulnerabilityType::SelfDestruct => {
                 result.push(VulnerabilityType::SelfDestruct);
+            }
+            crate::api::VulnerabilityType::ProxyVulnerability => {
+                result.push(VulnerabilityType::ProxyVulnerability);
             }
             _ => {
                 result.push(VulnerabilityType::Other(format!("{:?}", vuln)));
