@@ -237,6 +237,12 @@ pub enum SecurityWarningKind {
     UnsafeTimestampComparison,
     /// Time-based randomness vulnerability
     TimeBasedRandomness,
+    /// Transaction ordering dependency vulnerability
+    TransactionOrderingDependency,
+    /// Missing transaction ordering protection vulnerability
+    MissingTransactionOrderingProtection,
+    /// Sandwich attack vulnerability
+    SandwichAttackVulnerability,
     /// Other security issue
     Other(String),
 }
@@ -783,6 +789,42 @@ impl SecurityWarning {
             pc,
             operations,
             remediation: "Ensure proper context management when using delegate calls".to_string(),
+        }
+    }
+
+    /// Create a transaction ordering dependency warning
+    pub fn transaction_ordering_dependency(pc: u64) -> Self {
+        SecurityWarning {
+            kind: SecurityWarningKind::TransactionOrderingDependency,
+            description: "Transaction ordering dependency detected. Contract state changes depend on transaction order, making it vulnerable to front-running.".to_string(),
+            severity: SecuritySeverity::High,
+            pc,
+            operations: Vec::new(),
+            remediation: "Implement commit-reveal patterns or use transaction ordering protection mechanisms.".to_string(),
+        }
+    }
+
+    /// Create a missing transaction ordering protection warning
+    pub fn missing_transaction_ordering_protection(pc: u64) -> Self {
+        SecurityWarning {
+            kind: SecurityWarningKind::MissingTransactionOrderingProtection,
+            description: "Missing transaction ordering protection. Contract does not implement mechanisms to prevent front-running attacks.".to_string(),
+            severity: SecuritySeverity::High,
+            pc,
+            operations: Vec::new(),
+            remediation: "Add minimum/maximum bounds checks, implement commit-reveal schemes, or use private transactions.".to_string(),
+        }
+    }
+
+    /// Create a sandwich attack vulnerability warning
+    pub fn sandwich_attack_vulnerability(pc: u64) -> Self {
+        SecurityWarning {
+            kind: SecurityWarningKind::SandwichAttackVulnerability,
+            description: "Sandwich attack vulnerability detected. Contract is vulnerable to price manipulation through sandwich attacks.".to_string(),
+            severity: SecuritySeverity::High,
+            pc,
+            operations: Vec::new(),
+            remediation: "Implement slippage protection with minimum/maximum bounds and transaction deadlines.".to_string(),
         }
     }
 }

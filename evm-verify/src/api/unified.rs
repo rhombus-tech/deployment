@@ -132,6 +132,10 @@ impl UnifiedVerifier {
             all_warnings.extend(mev_warnings);
         }
         
+        // Specifically check for front-running vulnerabilities
+        let front_running_warnings = crate::bytecode::analyzer_front_running::analyze(&analyzer);
+        all_warnings.extend(front_running_warnings);
+        
         // Specifically check for unchecked external calls
         if let Ok(unchecked_calls_warnings) = analyzer.detect_unchecked_calls() {
             all_warnings.extend(unchecked_calls_warnings);
@@ -286,6 +290,18 @@ impl UnifiedVerifier {
                     ),
                     SecurityWarningKind::TimeBasedRandomness => (
                         VulnerabilityType::TimestampDependency,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::TransactionOrderingDependency => (
+                        VulnerabilityType::TransactionOrderingDependency,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::MissingTransactionOrderingProtection => (
+                        VulnerabilityType::MissingTransactionOrderingProtection,
+                        VulnerabilitySeverity::High,
+                    ),
+                    SecurityWarningKind::SandwichAttackVulnerability => (
+                        VulnerabilityType::SandwichAttackVulnerability,
                         VulnerabilitySeverity::High,
                     ),
                     _ => (
@@ -880,5 +896,41 @@ mod tests {
         assert!(!has_false_positive, "Should not have detected unchecked external call vulnerability in properly checked code");
 
         println!("Unchecked external call detection tests passed!");
+    }
+
+    #[test]
+    fn test_front_running_vulnerability_detection() {
+        // Create a verifier
+        let verifier = UnifiedVerifier::new();
+        
+        // Simple bytecode with GASPRICE (0x3A) followed by a comparison (LT, 0x10)
+        // This simulates a contract that uses gas price in a comparison, which is vulnerable to front-running
+        let bytecode = vec![0x3A, 0x10];
+        
+        // Analyze the bytecode
+        let result = verifier.analyze_bytecode_pcc(&bytecode).unwrap();
+        
+        // Check that we detected the front-running vulnerability
+        assert!(result.iter().any(|v| matches!(v.vulnerability_type, VulnerabilityType::TransactionOrderingDependency)));
+        
+        // Simple bytecode with GASPRICE (0x3A) followed by SSTORE (0x55)
+        // This simulates a contract that uses gas price to determine a storage value, which is vulnerable to front-running
+        let bytecode = vec![0x3A, 0x55];
+        
+        // Analyze the bytecode
+        let result = verifier.analyze_bytecode_pcc(&bytecode).unwrap();
+        
+        // Check that we detected the front-running vulnerability
+        assert!(result.iter().any(|v| matches!(v.vulnerability_type, VulnerabilityType::TransactionOrderingDependency)));
+        
+        // Simple bytecode with CALL (0xF1) followed by SSTORE (0x55) without comparison
+        // This simulates a contract that performs a storage operation after an external call without proper checks
+        let bytecode = vec![0xF1, 0x55];
+        
+        // Analyze the bytecode
+        let result = verifier.analyze_bytecode_pcc(&bytecode).unwrap();
+        
+        // Check that we detected the sandwich attack vulnerability
+        assert!(result.iter().any(|v| matches!(v.vulnerability_type, VulnerabilityType::TransactionOrderingDependency)));
     }
 }

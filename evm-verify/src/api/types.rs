@@ -154,6 +154,15 @@ pub enum VulnerabilityType {
     /// Front-running vulnerability
     FrontRunning,
     
+    /// Transaction ordering dependency vulnerability
+    TransactionOrderingDependency,
+    
+    /// Missing transaction ordering protection vulnerability
+    MissingTransactionOrderingProtection,
+    
+    /// Sandwich attack vulnerability
+    SandwichAttackVulnerability,
+    
     /// Block number dependency vulnerability
     BlockNumberDependency,
     

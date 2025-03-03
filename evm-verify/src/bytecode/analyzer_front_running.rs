@@ -61,16 +61,7 @@ impl BytecodeAnalyzer {
                         // Storage operations
                         SSTORE => {
                             // Gas price used to determine storage value
-                            let warning = SecurityWarning::new(
-                                SecurityWarningKind::FrontRunning,
-                                SecuritySeverity::High,
-                                i as u64,
-                                "Gas price dependency detected in storage operation. This can be exploited by front-running attacks.".to_string(),
-                                vec![Operation::TransactionInformation { 
-                                    info_type: "GASPRICE".to_string() 
-                                }],
-                                "Avoid using tx.gasprice for determining storage values. Consider using commit-reveal patterns or other mechanisms resistant to front-running.".to_string(),
-                            );
+                            let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                             warnings.push(warning);
                             break;
                         },
@@ -79,30 +70,12 @@ impl BytecodeAnalyzer {
                 }
                 
                 if is_used_in_comparison {
-                    let warning = SecurityWarning::new(
-                        SecurityWarningKind::FrontRunning,
-                        SecuritySeverity::High,
-                        i as u64,
-                        "Gas price used in comparison. This can be manipulated by attackers for front-running.".to_string(),
-                        vec![Operation::TransactionInformation { 
-                            info_type: "GASPRICE".to_string() 
-                        }],
-                        "Avoid using tx.gasprice for critical comparisons. Consider implementing a commit-reveal pattern or using an oracle for price information.".to_string(),
-                    );
+                    let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }
                 
                 if is_used_in_control_flow {
-                    let warning = SecurityWarning::new(
-                        SecurityWarningKind::FrontRunning,
-                        SecuritySeverity::High,
-                        i as u64,
-                        "Gas price used in control flow decision. This can be manipulated by attackers for front-running.".to_string(),
-                        vec![Operation::TransactionInformation { 
-                            info_type: "GASPRICE".to_string() 
-                        }],
-                        "Avoid using tx.gasprice for control flow decisions. Consider implementing a commit-reveal pattern or using an oracle for price information.".to_string(),
-                    );
+                    let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }
             }
@@ -148,16 +121,7 @@ impl BytecodeAnalyzer {
                 }
                 
                 if is_used_in_comparison || is_used_in_control_flow {
-                    let warning = SecurityWarning::new(
-                        SecurityWarningKind::BlockNumberDependence,
-                        SecuritySeverity::Medium,
-                        i as u64,
-                        format!("Block information ({}) used in critical operation. This can be manipulated by miners for front-running.", info_type),
-                        vec![Operation::BlockInformation { 
-                            info_type: info_type.to_string() 
-                        }],
-                        "Avoid using block information for critical operations. Consider implementing a commit-reveal pattern or using an oracle for time-sensitive information.".to_string(),
-                    );
+                    let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }
             }
@@ -182,17 +146,7 @@ impl BytecodeAnalyzer {
         // Only flag if we have timestamp usage (common in auctions/voting) along with storage and calls
         // This helps avoid false positives in the price-sensitive operations test
         if has_timestamp && has_storage && has_external_calls {
-            let warning = SecurityWarning::new(
-                SecurityWarningKind::FrontRunning,
-                SecuritySeverity::Medium,
-                0, // No specific location
-                "Potential missing commit-reveal pattern detected. Contract appears to implement auction or voting mechanism without proper front-running protection.".to_string(),
-                vec![Operation::Computation { 
-                    op_type: "Missing commit-reveal pattern".to_string(),
-                    gas_cost: 0
-                }],
-                "Consider implementing a commit-reveal pattern for auction or voting mechanisms to prevent front-running. This typically involves a two-phase process where users first commit a hash of their action and later reveal it.".to_string(),
-            );
+            let warning = SecurityWarning::missing_transaction_ordering_protection(0);
             warnings.push(warning);
         }
         
@@ -225,18 +179,7 @@ impl BytecodeAnalyzer {
                 
                 // If there's a storage operation after a call without comparison, it might be vulnerable
                 if has_storage_after_call && !has_comparison_after_call {
-                    let warning = SecurityWarning::new(
-                        SecurityWarningKind::FrontRunning,
-                        SecuritySeverity::High,
-                        i as u64,
-                        "Price-sensitive operation detected without proper checks. External call followed by storage write without comparison operations.".to_string(),
-                        vec![Operation::ExternalCall { 
-                            target: H256::zero(),
-                            value: U256::zero(),
-                            data: vec![]
-                        }],
-                        "Implement proper price impact checks after external calls. Consider adding minimum/maximum bounds checks and slippage protection to prevent front-running attacks.".to_string(),
-                    );
+                    let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                     // Return early after finding the first instance to avoid duplicate warnings
                     // This ensures the test case gets the expected warning
@@ -271,18 +214,7 @@ impl BytecodeAnalyzer {
                 
                 // If there's no comparison before a call, it might be missing slippage protection
                 if !has_comparison_before_call {
-                    let warning = SecurityWarning::new(
-                        SecurityWarningKind::MissingSlippageProtection,
-                        SecuritySeverity::High,
-                        i as u64,
-                        "Potential missing slippage protection. External call without proper minimum/maximum bounds checks.".to_string(),
-                        vec![Operation::ExternalCall { 
-                            target: H256::zero(),
-                            value: U256::zero(),
-                            data: vec![]
-                        }],
-                        "Implement slippage protection by adding minimum and maximum bounds checks before external calls. This helps prevent front-running and sandwich attacks.".to_string(),
-                    );
+                    let warning = SecurityWarning::sandwich_attack_vulnerability(i as u64);
                     warnings.push(warning);
                 }
             }

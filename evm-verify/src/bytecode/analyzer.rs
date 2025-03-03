@@ -674,32 +674,14 @@ impl BytecodeAnalyzer {
                 match bytecode_vec[j] {
                     // Comparison opcodes
                     0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 => { // LT, GT, SLT, SGT, EQ, ISZERO
-                        // Create a timestamp dependency warning
-                        let warning = SecurityWarning::new(
-                            SecurityWarningKind::FrontRunning,
-                            SecuritySeverity::High,
-                            loc as u64,
-                            "Potential front-running vulnerability detected: contract logic depends on gas price which can be manipulated by attackers.".to_string(),
-                            vec![Operation::TransactionInformation { 
-                                info_type: "GASPRICE".to_string() 
-                            }],
-                            "Avoid using tx.gasprice for critical logic. Consider using commit-reveal schemes or other mechanisms that are resistant to front-running.".to_string(),
-                        );
+                        // Create a transaction ordering dependency warning
+                        let warning = SecurityWarning::transaction_ordering_dependency(loc as u64);
                         warnings.push(warning);
                         break; // Only report one vulnerability per usage
                     },
                     // Control flow opcodes
                     0x56 | 0x57 => { // JUMP, JUMPI
-                        let warning = SecurityWarning::new(
-                            SecurityWarningKind::FrontRunning,
-                            SecuritySeverity::High,
-                            loc as u64,
-                            "Potential front-running vulnerability detected: control flow depends on gas price which can be manipulated by attackers.".to_string(),
-                            vec![Operation::TransactionInformation { 
-                                info_type: "GASPRICE".to_string() 
-                            }],
-                            "Avoid using tx.gasprice for control flow decisions. Consider implementing a commit-reveal pattern or using an oracle for price information.".to_string(),
-                        );
+                        let warning = SecurityWarning::transaction_ordering_dependency(loc as u64);
                         warnings.push(warning);
                         break; // Only report one vulnerability per usage
                     },
@@ -710,31 +692,13 @@ impl BytecodeAnalyzer {
         
         // Generate warnings for TX.ORIGIN usage
         for &loc in &origin_locations {
-            let warning = SecurityWarning::new(
-                SecurityWarningKind::TxOriginUsage,
-                SecuritySeverity::High,
-                loc as u64,
-                "Usage of tx.origin detected. This can lead to phishing-style attacks and is vulnerable to front-running.".to_string(),
-                vec![Operation::TransactionInformation { 
-                    info_type: "ORIGIN".to_string() 
-                }],
-                "Use msg.sender instead of tx.origin for authentication. tx.origin refers to the original external account that started the transaction, which can be exploited in phishing attacks.".to_string(),
-            );
+            let warning = SecurityWarning::transaction_ordering_dependency(loc as u64);
             warnings.push(warning);
         }
         
         // Generate warnings for COINBASE usage
         for &loc in &coinbase_locations {
-            let warning = SecurityWarning::new(
-                SecurityWarningKind::PriceManipulation,
-                SecuritySeverity::Medium,
-                loc as u64,
-                "Usage of block.coinbase detected. This can be manipulated by miners and may lead to front-running vulnerabilities.".to_string(),
-                vec![Operation::BlockInformation { 
-                    info_type: "COINBASE".to_string() 
-                }],
-                "Avoid using block.coinbase for critical logic. Miners can manipulate this value, potentially leading to front-running or other attacks.".to_string(),
-            );
+            let warning = SecurityWarning::transaction_ordering_dependency(loc as u64);
             warnings.push(warning);
         }
         

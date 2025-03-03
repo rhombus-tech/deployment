@@ -1027,6 +1027,12 @@ impl EVMVerify {
                         "Implement proper timelock mechanisms, secure quorum requirements, and flash loan protection in governance systems".to_string(),
                     VulnerabilityType::UnboundedLoop => 
                         "Implement proper bounds on loops to prevent gas limit issues".to_string(),
+                    VulnerabilityType::TransactionOrderingDependency => 
+                        "Implement commit-reveal patterns or use transaction ordering protection mechanisms".to_string(),
+                    VulnerabilityType::MissingTransactionOrderingProtection => 
+                        "Add minimum/maximum bounds checks, implement commit-reveal schemes, or use private transactions".to_string(),
+                    VulnerabilityType::SandwichAttackVulnerability => 
+                        "Implement slippage protection with minimum/maximum bounds and transaction deadlines".to_string(),
                 };
                 
                 Vulnerability {
@@ -1220,7 +1226,10 @@ mod tests {
             SecurityWarningKind::FrontRunning | 
             SecurityWarningKind::GasPriceDependency | 
             SecurityWarningKind::PriceManipulation | 
-            SecurityWarningKind::MEVVulnerability
+            SecurityWarningKind::MEVVulnerability |
+            SecurityWarningKind::TransactionOrderingDependency |
+            SecurityWarningKind::MissingTransactionOrderingProtection |
+            SecurityWarningKind::SandwichAttackVulnerability
         ));
         
         Ok(())
