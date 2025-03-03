@@ -3,25 +3,56 @@ use anyhow::Result;
 use ethers::types::{Bytes, U256};
 
 /// Bytecode vulnerability type
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VulnerabilityType {
     Reentrancy,
     IntegerOverflow,
     UnboundedLoop,
     UncheckedCall,
     AccessControl,
+    SelfDestruct,
     OracleManipulation,
-    MEVVulnerability,
+    MevVulnerability,
     FrontRunning,
     PriceManipulation,
-    BlockNumberDependency,
+    BlockNumberDependence,
     UninitializedStorage,
     ProxyVulnerability,
     GasGriefing,
+    WeakRandomness,
     GovernanceVulnerability,
-    BitMaskVulnerability,
-    SelfDestruct,
-    Other(String),
+    BitmaskVulnerability,
+    PrecisionLoss,
+    CentralizedControl,
+    Other(u8),
+}
+
+impl VulnerabilityType {
+    pub fn from_api_vulnerability_type(api_vulnerability_type: crate::api::VulnerabilityType) -> Self {
+        match api_vulnerability_type {
+            crate::api::VulnerabilityType::Reentrancy => Self::Reentrancy,
+            crate::api::VulnerabilityType::IntegerOverflow => Self::IntegerOverflow,
+            crate::api::VulnerabilityType::UnboundedLoop => Self::UnboundedLoop,
+            crate::api::VulnerabilityType::UncheckedCall => Self::UncheckedCall,
+            crate::api::VulnerabilityType::AccessControl => Self::AccessControl,
+            crate::api::VulnerabilityType::SelfDestruct => Self::SelfDestruct,
+            crate::api::VulnerabilityType::OracleManipulation => Self::OracleManipulation,
+            crate::api::VulnerabilityType::MevVulnerability => Self::MevVulnerability,
+            crate::api::VulnerabilityType::FrontRunning => Self::FrontRunning,
+            crate::api::VulnerabilityType::PriceManipulation => Self::PriceManipulation,
+            crate::api::VulnerabilityType::BlockNumberDependence => Self::BlockNumberDependence,
+            crate::api::VulnerabilityType::UninitializedStorage => Self::UninitializedStorage,
+            crate::api::VulnerabilityType::ProxyVulnerability => Self::ProxyVulnerability,
+            crate::api::VulnerabilityType::GasGriefing => Self::GasGriefing,
+            crate::api::VulnerabilityType::WeakRandomness => Self::WeakRandomness,
+            crate::api::VulnerabilityType::GovernanceVulnerability => Self::GovernanceVulnerability,
+            crate::api::VulnerabilityType::BitmaskVulnerability => Self::BitmaskVulnerability,
+            crate::api::VulnerabilityType::PrecisionLoss => Self::PrecisionLoss,
+            crate::api::VulnerabilityType::CentralizedControl => Self::CentralizedControl,
+            crate::api::VulnerabilityType::Other(x) => Self::Other(x),
+            _ => Self::Other(255),
+        }
+    }
 }
 
 /// Bytecode vulnerability data
@@ -30,7 +61,7 @@ pub struct VulnerabilityData {
     pub vulnerability_type: VulnerabilityType,
     pub offset: usize,
     pub description: String,
-    pub severity: u8, // 1-5, with 5 being most severe
+    pub severity: u8,
 }
 
 /// Bytecode safety proof data
@@ -154,7 +185,7 @@ impl BytecodeAnalyzer {
                         let dest_usize = dest.as_usize();
                         if !self.jumpdests.contains(&dest_usize) {
                             self.vulnerabilities.push(VulnerabilityData {
-                                vulnerability_type: VulnerabilityType::Other("Invalid jump destination".to_string()),
+                                vulnerability_type: VulnerabilityType::Other(255),
                                 offset: i,
                                 description: "Jump to invalid destination".to_string(),
                                 severity: 5,
@@ -242,11 +273,12 @@ impl BytecodeAnalyzer {
     }
 }
 
-/// Convert vulnerability types from the main API to PCC vulnerability types
-pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]) -> Vec<VulnerabilityType> {
+/// Convert API vulnerability types to analyzer vulnerability types
+pub fn convert_vulnerability_types(
+    api_vulnerability_types: &[crate::api::VulnerabilityType],
+) -> Vec<VulnerabilityType> {
     let mut result = Vec::new();
-    
-    for vuln in vulnerabilities {
+    for vuln in api_vulnerability_types {
         match vuln {
             crate::api::VulnerabilityType::Reentrancy => {
                 result.push(VulnerabilityType::Reentrancy);
@@ -263,32 +295,26 @@ pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]
             crate::api::VulnerabilityType::AccessControl => {
                 result.push(VulnerabilityType::AccessControl);
             }
+            crate::api::VulnerabilityType::SelfDestruct => {
+                result.push(VulnerabilityType::SelfDestruct);
+            }
             crate::api::VulnerabilityType::OracleManipulation => {
                 result.push(VulnerabilityType::OracleManipulation);
             }
-            crate::api::VulnerabilityType::MEVVulnerability => {
-                result.push(VulnerabilityType::MEVVulnerability);
+            crate::api::VulnerabilityType::MevVulnerability => {
+                result.push(VulnerabilityType::MevVulnerability);
             }
             crate::api::VulnerabilityType::FrontRunning => {
                 result.push(VulnerabilityType::FrontRunning);
             }
             crate::api::VulnerabilityType::PriceManipulation => {
-                result.push(VulnerabilityType::OracleManipulation);
+                result.push(VulnerabilityType::PriceManipulation);
             }
             crate::api::VulnerabilityType::BlockNumberDependence => {
-                result.push(VulnerabilityType::BlockNumberDependency);
+                result.push(VulnerabilityType::BlockNumberDependence);
             }
             crate::api::VulnerabilityType::UninitializedStorage => {
                 result.push(VulnerabilityType::UninitializedStorage);
-            }
-            crate::api::VulnerabilityType::GovernanceVulnerability => {
-                result.push(VulnerabilityType::GovernanceVulnerability);
-            }
-            crate::api::VulnerabilityType::BitMaskVulnerability => {
-                result.push(VulnerabilityType::BitMaskVulnerability);
-            }
-            crate::api::VulnerabilityType::SelfDestruct => {
-                result.push(VulnerabilityType::SelfDestruct);
             }
             crate::api::VulnerabilityType::ProxyVulnerability => {
                 result.push(VulnerabilityType::ProxyVulnerability);
@@ -296,11 +322,28 @@ pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]
             crate::api::VulnerabilityType::GasGriefing => {
                 result.push(VulnerabilityType::GasGriefing);
             }
+            crate::api::VulnerabilityType::WeakRandomness => {
+                result.push(VulnerabilityType::WeakRandomness);
+            }
+            crate::api::VulnerabilityType::GovernanceVulnerability => {
+                result.push(VulnerabilityType::GovernanceVulnerability);
+            }
+            crate::api::VulnerabilityType::BitmaskVulnerability => {
+                result.push(VulnerabilityType::BitmaskVulnerability);
+            }
+            crate::api::VulnerabilityType::PrecisionLoss => {
+                result.push(VulnerabilityType::PrecisionLoss);
+            }
+            crate::api::VulnerabilityType::CentralizedControl => {
+                result.push(VulnerabilityType::CentralizedControl);
+            }
+            crate::api::VulnerabilityType::Other(x) => {
+                result.push(VulnerabilityType::Other(*x));
+            }
             _ => {
-                result.push(VulnerabilityType::Other(format!("{:?}", vuln)));
+                result.push(VulnerabilityType::Other(255));
             }
         }
     }
-    
     result
 }
