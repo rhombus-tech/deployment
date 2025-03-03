@@ -24,6 +24,9 @@ pub enum VulnerabilityType {
     BitmaskVulnerability,
     PrecisionLoss,
     CentralizedControl,
+    InsufficientSlippageProtection,
+    TimelockIssue,
+    UncheckedReturnValue,
     Other(u8),
 }
 
@@ -49,6 +52,9 @@ impl VulnerabilityType {
             crate::api::VulnerabilityType::BitmaskVulnerability => Self::BitmaskVulnerability,
             crate::api::VulnerabilityType::PrecisionLoss => Self::PrecisionLoss,
             crate::api::VulnerabilityType::CentralizedControl => Self::CentralizedControl,
+            crate::api::VulnerabilityType::InsufficientSlippageProtection => Self::InsufficientSlippageProtection,
+            crate::api::VulnerabilityType::TimelockIssue => Self::TimelockIssue,
+            crate::api::VulnerabilityType::UncheckedReturnValue => Self::UncheckedReturnValue,
             crate::api::VulnerabilityType::Other(x) => Self::Other(x),
             _ => Self::Other(255),
         }
@@ -336,6 +342,15 @@ pub fn convert_vulnerability_types(
             }
             crate::api::VulnerabilityType::CentralizedControl => {
                 result.push(VulnerabilityType::CentralizedControl);
+            }
+            crate::api::VulnerabilityType::InsufficientSlippageProtection => {
+                result.push(VulnerabilityType::InsufficientSlippageProtection);
+            }
+            crate::api::VulnerabilityType::TimelockIssue => {
+                result.push(VulnerabilityType::TimelockIssue);
+            }
+            crate::api::VulnerabilityType::UncheckedReturnValue => {
+                result.push(VulnerabilityType::UncheckedReturnValue);
             }
             crate::api::VulnerabilityType::Other(x) => {
                 result.push(VulnerabilityType::Other(*x));

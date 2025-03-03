@@ -62,6 +62,15 @@ pub enum VulnerabilityType {
     /// Centralized control vulnerability
     CentralizedControl,
     
+    /// Insufficient slippage protection in DeFi contracts
+    InsufficientSlippageProtection,
+    
+    /// Timelock issue in governance contracts
+    TimelockIssue,
+    
+    /// Unchecked return values from external calls
+    UncheckedReturnValue,
+    
     /// Other vulnerability type
     Other(u8),
     
