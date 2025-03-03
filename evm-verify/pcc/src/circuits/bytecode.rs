@@ -1,20 +1,96 @@
 use ark_ff::Field;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable};
-use ethers::types::U256;
+use ark_ff::{One, Zero};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, LinearCombination, Variable};
 use std::cmp::{min, max};
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use ethers::types::U256;
 use tiny_keccak::{Hasher, Keccak};
 
-// EVM opcodes relevant for reentrancy detection
-const CALL: u8 = 0xF1;
-const STATICCALL: u8 = 0xFA;
-const DELEGATECALL: u8 = 0xF4;
-const CALLCODE: u8 = 0xF2;
-const JUMPI: u8 = 0x57;
+// EVM Opcodes
+const STOP: u8 = 0x00;
+const ADD: u8 = 0x01;
+const MUL: u8 = 0x02;
+const SUB: u8 = 0x03;
+const DIV: u8 = 0x04;
+const SDIV: u8 = 0x05;
+const MOD: u8 = 0x06;
+const SMOD: u8 = 0x07;
+const ADDMOD: u8 = 0x08;
+const MULMOD: u8 = 0x09;
+const EXP: u8 = 0x0a;
+const SIGNEXTEND: u8 = 0x0b;
+const LT: u8 = 0x10;
+const GT: u8 = 0x11;
+const SLT: u8 = 0x12;
+const SGT: u8 = 0x13;
+const EQ: u8 = 0x14;
+const ISZERO: u8 = 0x15;
+const AND: u8 = 0x16;
+const OR: u8 = 0x17;
+const XOR: u8 = 0x18;
+const NOT: u8 = 0x19;
+const BYTE: u8 = 0x1a;
+const SHL: u8 = 0x1b;
+const SHR: u8 = 0x1c;
+const SAR: u8 = 0x1d;
+const SHA3: u8 = 0x20;
+const ADDRESS: u8 = 0x30;
+const BALANCE: u8 = 0x31;
+const ORIGIN: u8 = 0x32;
+const CALLER: u8 = 0x33;
+const CALLVALUE: u8 = 0x34;
+const CALLDATALOAD: u8 = 0x35;
+const CALLDATASIZE: u8 = 0x36;
+const CALLDATACOPY: u8 = 0x37;
+const CODESIZE: u8 = 0x38;
+const CODECOPY: u8 = 0x39;
+const GASPRICE: u8 = 0x3a;
+const EXTCODESIZE: u8 = 0x3b;
+const EXTCODECOPY: u8 = 0x3c;
+const RETURNDATASIZE: u8 = 0x3d;
+const RETURNDATACOPY: u8 = 0x3e;
+const EXTCODEHASH: u8 = 0x3f;
+const BLOCKHASH: u8 = 0x40;
+const COINBASE: u8 = 0x41;
+const TIMESTAMP: u8 = 0x42;
+const NUMBER: u8 = 0x43;
+const DIFFICULTY: u8 = 0x44;
+const GASLIMIT: u8 = 0x45;
+const CHAINID: u8 = 0x46;
+const SELFBALANCE: u8 = 0x47;
+const BASEFEE: u8 = 0x48;
+const POP: u8 = 0x50;
+const MLOAD: u8 = 0x51;
+const MSTORE: u8 = 0x52;
+const MSTORE8: u8 = 0x53;
 const SLOAD: u8 = 0x54;
 const SSTORE: u8 = 0x55;
-const SELFDESTRUCT: u8 = 0xFF;
+const JUMP: u8 = 0x56;
+const JUMPI: u8 = 0x57;
+const PC: u8 = 0x58;
+const MSIZE: u8 = 0x59;
+const GAS: u8 = 0x5a;
+const JUMPDEST: u8 = 0x5b;
+const PUSH1: u8 = 0x60;
+const PUSH2: u8 = 0x61;
+const PUSH32: u8 = 0x7f;
+const DUP1: u8 = 0x80;
+const DUP16: u8 = 0x8f;
+const SWAP1: u8 = 0x90;
+const SWAP16: u8 = 0x9f;
+const LOG0: u8 = 0xa0;
+const LOG4: u8 = 0xa4;
+const CREATE: u8 = 0xf0;
+const CALL: u8 = 0xf1;
+const CALLCODE: u8 = 0xf2;
+const RETURN: u8 = 0xf3;
+const DELEGATECALL: u8 = 0xf4;
+const CREATE2: u8 = 0xf5;
+const STATICCALL: u8 = 0xfa;
+const REVERT: u8 = 0xfd;
+const INVALID: u8 = 0xfe;
+const SELFDESTRUCT: u8 = 0xff;
 
 /// Bytecode safety circuit
 #[derive(Clone)]
@@ -220,11 +296,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         let computed_hash_vec = computed_hash.to_vec();
         
         // Check that the hashes match
-        if &computed_hash_vec != provided_hash {
-            return Err(SynthesisError::Unsatisfiable);
-        }
-        
-        Ok(true)
+        Ok(&computed_hash_vec == provided_hash)
     }
 
     /// Verify reentrancy vulnerability in bytecode
@@ -407,7 +479,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify uninitialized storage vulnerability in bytecode
-    pub fn verify_uninitialized_storage(&self, _cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    pub fn verify_uninitialized_storage(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
         println!("Verifying uninitialized storage vulnerability...");
         
         // Get the bytecode
@@ -416,41 +488,53 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             None => return Err(SynthesisError::AssignmentMissing),
         };
         
-        // Track initialized storage slots
-        let mut initialized_slots = HashSet::new();
-        
-        // First pass: identify all SSTORE operations and track their positions
-        for i in 0..bytecode.len() {
-            if i + 1 < bytecode.len() && bytecode[i] == 0x55 { // SSTORE opcode
-                // In a real implementation, we would track the actual storage slot
-                // For this simplified version, we'll just track that SSTORE was called
-                initialized_slots.insert(i);
-            }
-        }
-        
-        // Second pass: detect SLOAD operations that occur before any SSTORE
-        let mut uninitialized_reads = Vec::new();
-        let mut has_uninitialized_storage = false;
-        
-        for i in 0..bytecode.len() {
-            if i + 1 < bytecode.len() && bytecode[i] == 0x54 { // SLOAD opcode
-                // Check if we've seen an SSTORE operation before
-                if initialized_slots.is_empty() {
-                    // No SSTORE operations have been seen yet, this is a potential vulnerability
-                    uninitialized_reads.push(i);
-                    has_uninitialized_storage = true;
+        // Create a variable to represent the vulnerability detection result
+        let vulnerability_detected = cs.new_witness_variable(|| {
+            // Perform the detection logic
+            let mut has_uninitialized_storage = false;
+            
+            // Simple approach: check if SLOAD appears before any SSTORE in the bytecode
+            let mut first_sload_pos = bytecode.len();
+            let mut first_sstore_pos = bytecode.len();
+            
+            for i in 0..bytecode.len() {
+                if bytecode[i] == SLOAD && first_sload_pos == bytecode.len() {
+                    first_sload_pos = i;
+                }
+                if bytecode[i] == SSTORE && first_sstore_pos == bytecode.len() {
+                    first_sstore_pos = i;
                 }
             }
-        }
+            
+            // If we found an SLOAD before any SSTORE, it's a vulnerability
+            if first_sload_pos < first_sstore_pos {
+                has_uninitialized_storage = true;
+                println!("Uninitialized storage vulnerability detected: SLOAD at position {} before any SSTORE", first_sload_pos);
+            } else {
+                println!("No uninitialized storage vulnerability detected");
+            }
+            
+            if has_uninitialized_storage {
+                Ok(F::one())
+            } else {
+                Ok(F::zero())
+            }
+        })?;
         
-        // Log the results
-        if has_uninitialized_storage {
-            println!("Uninitialized storage vulnerability detected at positions: {:?}", uninitialized_reads);
-        } else {
-            println!("No uninitialized storage vulnerability detected");
-        }
+        // Create a constraint that enforces the vulnerability detection
+        // If vulnerability_detected is 1, then the constraint is satisfied
+        // If vulnerability_detected is 0, then the constraint is not satisfied
+        let one = cs.new_witness_variable(|| Ok(F::one()))?;
         
-        Ok(())
+        // Create a constraint that vulnerability_detected * (1 - vulnerability_detected) = 0
+        // This ensures that vulnerability_detected is either 0 or 1
+        cs.enforce_constraint(
+            vulnerability_detected.into(),
+            LinearCombination::from(one) - vulnerability_detected,
+            LinearCombination::zero(),
+        )?;
+        
+        Ok(vulnerability_detected)
     }
 
     /// Verify proxy contract vulnerability in bytecode
@@ -1082,14 +1166,54 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify governance vulnerability in bytecode
-    pub fn verify_governance_vulnerability(&self, _cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    pub fn verify_governance_vulnerability(&self, cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         println!("Verifying governance vulnerability...");
         
-        // This is a simplified implementation
-        // In a real implementation, we would look for patterns that indicate governance vulnerability
+        // Initialize governance vulnerability indicators
+        let mut has_governance_vulnerability = false;
         
-        // Log the results
-        println!("Governance vulnerability check is a placeholder - requires deeper analysis");
+        if let Some(bytecode) = &self.bytecode {
+            // 1. Check for insufficient timelock
+            let has_insufficient_timelock = self.detect_insufficient_timelock(bytecode);
+            
+            // 2. Check for weak quorum requirements
+            let has_weak_quorum = self.detect_weak_quorum(bytecode);
+            
+            // 3. Check for flash loan voting vulnerability
+            let has_flash_loan_voting = self.detect_flash_loan_voting(bytecode);
+            
+            // 4. Check for centralized admin controls
+            let has_centralized_admin = self.detect_centralized_admin(bytecode);
+            
+            // Determine if any governance vulnerability is present
+            has_governance_vulnerability = has_insufficient_timelock || 
+                                           has_weak_quorum || 
+                                           has_flash_loan_voting || 
+                                           has_centralized_admin;
+            
+            // Log the results
+            println!("Governance vulnerability check results:");
+            println!("  Insufficient Timelock: {}", has_insufficient_timelock);
+            println!("  Weak Quorum Requirements: {}", has_weak_quorum);
+            println!("  Flash Loan Voting Vulnerability: {}", has_flash_loan_voting);
+            println!("  Centralized Admin Controls: {}", has_centralized_admin);
+        }
+        
+        // Create a witness variable for the governance vulnerability
+        let governance_vulnerability_var = cs.new_witness_variable(|| {
+            if has_governance_vulnerability {
+                Ok(F::one())
+            } else {
+                Ok(F::zero())
+            }
+        })?;
+        
+        // Add constraint that governance_vulnerability_var is either 0 or 1
+        cs.enforce_constraint(
+            LinearCombination::from(governance_vulnerability_var.clone()),
+            LinearCombination::from(governance_vulnerability_var.clone()),
+            LinearCombination::from(governance_vulnerability_var)
+        )?;
         
         Ok(())
     }
@@ -1105,6 +1229,194 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("Bitmask vulnerability check is a placeholder - requires deeper analysis");
         
         Ok(())
+    }
+
+    /// Detect insufficient timelock in governance contracts
+    pub fn detect_insufficient_timelock(&self, bytecode: &[u8]) -> bool {
+        // Look for TIMESTAMP opcode (0x42) followed by small value comparison
+        // Typical pattern: TIMESTAMP, PUSH1/PUSH2 <small_value>, LT/GT/EQ
+        for i in 0..bytecode.len().saturating_sub(4) {
+            if bytecode[i] == 0x42 {
+                // Check for PUSH1 or PUSH2 followed by a small value
+                if i+1 < bytecode.len() && (bytecode[i+1] == 0x60 || bytecode[i+1] == 0x61) {
+                    let push_size = if bytecode[i+1] == 0x60 { 1 } else { 2 };
+                    
+                    // Get the timelock value
+                    let mut timelock_value = 0;
+                    if push_size == 1 && i+2 < bytecode.len() {
+                        timelock_value = bytecode[i+2] as u32;
+                    } else if push_size == 2 && i+3 < bytecode.len() {
+                        timelock_value = ((bytecode[i+2] as u32) << 8) | (bytecode[i+3] as u32);
+                    }
+                    
+                    // Check for comparison opcode after the PUSH
+                    if i+1+push_size < bytecode.len() {
+                        let comparison_op = bytecode[i+1+push_size];
+                        if comparison_op == 0x10 || comparison_op == 0x11 || comparison_op == 0x14 {
+                            // Consider timelock insufficient if it's less than 24 hours (in seconds)
+                            // 24 hours = 86400 seconds
+                            if timelock_value < 86400 {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        false
+    }
+
+    /// Detect weak quorum requirements in governance contracts
+    pub fn detect_weak_quorum(&self, bytecode: &[u8]) -> bool {
+        // Look for patterns that might indicate quorum checks
+        // Typical pattern: PUSH <small_percentage>, comparison operations
+        
+        for i in 0..bytecode.len().saturating_sub(4) {
+            // Look for PUSH1 or PUSH2 followed by a small value
+            if (bytecode[i] == PUSH1 || bytecode[i] == PUSH2) {
+                let push_size = if bytecode[i] == PUSH1 { 1 } else { 2 };
+                
+                // Get the potential quorum value
+                let mut quorum_value = 0;
+                if push_size == 1 && i+1 < bytecode.len() {
+                    quorum_value = bytecode[i+1] as u32;
+                } else if push_size == 2 && i+2 < bytecode.len() {
+                    quorum_value = ((bytecode[i+1] as u32) << 8) | (bytecode[i+2] as u32);
+                }
+                
+                // Check for comparison after the PUSH
+                if i+push_size < bytecode.len() {
+                    let op_after_push = bytecode[i+push_size];
+                    if op_after_push == LT || op_after_push == GT || op_after_push == EQ {
+                        // Check for operations that might indicate percentage calculation
+                        // Look for DIV (0x04) or MUL (0x02) operations nearby
+                        let search_range = 10; // Look 10 opcodes before and after
+                        let start = if i > search_range { i - search_range } else { 0 };
+                        let end = std::cmp::min(i + search_range, bytecode.len());
+                        
+                        let mut has_div_or_mul = false;
+                        for j in start..end {
+                            if j < bytecode.len() && (bytecode[j] == DIV || bytecode[j] == MUL) {
+                                has_div_or_mul = true;
+                                break;
+                            }
+                        }
+                        
+                        if has_div_or_mul {
+                            // Consider quorum weak if it's less than 33% (represented as 33 in bytecode)
+                            if quorum_value < 33 {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        false
+    }
+
+    /// Detect flash loan voting vulnerability in governance contracts
+    pub fn detect_flash_loan_voting(&self, bytecode: &[u8]) -> bool {
+        println!("Checking for flash loan voting vulnerability...");
+        println!("Bytecode length: {}", bytecode.len());
+        
+        // Look for patterns that might indicate voting without timelock
+        // Typical pattern: BALANCE (0x31) or SLOAD (0x54) followed by voting logic without TIMESTAMP check
+        
+        for i in 0..bytecode.len().saturating_sub(10) {
+            // Check for BALANCE or SLOAD operations that might be used for voting power
+            if bytecode[i] == BALANCE || bytecode[i] == SLOAD {
+                println!("Found BALANCE or SLOAD at position {}: 0x{:02x}", i, bytecode[i]);
+                
+                // Look for voting-related operations (comparison, arithmetic)
+                let mut has_voting_ops = false;
+                let mut has_timestamp_check = false;
+                
+                // Search the next 10 opcodes for voting-related operations
+                let search_end = std::cmp::min(i+10, bytecode.len());
+                for j in i+1..search_end {
+                    // Check for comparison or arithmetic operations
+                    if bytecode[j] == LT || bytecode[j] == GT || bytecode[j] == EQ || 
+                       bytecode[j] == ADD || bytecode[j] == SUB || bytecode[j] == MUL || bytecode[j] == DIV {
+                        has_voting_ops = true;
+                        println!("Found voting operation at position {}: 0x{:02x}", j, bytecode[j]);
+                    }
+                    
+                    // Check for TIMESTAMP opcode that might indicate a timelock
+                    if bytecode[j] == TIMESTAMP {
+                        has_timestamp_check = true;
+                        println!("Found TIMESTAMP check at position {}", j);
+                    }
+                }
+                
+                // Only check for TIMESTAMP in a narrower vicinity (10 opcodes before and after)
+                // This is to avoid false negatives when TIMESTAMP is used elsewhere in the contract
+                let start_idx = if i > 10 { i - 10 } else { 0 };
+                let end_idx = std::cmp::min(i + 20, bytecode.len());
+                
+                for j in start_idx..end_idx {
+                    if j != i && bytecode[j] == TIMESTAMP {
+                        has_timestamp_check = true;
+                        println!("Found TIMESTAMP check in vicinity at position {}", j);
+                    }
+                }
+                
+                println!("has_voting_ops: {}, has_timestamp_check: {}", has_voting_ops, has_timestamp_check);
+                
+                // If we found voting operations without a timestamp check, it might be vulnerable
+                if has_voting_ops && !has_timestamp_check {
+                    println!("Flash loan voting vulnerability detected!");
+                    return true;
+                }
+            }
+        }
+        
+        println!("No flash loan voting vulnerability detected.");
+        false
+    }
+
+    /// Detect centralized admin controls in governance contracts
+    pub fn detect_centralized_admin(&self, bytecode: &[u8]) -> bool {
+        // Look for patterns that might indicate centralized admin controls
+        // Typical pattern: CALLER (0x33) followed by comparison and privileged operations
+        
+        for i in 0..bytecode.len() {
+            if bytecode[i] == CALLER {
+                // Look for comparison operations after CALLER
+                let mut has_comparison = false;
+                let mut has_privileged_op = false;
+                
+                // Search the next 10 opcodes for comparison
+                for j in i+1..min(i+10, bytecode.len()) {
+                    if bytecode[j] == EQ || bytecode[j] == LT || bytecode[j] == GT {
+                        has_comparison = true;
+                        break;
+                    }
+                }
+                
+                // If comparison found, look for privileged operations
+                if has_comparison {
+                    // Search the next 20 opcodes for privileged operations
+                    for j in i+1..min(i+20, bytecode.len()) {
+                        // Check for operations that might indicate privileged actions
+                        if bytecode[j] == SSTORE || bytecode[j] == SELFDESTRUCT || 
+                           bytecode[j] == DELEGATECALL || bytecode[j] == CALL {
+                            has_privileged_op = true;
+                            break;
+                        }
+                    }
+                    
+                    // If we found both comparison and privileged operations, it might be centralized
+                    if has_privileged_op {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        false
     }
 }
 
@@ -1161,7 +1473,17 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         }
         
         if self.uninitialized_storage_present {
-            self.verify_uninitialized_storage(&mut cs.clone())?;
+            let uninitialized_storage_var = self.verify_uninitialized_storage(&mut cs.clone())?;
+            
+            // If uninitialized_storage_var is 1, then the vulnerability is detected
+            // If we're checking for this vulnerability, we want to enforce that it's not present
+            // So we enforce that uninitialized_storage_var must be 0
+            let one = cs.new_witness_variable(|| Ok(F::one()))?;
+            cs.enforce_constraint(
+                uninitialized_storage_var.into(),
+                LinearCombination::from(one),
+                LinearCombination::zero(),
+            )?;
         }
         
         if self.proxy_vulnerability_present {
