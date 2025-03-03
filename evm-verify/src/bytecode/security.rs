@@ -175,6 +175,10 @@ pub enum SecurityWarningKind {
     HardcodedAccessControl,
     /// tx.origin usage vulnerability
     TxOriginUsage,
+    /// User-controlled delegate call target vulnerability
+    UserControlledDelegateCall,
+    /// Delegate call context confusion vulnerability
+    DelegateCallContextConfusion,
     /// Gas limit issue vulnerability
     GasLimitIssue,
     /// Unprotected upgrade function vulnerability
@@ -742,6 +746,44 @@ impl SecurityWarning {
             ],
             "Implement checks-effects-interactions pattern across all contracts. Consider using ReentrancyGuard or similar mechanisms in all contracts that interact with each other.".to_string(),
         )
+    }
+
+    /// Create a user-controlled delegate call target warning
+    pub fn user_controlled_delegate_call(pc: u64, target: H256, data: Vec<u8>) -> Self {
+        let operations = vec![
+            Operation::DelegateCall {
+                target,
+                data: data.clone(),
+            },
+        ];
+        
+        Self {
+            kind: SecurityWarningKind::UserControlledDelegateCall,
+            description: "User-controlled delegate call target detected".to_string(),
+            severity: SecuritySeverity::Critical,
+            pc,
+            operations,
+            remediation: "Ensure delegate call targets are validated and cannot be controlled by untrusted users".to_string(),
+        }
+    }
+    
+    /// Create a delegate call context confusion warning
+    pub fn delegate_call_context_confusion(pc: u64, target: H256, data: Vec<u8>) -> Self {
+        let operations = vec![
+            Operation::DelegateCall {
+                target,
+                data: data.clone(),
+            },
+        ];
+        
+        Self {
+            kind: SecurityWarningKind::DelegateCallContextConfusion,
+            description: "Potential context confusion in delegate call detected".to_string(),
+            severity: SecuritySeverity::High,
+            pc,
+            operations,
+            remediation: "Ensure proper context management when using delegate calls".to_string(),
+        }
     }
 }
 

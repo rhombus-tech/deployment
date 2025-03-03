@@ -2253,8 +2253,26 @@ impl BytecodeAnalyzer {
                 warnings.push(SecurityWarning::unprotected_delegate_call(
                     location as u64,
                     target,
-                    data
+                    data.clone()
                 ));
+                
+                // Check if the target is user-controlled
+                if self.is_potentially_user_controlled_target(location, &bytecode_vec) {
+                    warnings.push(SecurityWarning::user_controlled_delegate_call(
+                        location as u64,
+                        target,
+                        data.clone()
+                    ));
+                }
+                
+                // Check for context confusion
+                if self.is_potentially_context_confused(location, &bytecode_vec) {
+                    warnings.push(SecurityWarning::delegate_call_context_confusion(
+                        location as u64,
+                        target,
+                        data
+                    ));
+                }
             }
         }
         
@@ -2318,6 +2336,48 @@ impl BytecodeAnalyzer {
                 
                 // Other potentially unsafe sources
                 0x3b | 0x3c | 0x3e => return true, // EXTCODESIZE, EXTCODECOPY, RETURNDATACOPY
+                
+                _ => {}
+            }
+        }
+        
+        // If we can't determine for sure, be conservative and flag it
+        true
+    }
+
+    /// Determine if a target address might be user-controlled (simplified heuristic)
+    fn is_potentially_user_controlled_target(&self, location: usize, bytecode: &[u8]) -> bool {
+        // Check the previous opcodes to see where the address comes from
+        // This is a very simplified heuristic
+        
+        // Look back up to 10 instructions to see if the address comes from user input
+        let start = if location > 10 { location - 10 } else { 0 };
+        
+        for i in start..location {
+            match bytecode[i] {
+                // If address comes from calldata, it might be user-controlled
+                0x35 => return true, // CALLDATALOAD
+                
+                _ => {}
+            }
+        }
+        
+        // If we can't determine for sure, be conservative and flag it
+        true
+    }
+
+    /// Determine if a delegate call might be context-confused (simplified heuristic)
+    fn is_potentially_context_confused(&self, location: usize, bytecode: &[u8]) -> bool {
+        // Check the previous opcodes to see if there's a CALLER or ORIGIN
+        // This is a very simplified heuristic
+        
+        // Look back up to 10 instructions to see if there's a CALLER or ORIGIN
+        let start = if location > 10 { location - 10 } else { 0 };
+        
+        for i in start..location {
+            match bytecode[i] {
+                // If there's a CALLER or ORIGIN, it might be context-confused
+                0x33 | 0x32 => return true, // CALLER, ORIGIN
                 
                 _ => {}
             }
