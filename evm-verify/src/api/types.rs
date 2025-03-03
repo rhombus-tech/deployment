@@ -142,6 +142,12 @@ pub enum VulnerabilityType {
     /// Delegate call vulnerability
     DelegateCall,
     
+    /// User-controlled delegate call target vulnerability
+    UserControlledDelegateCall,
+    
+    /// Delegate call context confusion vulnerability
+    DelegateCallContextConfusion,
+    
     /// Timestamp dependency vulnerability
     TimestampDependency,
     

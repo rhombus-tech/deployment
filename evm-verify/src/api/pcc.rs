@@ -140,6 +140,10 @@ fn convert_warnings_to_vulnerabilities(warnings: &[SecurityWarning]) -> Vec<Vuln
                 crate::bytecode::security::SecurityWarningKind::ProxyVulnerability => VulnerabilityType::ProxyVulnerability,
                 crate::bytecode::security::SecurityWarningKind::OracleManipulation => VulnerabilityType::OracleManipulation,
                 crate::bytecode::security::SecurityWarningKind::GovernanceVulnerability => VulnerabilityType::GovernanceVulnerability,
+                crate::bytecode::security::SecurityWarningKind::TimestampDependence => VulnerabilityType::TimestampDependency,
+                crate::bytecode::security::SecurityWarningKind::BlockTimestampDependency => VulnerabilityType::TimestampDependency,
+                crate::bytecode::security::SecurityWarningKind::UnsafeTimestampComparison => VulnerabilityType::TimestampDependency,
+                crate::bytecode::security::SecurityWarningKind::TimeBasedRandomness => VulnerabilityType::TimestampDependency,
                 crate::bytecode::security::SecurityWarningKind::MEVVulnerability => VulnerabilityType::Unknown,
                 crate::bytecode::security::SecurityWarningKind::PriceManipulation => VulnerabilityType::Unknown,
                 crate::bytecode::security::SecurityWarningKind::BitMaskVulnerability => VulnerabilityType::Unknown,
@@ -208,6 +212,18 @@ fn convert_analyzer_to_circuit_vulnerabilities(warnings: &[SecurityWarning]) -> 
             },
             crate::bytecode::security::SecurityWarningKind::BitMaskVulnerability => {
                 vulnerability_types.push(AnalyzerVulnerabilityType::BitMaskVulnerability);
+            },
+            crate::bytecode::security::SecurityWarningKind::TimestampDependence => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::TimestampDependence);
+            },
+            crate::bytecode::security::SecurityWarningKind::BlockTimestampDependency => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::TimestampDependence);
+            },
+            crate::bytecode::security::SecurityWarningKind::UnsafeTimestampComparison => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::TimestampDependence);
+            },
+            crate::bytecode::security::SecurityWarningKind::TimeBasedRandomness => {
+                vulnerability_types.push(AnalyzerVulnerabilityType::TimestampDependence);
             },
             _ => {
                 // Other vulnerability types not yet supported in the circuit

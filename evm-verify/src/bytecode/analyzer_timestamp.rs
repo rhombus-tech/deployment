@@ -4,9 +4,9 @@
 // Timestamp dependencies can be exploited by miners to manipulate contract execution.
 
 use crate::bytecode::types::{AnalysisResults, TimestampDependency};
-use crate::bytecode::opcodes::{Opcode, TIMESTAMP};
+use crate::bytecode::opcodes::{Opcode, TIMESTAMP, LT, GT, SLT, SGT, EQ, ADD, MUL, SUB, DIV, MOD, JUMPI, JUMP};
 use anyhow::Result;
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
+use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
 use crate::bytecode::analyzer::BytecodeAnalyzer;
 
 /// Detect timestamp dependency vulnerabilities in bytecode
@@ -22,15 +22,114 @@ pub fn detect_timestamp_dependencies(analyzer: &BytecodeAnalyzer) -> Vec<Securit
     // Scan bytecode for TIMESTAMP opcode (0x42)
     for i in 0..bytecode.len() {
         if bytecode[i] == TIMESTAMP {
-            // Look ahead for comparison operations
-            if let Some(comparison_op) = TimestampDependencyDetector::find_comparison_after_timestamp(&bytecode[i+1..]) {
-                // Add a security warning for timestamp dependency
-                warnings.push(SecurityWarning::timestamp_dependence(i as u64));
+            // Window size for looking ahead in the bytecode
+            let window_size = 15;
+            let end_idx = std::cmp::min(i + window_size, bytecode.len());
+            let window = &bytecode[i+1..end_idx];
+            
+            // 1. Check for comparison operations (LT, GT, SLT, SGT, EQ)
+            if let Some((op_idx, op_type)) = find_comparison_operation(window) {
+                let pc = i as u64;
+                let abs_op_idx = i + 1 + op_idx;
+                
+                // Check if it's an equality comparison (more dangerous)
+                if op_type == "EQ" {
+                    warnings.push(SecurityWarning::new(
+                        SecurityWarningKind::UnsafeTimestampComparison,
+                        SecuritySeverity::Medium,
+                        pc,
+                        "Unsafe timestamp equality comparison detected. Exact timestamp matching can be manipulated by miners.".to_string(),
+                        vec![Operation::Timestamp, Operation::Comparison { op_type: op_type.to_string() }],
+                        "Use timestamp ranges (greater than, less than) instead of exact equality checks.".to_string()
+                    ));
+                } else {
+                    // General timestamp comparison
+                    warnings.push(SecurityWarning::new(
+                        SecurityWarningKind::TimestampDependence,
+                        SecuritySeverity::Medium,
+                        pc,
+                        format!("Timestamp dependency detected at offset {}. This can be manipulated by miners and should not be used for critical operations.", pc),
+                        vec![Operation::Timestamp, Operation::Comparison { op_type: op_type.to_string() }],
+                        "Consider using block numbers instead of timestamps for time-dependent logic, or ensure the timestamp is only used for non-critical operations.".to_string()
+                    ));
+                }
+            }
+            
+            // 2. Check for control flow operations (JUMP, JUMPI)
+            if let Some(op_idx) = find_control_flow_operation(window) {
+                let pc = i as u64;
+                let abs_op_idx = i + 1 + op_idx;
+                
+                warnings.push(SecurityWarning::new(
+                    SecurityWarningKind::BlockTimestampDependency,
+                    SecuritySeverity::Medium,
+                    pc,
+                    format!("Block timestamp used in control flow decision at offset {}. This can be manipulated by miners.", pc),
+                    vec![Operation::Timestamp],
+                    "Avoid using block.timestamp for critical control flow decisions. Consider using block numbers or oracles for time-sensitive operations.".to_string()
+                ));
+            }
+            
+            // 3. Check for arithmetic operations (potential randomness generation)
+            if let Some((op_idx, op_type)) = find_arithmetic_operation(window) {
+                let pc = i as u64;
+                let abs_op_idx = i + 1 + op_idx;
+                
+                warnings.push(SecurityWarning::new(
+                    SecurityWarningKind::TimeBasedRandomness,
+                    SecuritySeverity::High,
+                    pc,
+                    format!("Timestamp used in arithmetic operation ({}). This may indicate an attempt to generate randomness using block.timestamp, which is predictable.", op_type),
+                    vec![Operation::Timestamp, Operation::Randomness { source: "block.timestamp".to_string(), predictability: 90 }],
+                    "Do not use block.timestamp for randomness. Consider using a secure randomness source like Chainlink VRF or commit-reveal schemes.".to_string()
+                ));
             }
         }
     }
     
     warnings
+}
+
+/// Find comparison operations in the bytecode window
+fn find_comparison_operation(bytecode: &[u8]) -> Option<(usize, &'static str)> {
+    for i in 0..bytecode.len() {
+        match bytecode[i] {
+            LT => return Some((i, "LT")),   // Less than
+            GT => return Some((i, "GT")),   // Greater than
+            SLT => return Some((i, "SLT")), // Signed less than
+            SGT => return Some((i, "SGT")), // Signed greater than
+            EQ => return Some((i, "EQ")),   // Equal
+            _ => continue,
+        }
+    }
+    None
+}
+
+/// Find control flow operations in the bytecode window
+fn find_control_flow_operation(bytecode: &[u8]) -> Option<usize> {
+    for i in 0..bytecode.len() {
+        match bytecode[i] {
+            JUMPI => return Some(i), // Conditional jump
+            JUMP => return Some(i),  // Unconditional jump (less common but possible)
+            _ => continue,
+        }
+    }
+    None
+}
+
+/// Find arithmetic operations in the bytecode window
+fn find_arithmetic_operation(bytecode: &[u8]) -> Option<(usize, &'static str)> {
+    for i in 0..bytecode.len() {
+        match bytecode[i] {
+            ADD => return Some((i, "ADD")), // Addition
+            MUL => return Some((i, "MUL")), // Multiplication
+            SUB => return Some((i, "SUB")), // Subtraction
+            DIV => return Some((i, "DIV")), // Division
+            MOD => return Some((i, "MOD")), // Modulo
+            _ => continue,
+        }
+    }
+    None
 }
 
 /// Timestamp dependency detector

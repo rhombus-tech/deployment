@@ -539,8 +539,10 @@ impl BytecodeAnalyzer {
         // Look for TIMESTAMP opcode (0x42)
         for i in 0..bytecode_vec.len() {
             if bytecode_vec[i] == 0x42 { // TIMESTAMP opcode
-                // Check if there's a comparison or condition after the timestamp
-                // This is a simplified check - a real implementation would analyze control flow
+                // Check for different types of timestamp vulnerabilities
+                
+                // 1. Check for comparison operations (potential for manipulation)
+                let mut found_comparison = false;
                 for j in i+1..bytecode_vec.len().min(i+10) { // Look at next 10 opcodes
                     match bytecode_vec[j] {
                         // Comparison opcodes
@@ -550,31 +552,84 @@ impl BytecodeAnalyzer {
                                 SecurityWarningKind::TimestampDependence,
                                 SecuritySeverity::Medium,
                                 i as u64,
-                                "Timestamp dependency detected. Using block.timestamp as a source of randomness or for critical decision making is vulnerable to manipulation.".to_string(),
+                                "Timestamp dependency detected. Using block.timestamp for critical decision making is vulnerable to manipulation by miners.".to_string(),
                                 vec![Operation::BlockInformation { 
                                     info_type: "TIMESTAMP".to_string() 
                                 }],
-                                "Avoid using block.timestamp for randomness or critical conditions. For randomness, consider an oracle solution. For timing, use block numbers or time deltas rather than absolute timestamps.".to_string(),
+                                "Avoid using block.timestamp for critical conditions. For timing, use block numbers or time deltas rather than absolute timestamps. If you must use timestamps, ensure your logic can tolerate manipulation of up to 15 seconds.".to_string(),
                             );
                             warnings.push(warning);
-                            break; // Only report one vulnerability per timestamp usage
-                        },
-                        // Control flow opcodes
-                        0x56 | 0x57 => { // JUMP, JUMPI
-                            let warning = SecurityWarning::new(
-                                SecurityWarningKind::TimestampDependence,
-                                SecuritySeverity::Medium,
-                                i as u64,
-                                "Timestamp used in control flow decision. Block timestamps can be manipulated by miners within a certain range.".to_string(),
-                                vec![Operation::BlockInformation { 
-                                    info_type: "TIMESTAMP".to_string() 
-                                }],
-                                "Consider if your contract logic can tolerate timestamp manipulation of up to 15 seconds. For precise timing, use block numbers as a more reliable indicator of time progression.".to_string(),
-                            );
-                            warnings.push(warning);
+                            found_comparison = true;
                             break; // Only report one vulnerability per timestamp usage
                         },
                         _ => continue,
+                    }
+                }
+                
+                // 2. Check for control flow operations (potential for manipulation)
+                if !found_comparison {
+                    for j in i+1..bytecode_vec.len().min(i+15) { // Look at next 15 opcodes
+                        match bytecode_vec[j] {
+                            // Control flow opcodes
+                            0x56 | 0x57 => { // JUMP, JUMPI
+                                let warning = SecurityWarning::new(
+                                    SecurityWarningKind::BlockTimestampDependency,
+                                    SecuritySeverity::Medium,
+                                    i as u64,
+                                    "Timestamp used in control flow decision. Block timestamps can be manipulated by miners within a certain range.".to_string(),
+                                    vec![Operation::BlockInformation { 
+                                        info_type: "TIMESTAMP".to_string() 
+                                    }],
+                                    "Consider if your contract logic can tolerate timestamp manipulation of up to 15 seconds. For precise timing, use block numbers as a more reliable indicator of time progression.".to_string(),
+                                );
+                                warnings.push(warning);
+                                found_comparison = true;
+                                break; // Only report one vulnerability per timestamp usage
+                            },
+                            _ => continue,
+                        }
+                    }
+                }
+                
+                // 3. Check for arithmetic operations (potential for randomness generation)
+                if !found_comparison {
+                    for j in i+1..bytecode_vec.len().min(i+10) { // Look at next 10 opcodes
+                        match bytecode_vec[j] {
+                            // Arithmetic opcodes
+                            0x01 | 0x02 | 0x06 | 0x07 | 0x08 | 0x09 | 0x0A => { // ADD, MUL, MOD, SMOD, ADDMOD, MULMOD, EXP
+                                let warning = SecurityWarning::new(
+                                    SecurityWarningKind::TimeBasedRandomness,
+                                    SecuritySeverity::High,
+                                    i as u64,
+                                    "Potential use of block.timestamp as a source of randomness. This is predictable and can be manipulated by miners.".to_string(),
+                                    vec![Operation::BlockInformation { 
+                                        info_type: "TIMESTAMP".to_string() 
+                                    }],
+                                    "Do not use block.timestamp as a source of randomness. Use a secure randomness source such as Chainlink VRF or commit-reveal schemes.".to_string(),
+                                );
+                                warnings.push(warning);
+                                break; // Only report one vulnerability per timestamp usage
+                            },
+                            _ => continue,
+                        }
+                    }
+                }
+                
+                // 4. Check for equality comparisons (unsafe timestamp comparison)
+                for j in i+1..bytecode_vec.len().min(i+10) { // Look at next 10 opcodes
+                    if bytecode_vec[j] == 0x14 { // EQ opcode
+                        let warning = SecurityWarning::new(
+                            SecurityWarningKind::UnsafeTimestampComparison,
+                            SecuritySeverity::Medium,
+                            i as u64,
+                            "Unsafe timestamp equality comparison detected. Exact timestamp matching is vulnerable to manipulation.".to_string(),
+                            vec![Operation::BlockInformation { 
+                                info_type: "TIMESTAMP".to_string() 
+                            }],
+                            "Use timestamp ranges or thresholds instead of exact equality comparisons. Consider implementing a buffer period to account for potential timestamp manipulation.".to_string(),
+                        );
+                        warnings.push(warning);
+                        break; // Only report one vulnerability per timestamp usage
                     }
                 }
             }

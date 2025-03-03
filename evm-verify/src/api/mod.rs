@@ -999,6 +999,10 @@ impl EVMVerify {
                         "Implement proper access controls for self-destruct operations".to_string(),
                     VulnerabilityType::DelegateCall => 
                         "Use delegatecall with extreme caution and proper validation".to_string(),
+                    VulnerabilityType::UserControlledDelegateCall => 
+                        "Never allow user-controlled addresses as delegatecall targets. Implement strict validation and whitelisting.".to_string(),
+                    VulnerabilityType::DelegateCallContextConfusion => 
+                        "Be careful with storage access after delegatecall. Use isolated storage patterns to prevent context confusion.".to_string(),
                     VulnerabilityType::TimestampDependency => 
                         "Avoid using block.timestamp for critical decisions".to_string(),
                     VulnerabilityType::FrontRunning => 

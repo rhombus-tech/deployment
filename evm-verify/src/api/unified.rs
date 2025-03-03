@@ -166,6 +166,26 @@ impl UnifiedVerifier {
                             SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
                         },
                     ),
+                    SecurityWarningKind::UserControlledDelegateCall => (
+                        VulnerabilityType::UserControlledDelegateCall,
+                        match warning.severity {
+                            SecuritySeverity::High => VulnerabilitySeverity::High,
+                            SecuritySeverity::Medium => VulnerabilitySeverity::Medium,
+                            SecuritySeverity::Low => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Info => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
+                        },
+                    ),
+                    SecurityWarningKind::DelegateCallContextConfusion => (
+                        VulnerabilityType::DelegateCallContextConfusion,
+                        match warning.severity {
+                            SecuritySeverity::High => VulnerabilitySeverity::High,
+                            SecuritySeverity::Medium => VulnerabilitySeverity::Medium,
+                            SecuritySeverity::Low => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Info => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
+                        },
+                    ),
                     SecurityWarningKind::UnprotectedSelfDestruct => (
                         VulnerabilityType::SelfDestruct,
                         match warning.severity {
@@ -239,6 +259,34 @@ impl UnifiedVerifier {
                             SecuritySeverity::Info => VulnerabilitySeverity::Low,
                             SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
                         },
+                    ),
+                    SecurityWarningKind::TimestampDependence => (
+                        VulnerabilityType::TimestampDependency,
+                        match warning.severity {
+                            SecuritySeverity::High => VulnerabilitySeverity::High,
+                            SecuritySeverity::Medium => VulnerabilitySeverity::Medium,
+                            SecuritySeverity::Low => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Info => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
+                        },
+                    ),
+                    SecurityWarningKind::BlockTimestampDependency => (
+                        VulnerabilityType::TimestampDependency,
+                        match warning.severity {
+                            SecuritySeverity::High => VulnerabilitySeverity::High,
+                            SecuritySeverity::Medium => VulnerabilitySeverity::Medium,
+                            SecuritySeverity::Low => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Info => VulnerabilitySeverity::Low,
+                            SecuritySeverity::Critical => VulnerabilitySeverity::Critical,
+                        },
+                    ),
+                    SecurityWarningKind::UnsafeTimestampComparison => (
+                        VulnerabilityType::TimestampDependency,
+                        VulnerabilitySeverity::Medium,
+                    ),
+                    SecurityWarningKind::TimeBasedRandomness => (
+                        VulnerabilityType::TimestampDependency,
+                        VulnerabilitySeverity::High,
                     ),
                     _ => (
                         VulnerabilityType::Other,
@@ -622,7 +670,6 @@ mod tests {
             v.description.to_lowercase().contains("flash loan") || 
             v.description.to_lowercase().contains("state changes after external calls")
         );
-        
         assert!(has_flash_loan_vulnerability, "Expected flash loan vulnerability (a type of reentrancy)");
     }
 
