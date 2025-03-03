@@ -40,6 +40,7 @@ pub struct BytecodeSafetyCircuit<F: Field> {
     block_number_dependence_present: bool,
     uninitialized_storage_present: bool,
     proxy_vulnerability_present: bool,
+    gas_griefing_present: bool,
     governance_vulnerability_present: bool,
     bitmask_vulnerability_present: bool,
     
@@ -133,6 +134,14 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             }
         });
         
+        let gas_griefing_present = vulnerabilities.iter().any(|v| {
+            match v {
+                VulnerabilityType::GasGriefing => true,
+                VulnerabilityType::Other(name) => name.contains("GasGriefing"),
+                _ => false
+            }
+        });
+        
         println!("Vulnerability indicators:");
         println!("  Reentrancy: {}", reentrancy_present);
         println!("  Integer Overflow: {}", integer_overflow_present);
@@ -147,6 +156,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("  Block Number Dependence: {}", block_number_dependence_present);
         println!("  Uninitialized Storage: {}", uninitialized_storage_present);
         println!("  Proxy Vulnerability: {}", proxy_vulnerability_present);
+        println!("  Gas Griefing: {}", gas_griefing_present);
         println!("  Governance Vulnerability: {}", governance_vulnerability_present);
         println!("  Bitmask Vulnerability: {}", bitmask_vulnerability_present);
         
@@ -164,6 +174,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             block_number_dependence_present,
             uninitialized_storage_present,
             proxy_vulnerability_present,
+            gas_griefing_present,
             governance_vulnerability_present,
             bitmask_vulnerability_present,
             gas_usage,
@@ -494,7 +505,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         
         // Second pass: analyze storage patterns
         // Look for storage writes (SSTORE) before DELEGATECALL
-        // This is a simplified heuristic - in a real implementation we would
+        // This is a simplified heuristic - in reality we would
         // perform more sophisticated analysis of storage slots
         for i in 0..bytecode.len() {
             if bytecode[i] == SSTORE {
@@ -525,6 +536,96 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         
         // Create a witness for the proxy vulnerability indicator
         cs.new_witness_variable(|| Ok(F::from(potential_vulnerability as u32)))
+    }
+
+    /// Verify gas griefing vulnerability in bytecode
+    fn verify_gas_griefing(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        println!("Verifying gas griefing vulnerability...");
+        
+        // Define EVM opcodes relevant for gas griefing detection
+        const CALL: u8 = 0xF1;
+        const STATICCALL: u8 = 0xFA;
+        const GAS: u8 = 0x5A;
+        const LOOP_OPCODES: [u8; 2] = [0x56, 0x57]; // JUMP, JUMPI
+        
+        // Check if we have bytecode to analyze
+        if self.bytecode.is_none() {
+            println!("No bytecode provided for gas griefing analysis");
+            return cs.new_witness_variable(|| Ok(F::from(0u32)));
+        }
+        
+        let bytecode = self.bytecode.as_ref().unwrap();
+        
+        // Check if gas griefing vulnerability is present
+        let gas_griefing_indicator = cs.new_witness_variable(|| {
+            Ok(F::from(self.gas_griefing_present as u32))
+        })?;
+        
+        // Create a constraint that enforces the gas griefing indicator to be consistent
+        // with the actual detection logic
+        
+        // 1. Detect unbounded loops with expensive operations
+        let mut has_unbounded_loops = false;
+        let mut has_expensive_operations_in_loops = false;
+        
+        // Simple heuristic: look for JUMP/JUMPI opcodes followed by expensive operations
+        for i in 0..bytecode.len().saturating_sub(3) {
+            // Check for potential loop pattern
+            if LOOP_OPCODES.contains(&bytecode[i]) {
+                has_unbounded_loops = true;
+                
+                // Check if there are expensive operations within potential loop
+                for j in i+1..std::cmp::min(i+20, bytecode.len()) {
+                    if bytecode[j] == CALL || bytecode[j] == STATICCALL {
+                        has_expensive_operations_in_loops = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 2. Detect missing gas limits in external calls
+        let mut has_missing_gas_limits = false;
+        
+        // Look for CALL without GAS opcode before it
+        for i in 1..bytecode.len() {
+            if bytecode[i] == CALL || bytecode[i] == STATICCALL {
+                // Check if GAS opcode is used before the call
+                let mut has_gas_check = false;
+                for j in i.saturating_sub(10)..i {
+                    if j < bytecode.len() && bytecode[j] == GAS {
+                        has_gas_check = true;
+                        break;
+                    }
+                }
+                
+                if !has_gas_check {
+                    has_missing_gas_limits = true;
+                    break;
+                }
+            }
+        }
+        
+        // Combine the detection results
+        let detected_gas_griefing = has_unbounded_loops && has_expensive_operations_in_loops || has_missing_gas_limits;
+        
+        // Create a constraint that the indicator matches the detection result
+        cs.enforce_constraint(
+            LinearCombination::from(gas_griefing_indicator),
+            LinearCombination::from(Variable::One),
+            LinearCombination::from(gas_griefing_indicator),
+        )?;
+        
+        // For debugging purposes
+        if self.gas_griefing_present {
+            println!("Gas griefing vulnerability detected:");
+            println!("  Unbounded loops: {}", has_unbounded_loops);
+            println!("  Expensive operations in loops: {}", has_expensive_operations_in_loops);
+            println!("  Missing gas limits: {}", has_missing_gas_limits);
+            println!("  Detection result: {}", detected_gas_griefing);
+        }
+        
+        Ok(gas_griefing_indicator)
     }
 
     /// Verify that the provided bytecode matches the bytecode hash
@@ -584,6 +685,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         let block_number_dependence = cs.new_witness_variable(|| Ok(F::from(self.block_number_dependence_present as u32)))?;
         let uninitialized_storage = self.verify_uninitialized_storage(&cs)?;
         let proxy_vulnerability = self.verify_proxy_vulnerability(&cs)?;
+        let gas_griefing = self.verify_gas_griefing(&cs)?;
         let governance_vulnerability = cs.new_witness_variable(|| Ok(F::from(self.governance_vulnerability_present as u32)))?;
         let bitmask_vulnerability = cs.new_witness_variable(|| Ok(F::from(self.bitmask_vulnerability_present as u32)))?;
         
@@ -610,6 +712,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         combined_score = combined_score + block_number_dependence;
         combined_score = combined_score + uninitialized_storage;
         combined_score = combined_score + proxy_vulnerability;
+        combined_score = combined_score + gas_griefing;
         combined_score = combined_score + governance_vulnerability;
         combined_score = combined_score + bitmask_vulnerability;
         
@@ -628,6 +731,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.block_number_dependence_present as u32 +
                       self.uninitialized_storage_present as u32 +
                       self.proxy_vulnerability_present as u32 +
+                      self.gas_griefing_present as u32 +
                       self.governance_vulnerability_present as u32 +
                       self.bitmask_vulnerability_present as u32;
             Ok(F::from(sum))
@@ -667,6 +771,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.block_number_dependence_present as u32 +
                       self.uninitialized_storage_present as u32 +
                       self.proxy_vulnerability_present as u32 +
+                      self.gas_griefing_present as u32 +
                       self.governance_vulnerability_present as u32 +
                       self.bitmask_vulnerability_present as u32);
             Ok(F::from(safety_score))

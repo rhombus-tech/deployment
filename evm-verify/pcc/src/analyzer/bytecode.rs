@@ -17,6 +17,7 @@ pub enum VulnerabilityType {
     BlockNumberDependency,
     UninitializedStorage,
     ProxyVulnerability,
+    GasGriefing,
     GovernanceVulnerability,
     BitMaskVulnerability,
     SelfDestruct,
@@ -291,6 +292,9 @@ pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]
             }
             crate::api::VulnerabilityType::ProxyVulnerability => {
                 result.push(VulnerabilityType::ProxyVulnerability);
+            }
+            crate::api::VulnerabilityType::GasGriefing => {
+                result.push(VulnerabilityType::GasGriefing);
             }
             _ => {
                 result.push(VulnerabilityType::Other(format!("{:?}", vuln)));

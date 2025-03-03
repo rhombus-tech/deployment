@@ -91,6 +91,9 @@ pub enum VulnerabilityType {
     /// Block number dependence vulnerability
     BlockNumberDependence,
     
+    /// Gas griefing vulnerability
+    GasGriefing,
+    
     /// Unknown vulnerability type
     Unknown,
     

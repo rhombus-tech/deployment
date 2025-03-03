@@ -263,4 +263,57 @@ mod tests {
         
         println!("Proxy vulnerability detection test completed successfully");
     }
+
+    #[test]
+    fn test_gas_griefing_detection() {
+        // Create a simple bytecode with gas griefing vulnerability
+        // This bytecode has:
+        // 1. A loop structure (JUMPDEST, PUSH, JUMPI)
+        // 2. An external call without proper gas checks
+        
+        // JUMPDEST (0x5B)
+        // PUSH1 0x01 (0x6001)
+        // PUSH1 0x02 (0x6002)
+        // CALL (0xF1) - External call without gas check
+        // PUSH1 0x00 (0x6000)
+        // JUMPI (0x57) - Potential loop
+        
+        let bytecode = vec![
+            0x5B, 0x60, 0x01, 0x60, 0x02, 0xF1, 0x60, 0x00, 0x57
+        ];
+        
+        // Create a circuit with the gas griefing vulnerability
+        let vulnerabilities = vec![VulnerabilityType::GasGriefing];
+        let circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &vulnerabilities,
+            U256::from(1000),
+            1,
+            bytecode,
+            None,
+        );
+        
+        // Create a constraint system
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        
+        // Generate constraints
+        circuit.clone().generate_constraints(cs.clone()).unwrap();
+        
+        // Check that the circuit can be constructed and constraints generated
+        println!("Gas griefing detection test completed successfully");
+        
+        // Create a circuit without the vulnerability for comparison
+        let safe_circuit = BytecodeSafetyCircuit::<Fr>::new(
+            &[],
+            U256::from(1000),
+            1,
+            vec![0x60, 0x01, 0x60, 0x02, 0x01], // Simple ADD operation
+            None,
+        );
+        
+        // Create a constraint system for the safe circuit
+        let safe_cs = ConstraintSystem::<Fr>::new_ref();
+        
+        // Generate constraints for the safe circuit
+        safe_circuit.clone().generate_constraints(safe_cs.clone()).unwrap();
+    }
 }
