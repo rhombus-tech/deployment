@@ -16,6 +16,9 @@ const SLOAD: u8 = 0x54;
 const ISZERO: u8 = 0x15;
 const JUMPI: u8 = 0x57;
 
+// EVM opcode for self-destruct
+const SELFDESTRUCT: u8 = 0xFF;
+
 /// Circuit for verifying bytecode safety properties
 #[derive(Clone)]
 pub struct BytecodeSafetyCircuit<F: Field> {
@@ -25,6 +28,7 @@ pub struct BytecodeSafetyCircuit<F: Field> {
     unbounded_loop_present: bool,
     unchecked_call_present: bool,
     access_control_present: bool,
+    self_destruct_present: bool,
     
     // Advanced vulnerability indicators
     oracle_manipulation_present: bool,
@@ -62,6 +66,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         let unbounded_loop_present = vulnerabilities.contains(&VulnerabilityType::UnboundedLoop);
         let unchecked_call_present = vulnerabilities.contains(&VulnerabilityType::UncheckedCall);
         let access_control_present = vulnerabilities.contains(&VulnerabilityType::AccessControl);
+        let self_destruct_present = vulnerabilities.contains(&VulnerabilityType::SelfDestruct);
         
         // Check for advanced vulnerability types
         let oracle_manipulation_present = vulnerabilities.iter().any(|v| {
@@ -134,6 +139,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
         println!("  Unbounded Loop: {}", unbounded_loop_present);
         println!("  Unchecked Call: {}", unchecked_call_present);
         println!("  Access Control: {}", access_control_present);
+        println!("  Self-Destruct: {}", self_destruct_present);
         println!("  Oracle Manipulation: {}", oracle_manipulation_present);
         println!("  MEV Vulnerability: {}", mev_vulnerability_present);
         println!("  Front Running: {}", front_running_present);
@@ -149,6 +155,7 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
             unbounded_loop_present,
             unchecked_call_present,
             access_control_present,
+            self_destruct_present,
             oracle_manipulation_present,
             mev_vulnerability_present,
             front_running_present,
@@ -295,63 +302,104 @@ impl<F: Field> BytecodeSafetyCircuit<F> {
     }
 
     /// Verify unchecked call vulnerability in bytecode
-    fn verify_unchecked_call(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
-        // If bytecode is not provided, just use the provided unchecked call flag
-        if self.bytecode.is_none() {
-            return cs.new_witness_variable(|| Ok(F::from(self.unchecked_call_present as u32)));
-        }
+    pub fn verify_unchecked_call(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        // Create a variable for the unchecked call vulnerability
+        let unchecked_call = cs.new_witness_variable(|| Ok(F::from(self.unchecked_call_present as u32)))?;
         
-        let bytecode = self.bytecode.as_ref().unwrap();
-        
-        // Look for CALL not followed by ISZERO within a reasonable number of opcodes
-        // This is a simplified pattern for unchecked call vulnerability
-        let mut has_unchecked_call_pattern = false;
-        
-        for i in 0..bytecode.len().saturating_sub(10) {  // Look within 10 opcodes after CALL
-            if bytecode[i] == CALL {
-                let mut call_checked = false;
-                
-                // Look for ISZERO after CALL within a reasonable window
-                for j in i+1..min(i+10, bytecode.len()) {
-                    if bytecode[j] == ISZERO {
-                        call_checked = true;
+        // If we have bytecode, we can perform more detailed verification
+        if let Some(bytecode) = &self.bytecode {
+            // Look for CALL opcodes (0xF1) followed by missing ISZERO check
+            let mut has_unchecked_call = false;
+            
+            for i in 0..bytecode.len() {
+                if i < bytecode.len() && bytecode[i] == CALL {
+                    // Check if the next few opcodes include an ISZERO check
+                    let mut has_check = false;
+                    for j in i+1..min(i+10, bytecode.len()) {
+                        if bytecode[j] == ISZERO {
+                            has_check = true;
+                            break;
+                        }
+                    }
+                    
+                    if !has_check {
+                        has_unchecked_call = true;
                         break;
                     }
-                    // If we hit another CALL before ISZERO, this CALL is unchecked
-                    if bytecode[j] == CALL {
-                        break;
-                    }
-                }
-                
-                if !call_checked {
-                    has_unchecked_call_pattern = true;
-                    break;
                 }
             }
+            
+            // Enforce that our witness matches the computed value
+            cs.enforce_constraint(
+                LinearCombination::from(Variable::One),
+                LinearCombination::from(Variable::One),
+                LinearCombination::from(unchecked_call) - LinearCombination::from((F::from(has_unchecked_call as u32), Variable::One))
+            )?;
         }
         
-        // Create a witness for the detected unchecked call pattern
-        let unchecked_call_detected = cs.new_witness_variable(|| Ok(F::from(has_unchecked_call_pattern as u32)))?;
+        Ok(unchecked_call)
+    }
+    
+    /// Verify self-destruct vulnerability in bytecode
+    pub fn verify_self_destruct(&self, cs: &ConstraintSystemRef<F>) -> Result<Variable, SynthesisError> {
+        // Create a variable for the self-destruct vulnerability
+        let self_destruct = cs.new_witness_variable(|| Ok(F::from(self.self_destruct_present as u32)))?;
         
-        // Create a witness for the provided unchecked call flag
-        let unchecked_call_flag = cs.new_witness_variable(|| Ok(F::from(self.unchecked_call_present as u32)))?;
-        
-        // If bytecode is provided, log a warning if the detected pattern doesn't match the flag
-        if has_unchecked_call_pattern != self.unchecked_call_present {
-            println!("WARNING: Unchecked call detection in circuit ({}) doesn't match provided flag ({})",
-                     has_unchecked_call_pattern, self.unchecked_call_present);
+        // If we have bytecode, we can perform more detailed verification
+        if let Some(bytecode) = &self.bytecode {
+            // Look for SELFDESTRUCT opcodes (0xFF) and check for access control
+            let mut has_unprotected_self_destruct = false;
+            
+            for i in 0..bytecode.len() {
+                if i < bytecode.len() && bytecode[i] == SELFDESTRUCT {
+                    // Check for access control patterns before self-destruct
+                    let mut has_access_control = false;
+                    
+                    // Look back up to 50 instructions for access control patterns
+                    let start = if i > 50 { i - 50 } else { 0 };
+                    
+                    for j in start..i {
+                        // Check for CALLER (0x33) followed by comparison
+                        if j < bytecode.len() && bytecode[j] == 0x33 {
+                            for k in j+1..min(j+10, i) {
+                                if k < bytecode.len() && (bytecode[k] == 0x14 || bytecode[k] == 0x11 || bytecode[k] == 0x10) {
+                                    has_access_control = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check for SLOAD (0x54) followed by comparison
+                        if j < bytecode.len() && bytecode[j] == SLOAD {
+                            for k in j+1..min(j+10, i) {
+                                if k < bytecode.len() && (bytecode[k] == 0x14 || bytecode[k] == 0x11 || bytecode[k] == 0x10) {
+                                    has_access_control = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if has_access_control {
+                            break;
+                        }
+                    }
+                    
+                    if !has_access_control {
+                        has_unprotected_self_destruct = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Enforce that our witness matches the computed value
+            cs.enforce_constraint(
+                LinearCombination::from(Variable::One),
+                LinearCombination::from(Variable::One),
+                LinearCombination::from(self_destruct) - LinearCombination::from((F::from(has_unprotected_self_destruct as u32), Variable::One))
+            )?;
         }
         
-        // Use the variables to avoid unused variable warnings
-        let _unchecked_call_check = cs.enforce_constraint(
-            LinearCombination::from(unchecked_call_detected),
-            LinearCombination::from(Variable::One),
-            LinearCombination::from(unchecked_call_flag)
-        )?;
-        
-        // For now, we'll just return the flag as provided
-        // In a more robust implementation, we would enforce that unchecked_call_detected == unchecked_call_flag
-        Ok(unchecked_call_flag)
+        Ok(self_destruct)
     }
 
     /// Verify that the provided bytecode matches the bytecode hash
@@ -401,6 +449,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         let unbounded_loop = cs.new_witness_variable(|| Ok(F::from(self.unbounded_loop_present as u32)))?;
         let unchecked_call = self.verify_unchecked_call(&cs)?;
         let access_control = cs.new_witness_variable(|| Ok(F::from(self.access_control_present as u32)))?;
+        let self_destruct = self.verify_self_destruct(&cs)?;
         
         // Create witnesses for advanced vulnerability indicators
         let oracle_manipulation = cs.new_witness_variable(|| Ok(F::from(self.oracle_manipulation_present as u32)))?;
@@ -427,6 +476,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
         combined_score = combined_score + unbounded_loop;
         combined_score = combined_score + unchecked_call;
         combined_score = combined_score + access_control;
+        combined_score = combined_score + self_destruct;
         combined_score = combined_score + oracle_manipulation;
         combined_score = combined_score + mev_vulnerability;
         combined_score = combined_score + front_running;
@@ -443,6 +493,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.unbounded_loop_present as u32 +
                       self.unchecked_call_present as u32 +
                       self.access_control_present as u32 +
+                      self.self_destruct_present as u32 +
                       self.oracle_manipulation_present as u32 +
                       self.mev_vulnerability_present as u32 +
                       self.front_running_present as u32 +
@@ -480,6 +531,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BytecodeSafetyCircuit<F> {
                       self.unbounded_loop_present as u32 +
                       self.unchecked_call_present as u32 +
                       self.access_control_present as u32 +
+                      self.self_destruct_present as u32 +
                       self.oracle_manipulation_present as u32 +
                       self.mev_vulnerability_present as u32 +
                       self.front_running_present as u32 +

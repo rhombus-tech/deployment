@@ -14,10 +14,11 @@ pub enum VulnerabilityType {
     MEVVulnerability,
     FrontRunning,
     PriceManipulation,
-    BlockNumberDependence,
+    BlockNumberDependency,
     UninitializedStorage,
     GovernanceVulnerability,
     BitMaskVulnerability,
+    SelfDestruct,
     Other(String),
 }
 
@@ -237,4 +238,61 @@ impl BytecodeAnalyzer {
             self.complexity,
         )
     }
+}
+
+/// Convert vulnerability types from the main API to PCC vulnerability types
+pub fn convert_vulnerabilities(vulnerabilities: &[crate::api::VulnerabilityType]) -> Vec<VulnerabilityType> {
+    let mut result = Vec::new();
+    
+    for vuln in vulnerabilities {
+        match vuln {
+            crate::api::VulnerabilityType::Reentrancy => {
+                result.push(VulnerabilityType::Reentrancy);
+            }
+            crate::api::VulnerabilityType::IntegerOverflow => {
+                result.push(VulnerabilityType::IntegerOverflow);
+            }
+            crate::api::VulnerabilityType::UnboundedLoop => {
+                result.push(VulnerabilityType::UnboundedLoop);
+            }
+            crate::api::VulnerabilityType::UncheckedCall => {
+                result.push(VulnerabilityType::UncheckedCall);
+            }
+            crate::api::VulnerabilityType::AccessControl => {
+                result.push(VulnerabilityType::AccessControl);
+            }
+            crate::api::VulnerabilityType::OracleManipulation => {
+                result.push(VulnerabilityType::OracleManipulation);
+            }
+            crate::api::VulnerabilityType::MEVVulnerability => {
+                result.push(VulnerabilityType::MEVVulnerability);
+            }
+            crate::api::VulnerabilityType::FrontRunning => {
+                result.push(VulnerabilityType::FrontRunning);
+            }
+            crate::api::VulnerabilityType::PriceManipulation => {
+                result.push(VulnerabilityType::OracleManipulation);
+            }
+            crate::api::VulnerabilityType::BlockNumberDependence => {
+                result.push(VulnerabilityType::BlockNumberDependency);
+            }
+            crate::api::VulnerabilityType::UninitializedStorage => {
+                result.push(VulnerabilityType::UninitializedStorage);
+            }
+            crate::api::VulnerabilityType::GovernanceVulnerability => {
+                result.push(VulnerabilityType::GovernanceVulnerability);
+            }
+            crate::api::VulnerabilityType::BitMaskVulnerability => {
+                result.push(VulnerabilityType::BitMaskVulnerability);
+            }
+            crate::api::VulnerabilityType::SelfDestruct => {
+                result.push(VulnerabilityType::SelfDestruct);
+            }
+            _ => {
+                result.push(VulnerabilityType::Other(format!("{:?}", vuln)));
+            }
+        }
+    }
+    
+    result
 }
