@@ -5,3 +5,7 @@ wasm/
 Cargo.lock
 *.wasm
 *.wat
+
+# Test contracts
+swap_router_test/
+trader_joe_exploit/

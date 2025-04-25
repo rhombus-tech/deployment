@@ -13,6 +13,7 @@ use crate::circuits::{
     type_safety::{TypeSafetyCircuit, BlockContext, StackOp},
     resource_bounds::ResourceBoundsCircuit,
     control_flow::ControlFlowCircuit,
+    parameter_validation::{ParameterValidationCircuit, convert_validation_info_to_circuit},
 };
 use anyhow::Result;
 
@@ -30,8 +31,51 @@ pub struct PCDState<F: Field> {
     pub resource_usage: ResourceUsage,
     /// Control flow graph
     pub call_graph: ControlFlowGraph,
+    /// Parameter validation information
+    pub parameter_validations: Vec<ParameterValidationData<F>>,
+    /// Whether the contract has parameter validation
+    pub has_parameter_validation: bool,
     /// Phantom data
     _marker: PhantomData<F>,
+}
+
+/// Data structure representing parameter validation information for circuit constraints
+
+#[derive(Debug, Clone)]
+pub struct ParameterValidationData<F: Field> {
+    /// Parameter index
+    pub parameter_index: Option<u32>,
+    /// Maximum allowed length (if applicable) - using u64 instead of F to avoid FpVar issues
+    pub max_allowed_length: Option<u64>,
+    /// Validation type
+    pub validation_type: ValidationTypeCode,
+    /// Whether length is validated
+    pub validates_length: bool,
+    /// Location in code where validation occurs
+    pub validation_location: u32,
+    /// Phantom data to mark the generic type parameter
+    pub _phantom: PhantomData<F>,
+}
+
+/// Enum representing different validation types for circuits
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationTypeCode {
+    /// Length check validation
+    LengthCheck = 0,
+    /// Range check validation
+    RangeCheck = 1,
+    /// Type check validation
+    TypeCheck = 2,
+    /// Memory bounds check
+    BoundsCheck = 3,
+    /// Composite validation (multiple checks)
+    Composite = 4,
+    /// Rejection of invalid parameters
+    Rejection = 5,
+    /// Protocol-specific validation
+    ProtocolSpecific = 6,
+    /// Other validation type
+    Other = 7,
 }
 
 impl<F: Field> PCDState<F> {
@@ -42,7 +86,10 @@ impl<F: Field> PCDState<F> {
         block_contexts: Vec<BlockContext>,
         resource_usage: ResourceUsage,
         call_graph: ControlFlowGraph,
+        parameter_validations: Vec<ParameterValidationData<F>>,
     ) -> Self {
+        let has_parameter_validation = !parameter_validations.is_empty();
+        
         Self {
             memory_accesses,
             allocations,
@@ -50,6 +97,8 @@ impl<F: Field> PCDState<F> {
             block_contexts,
             resource_usage,
             call_graph,
+            parameter_validations,
+            has_parameter_validation,
             _marker: PhantomData,
         }
     }
@@ -95,6 +144,12 @@ pub struct VerificationCircuit<F: Field> {
     resource_bounds: ResourceBoundsCircuit<F>,
     /// Control flow circuit
     control_flow: ControlFlowCircuit<F>,
+    /// Parameter validation circuit
+    parameter_validation_circuit: ParameterValidationCircuit<F>,
+    /// Parameter validation data
+    parameter_validation: Vec<ParameterValidationData<F>>,
+    /// Whether the contract has parameter validation
+    has_parameter_validation: bool,
 }
 
 impl<F: Field> VerificationCircuit<F> {
@@ -128,8 +183,71 @@ impl<F: Field> VerificationCircuit<F> {
         // Get call graph
         let call_graph = analyzer.get_call_graph()
             .unwrap_or_default();
+            
+        // Get parameter validations
+        let parameter_validations_info = analyzer.get_parameter_validations()
+            .unwrap_or_default();
+            
+        // Log the detected parameter validations
+        if !parameter_validations_info.is_empty() {
+            println!("Detected {} parameter validation patterns", parameter_validations_info.len());
+            for (i, validation) in parameter_validations_info.iter().enumerate() {
+                println!("Validation {}: {} ({})", i, validation.validation_strategy, 
+                         format!("{:?}", validation.validation_type));
+            }
+        }
+            
+        // Convert parameter validations to circuit format for PCD state
+        let parameter_validations: Vec<ParameterValidationData<F>> = parameter_validations_info
+            .iter()
+            .map(|validation| {
+                // Convert validation types from common to circuit format
+                let max_allowed_length = 1024; // Wasmlanche default max parameter size
+                
+                let validation_type = match validation.validation_type {
+                    common::ValidationTypeInfo::LengthCheck => ValidationTypeCode::LengthCheck,
+                    common::ValidationTypeInfo::RangeCheck => ValidationTypeCode::RangeCheck,
+                    common::ValidationTypeInfo::TypeCheck => ValidationTypeCode::TypeCheck,
+                    common::ValidationTypeInfo::BoundsCheck => ValidationTypeCode::BoundsCheck,
+                    common::ValidationTypeInfo::Composite => ValidationTypeCode::Composite,
+                    common::ValidationTypeInfo::Rejection => ValidationTypeCode::Rejection,
+                    common::ValidationTypeInfo::ProtocolSpecific(_) => ValidationTypeCode::ProtocolSpecific,
+                    common::ValidationTypeInfo::Other => ValidationTypeCode::Other,
+                };
+                
+                ParameterValidationData::<F> {
+                    parameter_index: validation.parameter_index,
+                    max_allowed_length: Some(max_allowed_length as u64),  // Use u64 directly to avoid FpVar issues
+                    validation_type,
+                    validates_length: validation.validates_length,
+                    validation_location: 0, // Default location, could be enhanced in future
+                    _phantom: PhantomData
+                }
+            })
+            .collect::<Vec<ParameterValidationData<F>>>();
+        
+        // Convert parameter validations to circuit format for parameter validation circuit
+        let validation_circuit_data = convert_validation_info_to_circuit::<F>(&parameter_validations_info);
+        
+        // Create parameter validation circuit with Wasmlanche specific requirements
+        // Maximum parameter length is set to 1024 bytes as per Wasmlanche specs
+        let parameter_validation_circuit = ParameterValidationCircuit::new(
+            validation_circuit_data,
+            1024, // Wasmlanche maximum parameter length - protects against the 3.5B byte vulnerability
+            // Convert from parser::types::MemoryType to wasmparser::MemoryType
+            wasmparser::MemoryType {
+                // Safety bounds: Ensure minimum is 32-bit for safety
+                initial: memory_type.limits.min as u64,
+                maximum: memory_type.limits.max.map(|m| m as u64),
+                memory64: false,
+                shared: memory_type.shared,
+            },
+            current_pages,
+        );
+        
+        let has_parameter_validation = !parameter_validations.is_empty();
 
-        // Create current state
+        // Create current state with parameter validation data
         let curr_state = Some(PCDState::new(
             analyzer.get_memory_access(memory_id).unwrap_or_default(),
             analyzer.get_memory_allocations(memory_id).unwrap_or_default(),
@@ -137,6 +255,7 @@ impl<F: Field> VerificationCircuit<F> {
             block_contexts.clone(),
             analyzer.get_resource_usage(),
             call_graph.clone(),
+            parameter_validations.clone(),
         ));
 
         // Validate state transition if previous state exists
@@ -180,6 +299,9 @@ impl<F: Field> VerificationCircuit<F> {
             type_safety,
             resource_bounds,
             control_flow,
+            parameter_validation_circuit,
+            parameter_validation: parameter_validations,
+            has_parameter_validation,
         })
     }
 }
@@ -189,11 +311,22 @@ impl<F: Field> ConstraintSynthesizer<F> for VerificationCircuit<F> {
         self,
         cs: ConstraintSystemRef<F>,
     ) -> Result<(), SynthesisError> {
-        // Generate constraints for each component
+        // Generate constraints for all components
         self.memory_safety.generate_constraints(cs.clone())?;
         self.type_safety.generate_constraints(cs.clone())?;
         self.resource_bounds.generate_constraints(cs.clone())?;
-        self.control_flow.generate_constraints(cs)?;
+        self.control_flow.generate_constraints(cs.clone())?;
+        
+        // Generate parameter validation constraints
+        // This enforces Wasmlanche requirements:
+        // 1. Validating length prefix (first 4 bytes)
+        // 2. Rejecting unreasonable lengths (>1024 bytes)
+        // 3. Ensuring memory bounds checking for parameters
+        // 4. Preventing out-of-bounds access that would cause panics
+        if self.has_parameter_validation {
+            self.parameter_validation_circuit.generate_constraints(cs)?;
+        }
+        
         Ok(())
     }
 }
@@ -241,12 +374,13 @@ mod tests {
 
         // Create state from analyzer data
         let state = PCDState::new(
-            memory_accesses,
-            memory_allocations,
-            stack_ops,
-            block_contexts,
-            resource_usage,
-            call_graph,
+            memory_accesses.clone(),
+            memory_allocations.clone(),
+            stack_ops.clone(),
+            block_contexts.clone(),
+            resource_usage.clone(),
+            call_graph.clone(),
+            Vec::new(), // No parameter validations in test
         );
 
         // Create circuit with the state
@@ -298,12 +432,13 @@ mod tests {
 
         // Create state from analyzer data
         let state = PCDState::new(
-            memory_accesses,
-            memory_allocations,
-            stack_ops,
-            block_contexts,
-            resource_usage,
-            call_graph,
+            memory_accesses.clone(),
+            memory_allocations.clone(),
+            stack_ops.clone(),
+            block_contexts.clone(),
+            resource_usage.clone(),
+            call_graph.clone(),
+            Vec::new(), // No parameter validations in test
         );
 
         // Create circuit with the state
@@ -343,12 +478,13 @@ mod tests {
 
         // Create state from analyzer data
         let state = PCDState::new(
-            memory_accesses,
-            memory_allocations,
-            stack_ops,
-            block_contexts,
-            resource_usage,
-            call_graph,
+            memory_accesses.clone(),
+            memory_allocations.clone(),
+            stack_ops.clone(),
+            block_contexts.clone(),
+            resource_usage.clone(),
+            call_graph.clone(),
+            Vec::new(), // No parameter validations in test
         );
 
         // Create circuit with the state

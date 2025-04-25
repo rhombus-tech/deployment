@@ -11,6 +11,12 @@ pub mod resources;
 mod wasm;
 /// Pipeline for analyzing WASM modules
 pub mod pipeline;
+/// Tests for the analyzer
+#[cfg(test)]
+mod tests;
+/// Enhanced tests for our improved PCC implementation
+#[cfg(test)]
+mod enhanced_tests;
 
 pub use memory::MemoryAnalyzer;
 pub use wasm::WasmAnalyzer;

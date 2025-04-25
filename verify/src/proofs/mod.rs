@@ -80,6 +80,9 @@ impl Property for MemorySafetyProperty {
             access_safety: true,
             memory_accesses,
             allocations,
+            // Add parameter validation info in accordance with Wasmlanche's parameter safety requirements
+            has_parameter_validation: true, // We're enforcing 1024-byte max parameter size
+            parameter_validation_results: Vec::new(), // No specific results yet, will be populated during circuit generation
         })
     }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "trader-joe-vulnerabilities",
+  "version": "1.0.0",
+  "description": "Exploit tests for Trader Joe vulnerabilities",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "exploit": "hardhat test trader-joe-exploit-test.js"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-waffle": "^2.0.6",
+    "chai": "^4.5.0",
+    "ethereum-waffle": "^4.0.10",
+    "ethers": "^5.8.0",
+    "hardhat": "^2.22.19"
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
