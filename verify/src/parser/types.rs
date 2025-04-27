@@ -212,6 +212,11 @@ impl Stack {
 pub type TableIdx = u32;
 pub type MemoryIdx = u32;
 pub type FuncIdx = u32;
+pub type GlobalIdx = u32;
+pub type TypeIdx = u32;
+
+/// In walrus 0.19.0, we can't directly create a FunctionId from an index anymore
+/// The FunctionId is now an opaque handle from id_arena
 
 /// Represents an element segment in WebAssembly
 #[derive(Debug, Clone)]
@@ -305,6 +310,109 @@ impl DataSegment {
 
 /// Maximum allowed stack depth for preventing stack overflow
 pub const MAX_STACK_DEPTH: usize = 1024;
+
+/// Represents a function reference in a table
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionReference {
+    /// Function index
+    pub function_idx: FuncIdx,
+    /// Type index of the function
+    pub type_idx: TypeIdx,
+}
+
+/// Represents information about a WebAssembly function table
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionTableInfo {
+    /// Table index
+    pub table_idx: TableIdx,
+    /// Table type
+    pub table_type: TableType,
+    /// Elements in the table
+    pub elements: Vec<Option<FunctionReference>>,
+    /// Initial table size
+    pub initial_size: u32,
+    /// Has been initialized with valid functions
+    pub is_initialized: bool,
+}
+
+impl FunctionTableInfo {
+    /// Create a new function table info
+    pub fn new(table_idx: TableIdx, table_type: TableType, initial_size: u32) -> Self {
+        let elements = vec![None; initial_size as usize];
+        Self {
+            table_idx,
+            table_type,
+            elements,
+            initial_size,
+            is_initialized: false,
+        }
+    }
+    
+    /// For indirect function calls, store signatures in table
+    pub fn set_element(&mut self, idx: u32, func_idx: FuncIdx, type_idx: TypeIdx) -> Result<(), anyhow::Error> {
+        if idx >= self.elements.len() as u32 {
+            return Err(anyhow::anyhow!("Element index out of bounds: {} >= {}", 
+                      idx, self.elements.len()));
+        }
+        
+        self.elements[idx as usize] = Some(FunctionReference {
+            function_idx: func_idx,
+            type_idx,
+        });
+        Ok(())
+    }
+    
+    /// Mark the table as initialized
+    pub fn mark_initialized(&mut self) {
+        self.is_initialized = true;
+    }
+    
+    /// Get a function reference from the table
+    pub fn get_element(&self, elem_idx: u32) -> Option<&FunctionReference> {
+        if elem_idx >= self.elements.len() as u32 {
+            return None;
+        }
+        
+        match &self.elements[elem_idx as usize] {
+            Some(func_ref) => Some(func_ref),
+            None => None,
+        }
+    }
+    
+    /// Check if all elements in the table are properly initialized
+    pub fn validate(&self) -> Result<()> {
+        if !self.is_initialized {
+            return Err(anyhow::anyhow!("Function table {} has not been initialized", self.table_idx));
+        }
+        
+        // Ensure table element type is funcref
+        if self.table_type.element_type != RefType::Func {
+            return Err(anyhow::anyhow!("Function table {} has invalid element type: {:?}", 
+                       self.table_idx, self.table_type.element_type));
+        }
+        
+        Ok(())
+    }
+    
+    /// Get the raw function index at the given index in the table
+    /// In walrus 0.19.0, we can't easily convert from raw index to FunctionId without the module
+    /// So we return the raw index and the caller must resolve it using the module
+    pub fn get_function_idx(&self, idx: u32) -> Option<u32> {
+        // Check if the index is within bounds
+        if idx >= self.elements.len() as u32 {
+            return None;
+        }
+        
+        // Get the element at this index
+        if let Some(func_ref) = &self.elements[idx as usize] {
+            // Return the raw function index
+            // The caller will need to use this index to look up the proper FunctionId in the module
+            Some(func_ref.function_idx)
+        } else {
+            None
+        }
+    }
+}
 
 /// Represents a stack of value types for validation
 #[derive(Debug, Default)]
@@ -846,7 +954,7 @@ mod tests {
         let mut builder = FunctionBuilder::new(&mut ctx.get_module_mut().types, &[], &[ValType::I32]);
         
         // Create empty block sequence
-        let mut empty_block = builder.func_body();
+        let empty_block = builder.func_body();
         let empty_id = empty_block.id();
 
         // Create block with i32 result

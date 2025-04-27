@@ -223,31 +223,47 @@ impl ControlFlowGraph {
     }
 
     /// DFS helper for path finding
-    fn dfs_paths(
+    pub fn dfs_paths(
         &self,
         paths: &mut Vec<Vec<usize>>,
         visited: &mut HashSet<usize>,
         current_path: &mut Vec<usize>,
         current: usize
     ) {
+        current_path.push(current);
+        visited.insert(current);
+
+        // If this is an exit block, add the path
         if self.exits.contains(&current) {
             paths.push(current_path.clone());
-            return;
-        }
-        
-        visited.insert(current);
-        
-        if let Some(block) = self.blocks.get(&current) {
-            for &succ in &block.successors {
-                if !visited.contains(&succ) {
-                    current_path.push(succ);
-                    self.dfs_paths(paths, visited, current_path, succ);
-                    current_path.pop();
+        } else {
+            // Continue the search with successors
+            if let Some(block) = self.blocks.get(&current) {
+                for &successor in &block.successors {
+                    if !visited.contains(&successor) {
+                        self.dfs_paths(paths, visited, current_path, successor);
+                    }
                 }
             }
         }
-        
+
+        // Backtrack
+        current_path.pop();
         visited.remove(&current);
+    }
+    
+    /// Get all blocks in the graph
+    pub fn get_blocks(&self) -> HashSet<usize> {
+        self.blocks.keys().cloned().collect()
+    }
+    
+    /// Get predecessors for a specific block
+    pub fn get_predecessors(&self, block_id: usize) -> HashSet<usize> {
+        if let Some(block) = self.blocks.get(&block_id) {
+            block.predecessors.clone()
+        } else {
+            HashSet::new()
+        }
     }
 }
 

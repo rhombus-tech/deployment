@@ -1,11 +1,14 @@
 pub mod types;
 pub mod wasm_analyzer;
 pub mod cfg;
+pub mod integration_test;
+pub mod module_interaction_analyzer;
+pub mod module_interaction_test;
 
 // Re-export commonly used types
 pub use types::{
     ValueType, BlockType, FunctionType, GlobalType, Stack, TypeContext, 
-    MemoryType, Limits
+    MemoryType, Limits, FunctionTableInfo, FunctionReference
 };
 
 // Re-export analyzer types

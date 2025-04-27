@@ -438,10 +438,13 @@ mod tests {
             ParameterValidation::LengthCheck(0, 1024, 0),
         ];
         
-        // Create a simple memory type for testing
-        // In a real implementation, we would use appropriate memory limits
-        #[allow(deprecated)]
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        // Create a proper memory type with appropriate limits
+        let memory_type = MemoryType {
+            memory64: false, // Standard 32-bit memory
+            initial: 16,     // Start with 16 pages (1MB)
+            maximum: Some(256), // Maximum 256 pages (16MB)
+            shared: false,  // Not shared memory
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,
@@ -469,7 +472,12 @@ mod tests {
         ];
         
         let cs = ConstraintSystem::<Fr>::new_ref();
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        let memory_type = MemoryType {
+            memory64: false,
+            initial: 16,
+            maximum: Some(256),
+            shared: false,
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,
@@ -508,7 +516,12 @@ mod tests {
         ];
         
         let cs = ConstraintSystem::<Fr>::new_ref();
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        let memory_type = MemoryType {
+            memory64: false,
+            initial: 16,
+            maximum: Some(256),
+            shared: false,
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,
@@ -548,7 +561,12 @@ mod tests {
         ];
         
         let cs = ConstraintSystem::<Fr>::new_ref();
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        let memory_type = MemoryType {
+            memory64: false,
+            initial: 16,
+            maximum: Some(256),
+            shared: false,
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,
@@ -588,7 +606,12 @@ mod tests {
         ];
         
         let cs = ConstraintSystem::<Fr>::new_ref();
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        let memory_type = MemoryType {
+            memory64: false,
+            initial: 16,
+            maximum: Some(256),
+            shared: false,
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,
@@ -626,7 +649,12 @@ mod tests {
         let validations = vec![];
         
         let cs = ConstraintSystem::<Fr>::new_ref();
-        let memory_type = unsafe { std::mem::zeroed::<MemoryType>() };
+        let memory_type = MemoryType {
+            memory64: false,
+            initial: 16,
+            maximum: Some(256),
+            shared: false,
+        };
         
         let circuit = ParameterValidationCircuit::<Fr>::new(
             validations,

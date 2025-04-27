@@ -5,6 +5,9 @@ pub mod type_safety;
 pub mod control_flow;
 pub mod verification;
 pub mod parameter_validation;
+pub mod module_interaction;
+#[cfg(test)]
+mod indirect_call_test;
 
 pub use memory_pcd::*;
 pub use memory_safety::*;
