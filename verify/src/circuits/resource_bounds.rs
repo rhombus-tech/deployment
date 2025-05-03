@@ -4,7 +4,7 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisE
 use ark_relations::lc;
 
 /// Circuit for verifying resource usage bounds in WebAssembly modules
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResourceBoundsCircuit<F: Field> {
     /// Maximum allowed stack depth
     max_stack_depth: u32,

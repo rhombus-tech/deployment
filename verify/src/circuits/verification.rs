@@ -140,7 +140,7 @@ impl<F: Field> PCDState<F> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VerificationCircuit<F: Field> {
     /// Previous state
     prev_state: Option<PCDState<F>>,

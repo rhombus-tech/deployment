@@ -21,7 +21,7 @@ pub enum ControlFlowOp {
 }
 
 /// Circuit for verifying control flow integrity in WebAssembly modules
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ControlFlowCircuit<F: Field> {
     /// Stack of function calls
     call_stack: Vec<usize>,
