@@ -4,7 +4,7 @@ pub mod parser;
 pub mod proofs;
 pub mod prover;
 pub mod zk;
-
+pub mod tee;
 
 use anyhow::Result;
 use wasmparser::WasmFeatures;

@@ -6,6 +6,7 @@ pub mod control_flow;
 pub mod verification;
 pub mod parameter_validation;
 pub mod module_interaction;
+pub mod determinism;
 #[cfg(test)]
 mod indirect_call_test;
 
@@ -16,5 +17,6 @@ pub use type_safety::*;
 pub use control_flow::*;
 pub use verification::*;
 pub use parameter_validation::*;
+pub use determinism::*;
 
 mod utils;
