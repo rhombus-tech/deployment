@@ -7,6 +7,7 @@ pub mod verification;
 pub mod parameter_validation;
 pub mod module_interaction;
 pub mod determinism;
+pub mod side_channel;
 #[cfg(test)]
 mod indirect_call_test;
 
@@ -18,5 +19,6 @@ pub use control_flow::*;
 pub use verification::*;
 pub use parameter_validation::*;
 pub use determinism::*;
+pub use side_channel::*;
 
 mod utils;
