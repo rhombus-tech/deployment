@@ -56,7 +56,7 @@ impl fmt::Display for IndexerVulnerability {
 }
 
 /// The circuit for verifying Alkanes indexer safety
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IndexerSafetyCircuit<F: Field> {
     /// Detected indexer vulnerabilities
     pub vulnerabilities: Vec<IndexerVulnerability>,
@@ -77,8 +77,8 @@ impl<F: Field> IndexerSafetyCircuit<F> {
         Self {
             vulnerabilities,
             test_mode: false,
-            max_loop_iterations: 1000,  // Default reasonable limit
-            max_memory_pages: 100,      // Default reasonable limit (6.4MB)
+            max_loop_iterations: 50000,  // Increased limit for 5M fuel (was 1000)
+            max_memory_pages: 500,       // Increased limit for 5M fuel (was 100) (~32MB)
             _phantom: PhantomData,
         }
     }
@@ -91,8 +91,8 @@ impl<F: Field> IndexerSafetyCircuit<F> {
         Self {
             vulnerabilities,
             test_mode,
-            max_loop_iterations: 1000,
-            max_memory_pages: 100,
+            max_loop_iterations: 50000,  // Increased limit for 5M fuel (was 1000)
+            max_memory_pages: 500,       // Increased limit for 5M fuel (was 100) (~32MB)
             _phantom: PhantomData,
         }
     }
@@ -110,11 +110,19 @@ impl<F: Field> IndexerSafetyCircuit<F> {
         self.max_loop_iterations = max;
         self
     }
-
+    
+    pub fn get_max_loop_iterations(&self) -> u32 {
+        self.max_loop_iterations
+    }
+    
     /// Set maximum allowed memory pages
     pub fn set_max_memory_pages(&mut self, max: u32) -> &mut Self {
         self.max_memory_pages = max;
         self
+    }
+    
+    pub fn get_max_memory_pages(&self) -> u32 {
+        self.max_memory_pages
     }
 
     /// Check if test mode is enabled
@@ -257,7 +265,7 @@ pub fn analyze_indexer_vulnerabilities_with_options(
 
 /// Detect unbounded loops that could stall the indexer
 pub fn detect_unbounded_loops(module: &Module, vulnerabilities: &mut Vec<IndexerVulnerability>) {
-    detect_unbounded_loops_with_params(module, vulnerabilities, 1000); // Default 1000 max iterations
+    detect_unbounded_loops_with_params(module, vulnerabilities, 50000); // Increased to 50000 max iterations for 5M fuel
 }
 
 /// Detect unbounded loops with custom parameters
@@ -501,7 +509,7 @@ pub fn find_cycles(
 
 /// Detect excessive memory usage that could overload indexers
 pub fn detect_excessive_memory_usage(module: &Module, vulnerabilities: &mut Vec<IndexerVulnerability>) {
-    detect_excessive_memory_usage_with_params(module, vulnerabilities, 100); // Default 100 pages (6.4MB)
+    detect_excessive_memory_usage_with_params(module, vulnerabilities, 500); // Increased to 500 pages (~32MB) for 5M fuel
 }
 
 /// Detect excessive memory usage with custom parameters
