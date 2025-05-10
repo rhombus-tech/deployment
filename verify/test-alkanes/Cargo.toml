@@ -1,0 +1,18 @@
+[package]
+name = "test-alkanes"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+alkanes-runtime = { path = "../../alkanes-rs/crates/alkanes-runtime" }
+alkanes-macros = { path = "../../alkanes-rs/crates/alkanes-macros" }
+alkanes-support = { path = "../../alkanes-rs/crates/alkanes-support" }
+protorune = { path = "../../alkanes-rs/crates/protorune" }
+protorune-support = { path = "../../alkanes-rs/crates/protorune-support" }
+metashrew-support = { git = "https://github.com/sandshrewmetaprotocols/metashrew" }
+anyhow = "1.0.90"
+bitcoin = { version = "0.32.4", default-features = false }
+gz = { package = "libflate", version = "1.2.0", default-features = false }
