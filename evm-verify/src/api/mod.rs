@@ -1,3 +1,4 @@
+
 // EVM Verify API Module
 //
 // This module provides a unified interface for interacting with the EVM Verify tool.
@@ -9,12 +10,17 @@ mod report;
 pub mod unified;
 pub mod pcd_adapter;
 pub mod pcd;
+pub mod accumulation_strategy;
+
+#[cfg(test)]
+mod integration_tests;
 
 pub use types::*;
 pub use config::*;
 pub use report::*;
 pub use unified::UnifiedVerifier;
 pub use pcd_adapter::PCDAdapter;
+pub use accumulation_strategy::{AccumulationStrategy, VerificationStrategy, Groth16Strategy, ZODAStrategy};
 
 use anyhow::{Result, Context};
 use ethers::types::Bytes;

@@ -74,6 +74,9 @@ fn main() -> Result<()> {
                 // Get the raw bytecode for the report
                 let bytecode = connector.get_bytecode(contract_address).await?;
                 
+                // Import the correct VerificationStrategy type
+                use evm_verify::api::types::VerificationStrategy;
+                
                 // Create report
                 let evm_verify = EVMVerify::with_config(AnalysisConfig {
                     analyze_constructor: true,
@@ -84,6 +87,7 @@ fn main() -> Result<()> {
                     detect_arithmetic: true,
                     detect_access_control: true,
                     detect_delegate_call: true,
+                    verification_strategy: VerificationStrategy::Groth16,
                     detect_flash_loan: true,
                     detect_oracle_manipulation: true,
                     detect_governance: true,

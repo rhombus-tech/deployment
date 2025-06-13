@@ -112,6 +112,21 @@ impl VulnerabilitySeverity {
     }
 }
 
+/// Verification strategy to use
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VerificationStrategy {
+    /// Use Groth16 for verification
+    Groth16,
+    /// Use ZODA (Accidental Computer) for verification
+    ZODA,
+}
+
+impl Default for VerificationStrategy {
+    fn default() -> Self {
+        Self::Groth16
+    }
+}
+
 /// Type of vulnerability
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VulnerabilityType {
@@ -265,6 +280,9 @@ pub struct AnalysisConfig {
     
     /// Whether to run in test mode (disables certain checks to avoid false positives in tests)
     pub test_mode: bool,
+    
+    /// Verification strategy to use
+    pub verification_strategy: VerificationStrategy,
 }
 
 impl Default for AnalysisConfig {
@@ -286,6 +304,7 @@ impl Default for AnalysisConfig {
             detect_event_emission: true,
             detect_front_running: true,
             test_mode: false,
+            verification_strategy: VerificationStrategy::default(),
         }
     }
 }

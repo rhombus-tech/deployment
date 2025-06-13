@@ -80,10 +80,13 @@ fn analyze_bytecode(file: PathBuf, analysis_type: String) -> Result<()> {
     let bytecode_hex = fs::read_to_string(file)?;
     let bytecode_bytes = hex::decode(bytecode_hex.trim_start_matches("0x"))?;
     
+    // Import the VerificationStrategy
+    use evm_verify::api::accumulation_strategy::VerificationStrategy;
+    
     // Create a unified verifier
     let verifier = match analysis_type.as_str() {
-        "pcc" => UnifiedVerifier::with_config(false, true),
-        "pcd" => UnifiedVerifier::with_config(true, false),
+        "pcc" => UnifiedVerifier::with_config(false, true, VerificationStrategy::Groth16),
+        "pcd" => UnifiedVerifier::with_config(true, false, VerificationStrategy::Groth16),
         _ => UnifiedVerifier::new(),
     };
     

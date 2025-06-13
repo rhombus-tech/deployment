@@ -1,5 +1,7 @@
-use evm_verify::UnifiedVerifier;
+use evm_verify::api::unified::UnifiedVerifier;
 use ethers::types::Bytes;
+use evm_verify::api::types::Vulnerability;
+use evm_verify::api::accumulation_strategy::VerificationStrategy;
 
 #[test]
 fn test_unified_verifier() {
@@ -22,7 +24,7 @@ fn test_unified_verifier() {
 #[test]
 fn test_unified_verifier_with_config() {
     // Create a unified verifier with only PCC enabled
-    let verifier = UnifiedVerifier::with_config(false, true);
+    let verifier = UnifiedVerifier::with_config(false, true, VerificationStrategy::Groth16);
     
     // Simple bytecode: PUSH1 1 PUSH1 0 SSTORE
     let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);
@@ -41,7 +43,7 @@ fn test_unified_verifier_with_config() {
 #[test]
 fn test_unified_verifier_with_pcd_only() {
     // Create a unified verifier with only PCD enabled
-    let verifier = UnifiedVerifier::with_config(true, false);
+    let verifier = UnifiedVerifier::with_config(true, false, VerificationStrategy::Groth16);
     
     // Simple bytecode: PUSH1 1 PUSH1 0 SSTORE
     let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]);

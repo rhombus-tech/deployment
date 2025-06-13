@@ -142,6 +142,12 @@ impl ConfigBuilder {
         self
     }
     
+    /// Set the verification strategy
+    pub fn verification_strategy(mut self, strategy: crate::api::types::VerificationStrategy) -> Self {
+        self.config.verification_strategy = strategy;
+        self
+    }
+    
     /// Build the configuration
     pub fn build(self) -> AnalysisConfig {
         self.config

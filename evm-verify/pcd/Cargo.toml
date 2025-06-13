@@ -17,18 +17,29 @@ ark-serialize = { version = "^0.3.0", default-features = false, features = ["der
 ark-snark = { version = "^0.3.0", default-features = false }
 ark-sponge = { version = "^0.3.0", default-features = false, optional = true }
 ark-std = { version = "^0.3.0", default-features = false }
+ark-bls12-381 = { version = "^0.3.0", features = ["curve"] }
+ark-crypto-primitives = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false }
 base64 = "0.13.0"
 bincode = "1.3.3"
 blake2 = { version = "0.9.1", default-features = false }
+criterion = { version = "0.4", optional = true }
 digest = { version = "0.9.0", default-features = false }
 ethers = { version = "2.0", default-features = false, features = ["abigen"] }
 evm-verify-common = { path = "../common" }
 hex = "0.4.3"
 rand = { version = "0.8", default-features = false }
+rand_chacha = "0.3.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.81"
 thiserror = "1.0.31"
 tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+
+# Dependencies for AI Agent Security Gateway
+clap = { version = "4.3", features = ["derive"] }
+colored = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
 
 [dev-dependencies]
 ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
@@ -42,4 +53,7 @@ accumulation = [
     "ark-sponge",
     "ark-poly",
     "ark-poly-commit",
+]
+zoda = [
+    "ark-poly"
 ]

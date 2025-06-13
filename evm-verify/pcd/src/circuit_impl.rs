@@ -8,6 +8,7 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisE
 use ark_std::marker::PhantomData;
 use ethers::types::Bytes;
 use anyhow::Result;
+use serde::{Serialize, Deserialize};
 
 // EVM opcodes relevant for vulnerability detection
 const SLOAD: u8 = 0x54;
@@ -19,7 +20,7 @@ const STATICCALL: u8 = 0xFA;
 const DELEGATECALL: u8 = 0xF4;
 
 // For backward compatibility
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SecurityWarningKind {
     Reentrancy,
     AccessControl,

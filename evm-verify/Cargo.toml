@@ -16,7 +16,8 @@ default = ["pcd", "pcc"]
 pcd = ["dep:pcd"]
 pcc = ["dep:pcc"]
 accumulation = ["pcd/accumulation"]
-all = ["pcd", "pcc", "accumulation"]
+zoda = ["pcd/zoda"]
+all = ["pcd", "pcc", "accumulation", "zoda"]
 
 [dependencies]
 # Internal dependencies

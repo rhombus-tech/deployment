@@ -12,7 +12,7 @@ use ark_snark::SNARK;
 use ark_std::rand::{CryptoRng, RngCore};
 use ethers::types::Bytes;
 
-use crate::circuit_impl::PCDCircuit;
+use crate::circuit_impl::{PCDCircuit, SecurityWarningKind};
 use anyhow::{Result, anyhow};
 
 /// EVM Bytecode verification input for the accumulation scheme
@@ -20,6 +20,125 @@ use anyhow::{Result, anyhow};
 pub struct EVMBytecodeInput {
     pub bytecode: Bytes,
     pub curr_state: Vec<Fr>,
+}
+
+/// Wrapper for the Groth16 EVM accumulator functionality
+pub struct EVMAccumulator {
+    /// Bytecode being verified
+    pub bytecode: Option<Bytes>,
+    
+    /// Current state vector
+    pub curr_state: Option<Vec<Fr>>,
+    
+    /// ProvingKey for the circuit
+    pub pk: Option<ProvingKey<Bn254>>,
+    
+    /// VerifyingKey for the circuit
+    pub vk: Option<VerifyingKey<Bn254>>,
+    
+    /// Generated proof
+    pub proof: Option<Proof<Bn254>>,
+    
+    /// Circuit used for verification
+    pub circuit: Option<PCDCircuit<Fr>>,
+    
+    /// Indicates whether test mode is enabled
+    pub test_mode: bool,
+}
+
+impl EVMAccumulator {
+    /// Create a new EVMAccumulator instance
+    pub fn new(test_mode: bool) -> Self {
+        EVMAccumulator {
+            bytecode: None,
+            curr_state: None,
+            pk: None,
+            vk: None,
+            proof: None,
+            circuit: None,
+            test_mode,
+        }
+    }
+    
+    /// Initialize the accumulator with bytecode
+    pub fn initialize(&mut self, bytecode: Bytes) -> Result<()> {
+        self.bytecode = Some(bytecode);
+        Ok(())
+    }
+    
+    /// Generate keys for the circuit
+    pub fn generate_keys<R: RngCore + CryptoRng>(&mut self, circuit: PCDCircuit<Fr>, rng: &mut R) -> Result<()> {
+        let (pk, vk) = generate_keys(circuit.clone(), rng)?;
+        self.pk = Some(pk);
+        self.vk = Some(vk);
+        self.circuit = Some(circuit);
+        Ok(())
+    }
+    
+    /// Process a circuit (generate a proof)
+    pub fn accumulate<R: RngCore + CryptoRng>(&mut self, prev_state: Option<Vec<Fr>>, curr_state: Vec<Fr>, rng: &mut R) -> Result<()> {
+        if self.bytecode.is_none() {
+            return Err(anyhow!("Bytecode has not been initialized"));
+        }
+        
+        let circuit = PCDCircuit::new_with_analysis(
+            self.bytecode.as_ref().unwrap().clone(),
+            prev_state,
+            curr_state.clone(),
+        )?;
+        
+        // Generate keys if they don't exist
+        if self.pk.is_none() || self.vk.is_none() {
+            let (pk, vk) = generate_keys(circuit.clone(), rng)?;
+            self.pk = Some(pk);
+            self.vk = Some(vk);
+        }
+        
+        // Generate proof
+        let proof = generate_proof(circuit.clone(), self.pk.as_ref().unwrap(), rng)?;
+        self.proof = Some(proof);
+        self.circuit = Some(circuit);
+        self.curr_state = Some(curr_state);
+        
+        Ok(())
+    }
+    
+    /// Verify the current proof
+    pub fn verify(&self) -> Result<bool> {
+        if self.bytecode.is_none() || self.curr_state.is_none() || self.proof.is_none() || self.vk.is_none() {
+            return Err(anyhow!("Missing required data for verification"));
+        }
+        
+        verify_evm_proof(
+            self.bytecode.as_ref().unwrap().clone(),
+            self.curr_state.as_ref().unwrap().clone(),
+            self.proof.as_ref().unwrap(),
+            self.vk.as_ref().unwrap(),
+        )
+    }
+    
+    /// Get the current bytecode
+    pub fn get_bytecode(&self) -> Option<Bytes> {
+        self.bytecode.clone()
+    }
+    
+    /// Check if a specific vulnerability is present
+    pub fn has_vulnerability(&self, vulnerability_type: &str) -> Result<bool> {
+        if let Some(ref circuit) = self.circuit {
+            match vulnerability_type {
+                "reentrancy" => Ok(circuit.has_vulnerability(SecurityWarningKind::Reentrancy)),
+                "unchecked_call" => Ok(circuit.has_vulnerability(SecurityWarningKind::UncheckedCall)),
+                "access_control" => Ok(circuit.has_vulnerability(SecurityWarningKind::AccessControl)),
+                "integer_overflow" => Ok(circuit.has_vulnerability(SecurityWarningKind::IntegerOverflow)),
+                "front_running" => Ok(circuit.has_vulnerability(SecurityWarningKind::FrontRunning)),
+                "flash_loan" => Ok(circuit.has_vulnerability(SecurityWarningKind::FlashLoan)),
+                // For other vulnerability types, use the Other variant
+                _ => Ok(circuit.has_vulnerability(SecurityWarningKind::Other(vulnerability_type.to_string())))
+            }
+        } else {
+            Err(anyhow!("No circuit has been processed"))
+        }
+    }
 }
 
 /// Generate a proof for EVM bytecode verification

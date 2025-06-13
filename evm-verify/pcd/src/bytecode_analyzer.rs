@@ -30,7 +30,7 @@ impl fmt::Display for SecuritySeverity {
 }
 
 /// Type of security warning
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SecurityWarningKind {
     /// Reentrancy vulnerability
     Reentrancy,
@@ -38,12 +38,36 @@ pub enum SecurityWarningKind {
     AccessControl,
     /// Integer overflow/underflow
     IntegerOverflow,
+    /// Integer underflow vulnerability
+    IntegerUnderflow,
     /// Unchecked external call
     UncheckedCall,
     /// Front-running vulnerability
     FrontRunning,
+    /// Price manipulation vulnerability
+    PriceManipulation,
+    /// MEV vulnerability
+    MEVVulnerability,
+    /// Oracle manipulation vulnerability
+    OracleManipulation,
+    /// Block number dependence vulnerability
+    BlockNumberDependence,
+    /// Uninitialized storage vulnerability
+    UninitializedStorage,
+    /// BitMask vulnerability
+    BitMaskVulnerability,
+    /// Governance vulnerability
+    GovernanceVulnerability,
+    /// Cross-contract reentrancy vulnerability
+    CrossContractReentrancy,
+    /// Precision loss vulnerability
+    PrecisionLoss,
+    /// Gas griefing vulnerability
+    GasGriefing,
     /// Flash loan vulnerability
     FlashLoan,
+    /// Upgradability vulnerability
+    Upgradability,
     /// Other vulnerability type
     Other(String),
 }
@@ -54,9 +78,21 @@ impl fmt::Display for SecurityWarningKind {
             SecurityWarningKind::Reentrancy => write!(f, "Reentrancy"),
             SecurityWarningKind::AccessControl => write!(f, "Access Control"),
             SecurityWarningKind::IntegerOverflow => write!(f, "Integer Overflow"),
+            SecurityWarningKind::IntegerUnderflow => write!(f, "Integer Underflow"),
             SecurityWarningKind::UncheckedCall => write!(f, "Unchecked Call"),
             SecurityWarningKind::FrontRunning => write!(f, "Front Running"),
+            SecurityWarningKind::PriceManipulation => write!(f, "Price Manipulation"),
+            SecurityWarningKind::MEVVulnerability => write!(f, "MEV Vulnerability"),
+            SecurityWarningKind::OracleManipulation => write!(f, "Oracle Manipulation"),
+            SecurityWarningKind::BlockNumberDependence => write!(f, "Block Number Dependence"),
+            SecurityWarningKind::UninitializedStorage => write!(f, "Uninitialized Storage"),
+            SecurityWarningKind::BitMaskVulnerability => write!(f, "BitMask Vulnerability"),
+            SecurityWarningKind::GovernanceVulnerability => write!(f, "Governance Vulnerability"),
+            SecurityWarningKind::CrossContractReentrancy => write!(f, "Cross-Contract Reentrancy"),
+            SecurityWarningKind::PrecisionLoss => write!(f, "Precision Loss"),
+            SecurityWarningKind::GasGriefing => write!(f, "Gas Griefing"),
             SecurityWarningKind::FlashLoan => write!(f, "Flash Loan"),
+            SecurityWarningKind::Upgradability => write!(f, "Upgradability"),
             SecurityWarningKind::Other(s) => write!(f, "Other: {}", s),
         }
     }

@@ -15,6 +15,24 @@ pub struct PCDCircuit {
     pub prev_state: Option<Vec<Fr>>,
     /// Current state
     pub curr_state: Vec<Fr>,
+    /// The bytecode being analyzed
+    pub bytecode: Vec<u8>,
+}
+
+impl PCDCircuit {
+    /// Create a new PCDCircuit with the provided bytecode
+    pub fn new(bytecode: Vec<u8>) -> Self {
+        // Convert bytecode to field elements for the current state
+        let curr_state = bytecode.iter()
+            .map(|&byte| Fr::from(byte as u64))
+            .collect();
+            
+        Self {
+            prev_state: None,
+            curr_state,
+            bytecode,
+        }
+    }
 }
 
 impl ConstraintSynthesizer<Fr> for PCDCircuit {

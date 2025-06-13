@@ -12,6 +12,7 @@ use crate::bytecode::analyzer::BytecodeAnalyzer;
 use crate::bytecode::types::AnalysisResults;
 use crate::bytecode::security::{SecuritySeverity, SecurityWarning, SecurityWarningKind};
 use crate::api::types::{AnalysisReport, Vulnerability, AnalysisConfig, VulnerabilityType, VulnerabilitySeverity, VulnerabilityLocation};
+use crate::api::accumulation_strategy::{AccumulationStrategy, VerificationStrategy};
 
 use std::sync::Arc;
 
@@ -25,6 +26,8 @@ use crate::api::pcd_adapter::PCDAdapter;
 pub struct UnifiedVerifier {
     pcc_enabled: bool,
     pcd_enabled: bool,
+    verification_strategy: VerificationStrategy,
+    accumulation_strategy: AccumulationStrategy,
     #[cfg(feature = "accumulation")]
     pcd_adapter: PCDAdapter,
     #[cfg(not(feature = "accumulation"))]
@@ -41,17 +44,26 @@ pub struct VerificationResult {
 }
 
 impl UnifiedVerifier {
-    /// Create a new UnifiedVerifier with both PCC and PCD enabled
+    /// Create a new UnifiedVerifier with both PCC and PCD enabled and Groth16 strategy
     pub fn new() -> Self {
+        Self::with_strategy(VerificationStrategy::Groth16)
+    }
+    
+    /// Create a new UnifiedVerifier with the specified verification strategy
+    pub fn with_strategy(strategy: VerificationStrategy) -> Self {
+        let accumulation_strategy = AccumulationStrategy::new(strategy);
+        
         #[cfg(feature = "accumulation")]
         let pcd_adapter = PCDAdapter::new();
         
         #[cfg(not(feature = "accumulation"))]
         let pcd_verifier = Arc::new(crate::api::pcd::DefaultPCDVerifier::new());
         
-        Self {
+        UnifiedVerifier {
             pcc_enabled: true,
             pcd_enabled: true,
+            verification_strategy: strategy,
+            accumulation_strategy,
             #[cfg(feature = "accumulation")]
             pcd_adapter,
             #[cfg(not(feature = "accumulation"))]
@@ -60,16 +72,20 @@ impl UnifiedVerifier {
     }
 
     /// Create a new UnifiedVerifier with custom configuration
-    pub fn with_config(pcd_enabled: bool, pcc_enabled: bool) -> Self {
+    pub fn with_config(pcd_enabled: bool, pcc_enabled: bool, strategy: VerificationStrategy) -> Self {
+        let accumulation_strategy = AccumulationStrategy::new(strategy);
+        
         #[cfg(feature = "accumulation")]
         let pcd_adapter = PCDAdapter::new();
         
         #[cfg(not(feature = "accumulation"))]
         let pcd_verifier = Arc::new(crate::api::pcd::DefaultPCDVerifier::new());
-        
+
         Self {
             pcc_enabled,
             pcd_enabled,
+            verification_strategy: strategy,
+            accumulation_strategy,
             #[cfg(feature = "accumulation")]
             pcd_adapter,
             #[cfg(not(feature = "accumulation"))]
@@ -320,51 +336,73 @@ impl UnifiedVerifier {
                 }
             })
             .collect();
-        
+            
+        // Return the collected vulnerabilities
         Ok(vulnerabilities)
     }
 
     /// Analyze bytecode using PCD
     pub fn analyze_bytecode_pcd(&self, bytecode_bytes: &[u8]) -> Result<Option<Vulnerability>> {
-        // Convert to Bytes
-        let bytecode = Bytes::from(bytecode_bytes.to_vec());
+        if !self.pcd_enabled {
+            return Ok(None);
+        }
+
+        // Use the selected verification strategy
+        let mut strategy = self.accumulation_strategy.clone();
+        strategy.initialize(bytecode_bytes.to_vec())?;
         
-        #[cfg(feature = "accumulation")]
-        {
-            // Use the PCD adapter to verify the bytecode
-            let verification_result = self.pcd_adapter.verify_bytecode(bytecode)?;
+        // Create and analyze bytecode for vulnerabilities
+        // Use a generic circuit that checks for various vulnerability types
+        use pcd::circuit_impl::PCDCircuit;
+        use ethers::types::Bytes;
+        
+        // Convert the bytecode to Bytes for PCDCircuit
+        let bytes_bytecode = Bytes::from(bytecode_bytes.to_vec());
+        
+        // Create a circuit that analyzes bytecode for vulnerabilities
+        let bytecode_circuit = PCDCircuit::new_with_analysis(bytes_bytecode, None, vec![])?
+            .clone();
+        
+        strategy.accumulate_circuit(bytecode_circuit)?;
+        
+        // Note: With ZODA, we use a single circuit rather than multiple specialized ones
+        // This is more efficient and aligns with the Accidental Computer approach
+        
+        // Verify if any vulnerabilities were found
+        // This needs to be mutable since the verify method now requires &mut self
+        let is_valid = strategy.verify()?;
+        
+        if !is_valid {
+            // Check which specific vulnerabilities were found
+            let mut vulnerabilities = Vec::new();
             
-            if !verification_result.is_valid {
-                // If verification failed, create a vulnerability
-                let vulnerability = Vulnerability {
-                    title: "Invalid State Transition".to_string(),
-                    description: "The contract contains an invalid state transition that could not be verified".to_string(),
+            if let Ok(true) = strategy.has_vulnerability("reentrancy") {
+                vulnerabilities.push(Vulnerability {
+                    title: "Reentrancy".to_string(),
+                    description: "Contract contains a potential reentrancy vulnerability".to_string(),
+                    severity: VulnerabilitySeverity::High,
+                    vulnerability_type: VulnerabilityType::Reentrancy,
+                    location: VulnerabilityLocation::Unknown,
+                    recommendation: "Review the contract's reentrancy logic".to_string(),
+                });
+            }
+            
+            if let Ok(true) = strategy.has_vulnerability("signature_replay") {
+                vulnerabilities.push(Vulnerability {
+                    title: "Signature Replay".to_string(),
+                    description: "Contract contains a potential signature replay vulnerability".to_string(),
                     severity: VulnerabilitySeverity::High,
                     vulnerability_type: VulnerabilityType::Other,
                     location: VulnerabilityLocation::Unknown,
-                    recommendation: "Review the contract's state transition logic".to_string(),
-                };
-                
-                return Ok(Some(vulnerability));
+                    recommendation: "Review the contract's signature replay logic".to_string(),
+                });
             }
             
-            // If verification succeeded, return None (no vulnerability)
-            Ok(None)
+            // Return the first vulnerability found (in the future, we could return all of them)
+            return Ok(vulnerabilities.into_iter().next());
         }
         
-        #[cfg(not(feature = "accumulation"))]
-        {
-            // Use the traditional PCD verifier
-            let vulnerabilities = self.pcd_verifier.verify_bytecode(bytecode)?;
-            
-            if !vulnerabilities.is_empty() {
-                // Return the first vulnerability found
-                Ok(Some(vulnerabilities[0].clone()))
-            } else {
-                // If no vulnerabilities found, return None
-                Ok(None)
-            }
-        }
+        Ok(None)
     }
 
     /// Generate a PCC proof for bytecode
