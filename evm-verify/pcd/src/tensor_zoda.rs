@@ -240,7 +240,72 @@ impl<F: Field> TensorZODA<F> {
     pub fn encode_input(&mut self, input_data: &Matrix<F>) -> Result<(), TensorZODAError> {
         // Use thread_rng for simplicity in benchmarks
         let mut rng = rand::thread_rng();
-        self.encode_input_internal(input_data.clone(), Some(&mut rng))
+        self.encode_direct(input_data, Some(&mut rng))
+    }
+    
+    /// Directly encode input data using existing code matrices without recreating them
+    /// This ensures compatibility with pre-configured matrix dimensions
+    pub fn encode_direct<R: Rng>(&mut self, input_data: &Matrix<F>, rng_opt: Option<&mut R>) -> Result<(), TensorZODAError> {
+        // Log dimensions for debugging
+        eprintln!("Direct encoding - Input: {}x{}, G: {}x{}, G': {}x{}", 
+                 input_data.rows, input_data.cols, 
+                 self.g_code.rows, self.g_code.cols,
+                 self.g_prime_code.rows, self.g_prime_code.cols);
+        
+        // Check dimensions are compatible
+        if self.g_code.cols != input_data.rows || self.g_prime_code.cols != input_data.cols {
+            // Log the specific dimensions for debugging
+            eprintln!("Incompatible matrix dimensions: G({}x{}), X({}x{}), G'({}x{})", 
+                       self.g_code.rows, self.g_code.cols, 
+                       input_data.rows, input_data.cols,
+                       self.g_prime_code.rows, self.g_prime_code.cols);
+            // Use a static error message for the error type
+            return Err(TensorZODAError::EncodingError("Incompatible matrix dimensions for multiplication"));
+        }
+        
+        // Encode X̃ to get Z = GXG'ᵀ using EXISTING code matrices
+        let gx = self.g_code.multiply(input_data)
+            .map_err(TensorZODAError::EncodingError)?;
+        let g_prime_t = self.g_prime_code.transpose();
+        let z = gx.multiply(&g_prime_t)
+            .map_err(TensorZODAError::EncodingError)?;
+        
+        // Store the encoded data
+        self.encoded_data = Some(z.clone());
+        
+        // Create cryptographic commitments to rows and columns of Z
+        self.row_commitment = Some(self.commit_to_matrix(&z));
+        self.column_commitment = Some(self.commit_to_matrix(&z.transpose()));
+        
+        // Generate randomness using logarithmic randomness technique
+        let mut r = Vec::new();
+        let mut r_prime = Vec::new();
+        
+        if let Some(rng) = rng_opt {
+            r = generate_structured_randomness::<F, R>(rng, self.g_code.cols, self.field_size);
+            r_prime = generate_structured_randomness::<F, R>(rng, self.g_prime_code.cols, self.field_size);
+        } else {
+            // Use deterministic values if no RNG is provided
+            r = vec![F::one(); self.g_code.cols];
+            r_prime = vec![F::one(); self.g_prime_code.cols];
+        }
+        
+        // Compute yr = X̃ ⋅ ḡr using the input data directly
+        let yr = input_data.vec_mul(&r)
+            .map_err(TensorZODAError::EncodingError)?;
+        
+        // Compute wr' = X̃ᵀ ⋅ ḡ'r' using the input data directly
+        let x_transpose = input_data.transpose();
+        let wr_prime = x_transpose.vec_mul(&r_prime)
+            .map_err(TensorZODAError::EncodingError)?;
+        
+        // Store the evaluation results and randomness
+        self.yr = Some(yr);
+        self.wr_prime = Some(wr_prime);
+        self.r = Some(r);
+        self.r_prime = Some(r_prime);
+        
+        Ok(())
     }
     
     /// Internal implementation of encode that can work with or without an RNG
