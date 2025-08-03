@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../../avalanchego"
+		},
+		{
+			"path": "../../../../coreth"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {}
+}

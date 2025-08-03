@@ -1,0 +1,50 @@
+{
+  "family": "zkvm-production",
+  "cpu": "2048",
+  "memory": "4096",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64"
+  },
+  "containerDefinitions": [
+    {
+      "name": "zkvm-container",
+      "image": "586794479606.dkr.ecr.us-east-1.amazonaws.com/zkvm-production@sha256:a31a59b6d7e8433da21b9f1afe1016252befb54c82d90dd37131a0e6f1f84afc",
+      "cpu": 0,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "8080"
+        },
+        {
+          "name": "RUST_LOG", 
+          "value": "info"
+        },
+        {
+          "name": "REFRESH_STATUS",
+          "value": "1"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/zkvm-production",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "executionRoleArn": "arn:aws:iam::586794479606:role/ecsTaskExecutionRole"
+}

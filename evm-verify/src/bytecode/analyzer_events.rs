@@ -454,7 +454,7 @@ mod tests {
     fn create_test_analyzer(opcodes: Vec<u8>) -> BytecodeAnalyzer {
         let bytes = Bytes::from(opcodes);
         let mut analyzer = BytecodeAnalyzer::new(bytes);
-        analyzer.analyze();
+        let _ = analyzer.analyze();
         analyzer
     }
     

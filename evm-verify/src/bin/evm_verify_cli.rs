@@ -57,12 +57,13 @@ enum Commands {
     },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     
     match &cli.command {
         Commands::Analyze { file, analysis_type } => {
-            analyze_bytecode(file.clone(), analysis_type.clone())?;
+            analyze_bytecode(file.clone(), analysis_type.clone()).await?;
         },
         Commands::GenerateProof { file, output, proof_type } => {
             generate_proof(file.clone(), output.clone(), proof_type.clone())?;
@@ -75,7 +76,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn analyze_bytecode(file: PathBuf, analysis_type: String) -> Result<()> {
+async fn analyze_bytecode(file: PathBuf, analysis_type: String) -> Result<()> {
     // Read bytecode from file
     let bytecode_hex = fs::read_to_string(file)?;
     let bytecode_bytes = hex::decode(bytecode_hex.trim_start_matches("0x"))?;
@@ -91,7 +92,7 @@ fn analyze_bytecode(file: PathBuf, analysis_type: String) -> Result<()> {
     };
     
     // Analyze the bytecode
-    let report = verifier.analyze_bytecode(&bytecode_bytes)?;
+    let report = verifier.analyze_bytecode(&bytecode_bytes).await?;
     
     // Print the results
     println!("Analysis Report:");

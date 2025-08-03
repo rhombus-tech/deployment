@@ -6,6 +6,7 @@ use crate::common::DeploymentData;
 pub mod access;
 pub mod constructor;
 pub mod cross_contract_reentrancy;
+pub mod defi_composability;
 pub mod evm_state;
 pub mod flash_loan;
 pub mod front_running;
@@ -23,14 +24,22 @@ pub mod self_destruct;
 pub mod signature_replay;
 pub mod state;
 pub mod storage;
+pub mod test_circuit;
 pub mod timestamp_dependency;
 pub mod unchecked_calls;
 pub mod upgrade;
+
+// New EVM Circuit Modules for Full zkEVM Compliance
+pub mod execution_trace;
+pub mod stack_memory_circuit;
+pub mod opcode_circuit;
+pub mod complete_evm_circuit;
 
 // Import for internal use
 use access::AccessControlCircuit;
 use constructor::ConstructorCircuit;
 use cross_contract_reentrancy::CrossContractReentrancyCircuit;
+use defi_composability::{DeFiComposabilityCircuit, EconomicSecurityCircuit};
 use evm_state::EVMStateCircuit;
 use front_running::FrontRunningCircuit;
 use gas_limit::GasLimitCircuit;
@@ -50,9 +59,18 @@ use timestamp_dependency::TimestampDependencyCircuit;
 use unchecked_calls::UncheckedCallsCircuit;
 use upgrade::UpgradeVerificationCircuit;
 
+// New EVM Circuit Imports
+use execution_trace::{EVMExecutionTrace, ExecutionTraceResult, ExecutionPerformance};
+use stack_memory_circuit::{StackMemoryVerifier, StackMemoryProof};
+use opcode_circuit::{OpcodeValidationCircuit, OpcodeValidationProof};
+pub use complete_evm_circuit::{CompleteEVMCircuit, CompleteEVMProof, EFComplianceAttestation};
+
 // Re-export circuits for public use
 pub use integer_overflow::IntegerOverflowCircuit;
 pub use flash_loan::FlashLoanCircuit;
+pub use test_circuit::TestCircuit;
+pub use opcode_circuit::{ExecutionContext, BlockContext};
+// CompleteEVMCircuit is already re-exported above
 
 /// Circuit builder
 pub struct CircuitBuilder<F: PrimeField> {
@@ -233,6 +251,65 @@ impl<F: PrimeField> CircuitBuilder<F> {
     /// Build cross-contract reentrancy vulnerability detection circuit
     pub fn build_cross_contract_reentrancy(&self) -> CrossContractReentrancyCircuit<F> {
         CrossContractReentrancyCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+        )
+    }
+    
+    /// Build DeFi composability security verification circuit
+    pub fn build_defi_composability(
+        &self,
+        contracts: Vec<ethers::types::H160>,
+        risks: Vec<crate::analysis::defi_composability::ComposabilityRisk>
+    ) -> DeFiComposabilityCircuit<F> {
+        DeFiComposabilityCircuit::new(
+            self.deployment.clone(),
+            self.runtime.clone(),
+            contracts,
+            risks,
+        )
+    }
+    
+    /// Build economic security verification circuit
+    pub fn build_economic_security(
+        &self,
+        liquidity_depth: f64,
+        collateralization_ratio: f64,
+        value_at_risk: f64,
+        max_extractable_value: f64,
+        is_solvent_under_stress: bool,
+    ) -> EconomicSecurityCircuit<F> {
+        EconomicSecurityCircuit::new(
+            liquidity_depth,
+            collateralization_ratio,
+            value_at_risk,
+            max_extractable_value,
+            is_solvent_under_stress,
+        )
+    }
+
+    /// Build EVM execution trace circuit for opcode-level proving
+    pub fn build_execution_trace(&self) -> EVMExecutionTrace {
+        EVMExecutionTrace::new()
+    }
+
+    /// Build stack and memory verification circuit
+    pub fn build_stack_memory_verifier(&self) -> StackMemoryVerifier {
+        StackMemoryVerifier::new()
+    }
+
+    /// Build opcode validation circuit
+    pub fn build_opcode_validation(&self) -> OpcodeValidationCircuit {
+        OpcodeValidationCircuit::new()
+    }
+
+    /// Build complete EVM circuit with full EF compliance
+    pub fn build_complete_evm_circuit(&self) -> CompleteEVMCircuit<F> {
+        CompleteEVMCircuit::new(
+            self.build_execution_trace(),
+            self.build_stack_memory_verifier(),
+            self.build_opcode_validation(),
+            self.build_evm_state(),
             self.deployment.clone(),
             self.runtime.clone(),
         )

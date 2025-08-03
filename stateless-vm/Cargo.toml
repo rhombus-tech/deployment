@@ -1,0 +1,73 @@
+[package]
+name = "avalanche-stateless-vm"
+version = "0.1.0"
+edition = "2021"
+description = "A stateless virtual machine for executing multi-step agent transactions on Avalanche"
+license = "MIT"
+
+[dependencies]
+# Core dependencies
+ethers = { version = "2.0", features = ["abigen", "ws"] }
+evm-verify = { path = "../evm-verify", optional = true }
+hex = "0.4"
+md5 = "0.7"
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.28", features = ["full"] }
+# Use a specific version of async-trait known to work with Rust nightly
+async-trait = { version = "0.1.56", default-features = false }
+
+# Cryptography & State
+sha3 = "0.10"
+rlp = "0.5"
+patricia-trie = "0.3.0"
+memorydb = "0.3.0"
+keccak-hasher = "0.1.1"
+bytes = "1.4"
+chrono = "0.4"
+regex = "1.5"
+num_cpus = "1.16"
+rayon = "1.8"
+dashmap = "5.5"
+futures = "0.3"
+
+# Avalanche specific
+avalanche-types = "0.1.0"
+
+# PCD integration
+pcd = { path = "../evm-verify/pcd" }
+
+# Web server dependencies (for binary only)
+warp = { version = "0.3", features = ["tls"], optional = true }
+reqwest = { version = "0.11", features = ["json"] }
+
+# Multinetwork support
+ethereum-types = "0.14"
+
+# Logging and diagnostics
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Web API dependencies
+axum = { version = "0.6", features = ["headers", "http2"] }
+tower = "0.4"
+tower-http = { version = "0.4", features = ["cors", "trace"] }
+
+[dev-dependencies]
+# Testing frameworks
+tokio-test = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.2"
+env_logger = "0.10"
+mockall = "0.11"
+tempfile = "3.8"
+rand = "0.8"
+
+[features]
+default = ["server"]
+metrics = []
+server = ["warp"]
+evm-verify = ["dep:evm-verify"]
+full-verification = ["evm-verify"]

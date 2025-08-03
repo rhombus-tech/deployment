@@ -1,0 +1,63 @@
+# ECS Task Definition with Health Checks and Auto-Restart
+# This will automatically restart your July 22nd Docker image when it hangs
+
+Resources:
+  ZkEvmTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: zk-evm-live-proving
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: 1024
+      Memory: 2048
+      ContainerDefinitions:
+        - Name: zk-evm-container
+          Image: your-july-22nd-image:latest
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          # CRITICAL: Health check to detect hangs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - "curl -f http://localhost:8080/status || exit 1"
+            Interval: 30        # Check every 30 seconds
+            Timeout: 10         # 10 second timeout per check
+            Retries: 3          # 3 failed checks = unhealthy
+            StartPeriod: 60     # Wait 60s before first check
+          # Auto-restart when unhealthy
+          Environment:
+            - Name: RESTART_POLICY
+              Value: "always"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /aws/ecs/zk-evm-live
+              awslogs-region: us-east-1
+              awslogs-stream-prefix: ecs
+
+  # ECS Service with auto-restart configuration
+  ZkEvmService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ZkEvmTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      # CRITICAL: This will replace unhealthy tasks automatically
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref SecurityGroup
+          Subnets:
+            - !Ref PrivateSubnet1
+            - !Ref PrivateSubnet2
+          AssignPublicIp: DISABLED

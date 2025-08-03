@@ -3,6 +3,8 @@ pub mod memory;
 pub mod types;
 pub mod security;
 pub mod access_control;
+pub mod smart_filter;
+pub mod precision_filter;
 pub mod analyzer_unchecked_calls;
 pub mod analyzer_txorigin;
 pub mod analyzer_gas_limit;
@@ -27,11 +29,13 @@ pub mod analyzer_oracle;
 pub mod analyzer_mev;
 pub mod analyzer_governance;
 pub mod analyzer_upgradability;
+pub mod control_flow;
 pub mod analyzer_gas_griefing;
 pub mod analyzer_precision;
 pub mod analyzer_events;
 pub mod analyzer_front_running;
 pub mod opcodes;
+pub mod antihacks;
 #[cfg(test)]
 pub mod tests;
 

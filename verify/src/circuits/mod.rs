@@ -1,3 +1,4 @@
+pub use indexer_safety::*;
 pub mod memory_pcd;
 pub mod memory_safety;
 pub mod resource_bounds;
@@ -8,6 +9,7 @@ pub mod parameter_validation;
 pub mod module_interaction;
 pub mod determinism;
 pub mod side_channel;
+pub mod indexer_safety;
 #[cfg(test)]
 mod indirect_call_test;
 

@@ -45,7 +45,7 @@ fn test_proper_event_emission() {
     ]);
     
     let mut analyzer = BytecodeAnalyzer::new(bytecode);
-    analyzer.analyze();
+    let _ = analyzer.analyze();
     
     // Set test mode to true to avoid other warnings
     analyzer.set_test_mode(true);

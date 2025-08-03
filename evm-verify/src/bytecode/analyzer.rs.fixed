@@ -1,0 +1,312 @@
+use std::collections::{HashMap, HashSet};
+use std::cmp::{min, max};
+
+use anyhow::{anyhow, Result};
+use ethers::types::{Address, Bytes, H160, H256, U256};
+
+use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
+use crate::bytecode::types::*;
+use crate::bytecode::control_flow::{ControlFlowGraph, FormalVerificationProof};
+
+use crate::bytecode::access_control::AccessControlAnalyzer;
+use crate::bytecode::memory::MemoryAnalyzer;
+use crate::bytecode::analyzer_access_control;
+use crate::bytecode::analyzer_dos;
+use crate::bytecode::analyzer_signature_replay;
+use crate::bytecode::analyzer_proxy;
+use crate::bytecode::analyzer_randomness;
+use crate::bytecode::analyzer_oracle;
+use crate::bytecode::analyzer_mev;
+use crate::bytecode::analyzer_upgradability;
+
+/// Analyzes EVM bytecode for safety properties
+#[derive(Debug)]
+pub struct BytecodeAnalyzer {
+    /// Raw bytecode
+    bytecode: Bytes,
+    /// Current analysis state
+    state: AnalysisState,
+    /// Memory analyzer
+    memory_analyzer: MemoryAnalyzer,
+    /// Access control analyzer
+    access_control_analyzer: AccessControlAnalyzer,
+    /// Security warnings
+    security_warnings: Vec<SecurityWarning>,
+    /// Test mode flag - when true, some features are disabled for compatibility with tests
+    test_mode: bool,
+}
+
+/// Internal analysis state
+#[derive(Debug)]
+struct AnalysisState {
+    /// Program counter
+    pc: usize,
+    /// Current stack
+    stack: Vec<U256>,
+    /// Memory contents
+    memory: HashMap<usize, u8>,
+}
+
+impl BytecodeAnalyzer {
+
+    /// Create new bytecode analyzer
+    pub fn new(bytecode: Bytes) -> Self {
+        Self {
+            bytecode,
+            state: AnalysisState {
+                pc: 0,
+                stack: Vec::new(),
+                memory: Vec::new(),
+                storage: HashMap::new(),
+                jump_destinations: HashSet::new(),
+                last_jumps: VecDeque::new(),
+                gas: U256::zero(),
+            },
+            test_mode: false,
+            blocks: None,
+            external_calls: Vec::new(),
+            security_warnings: Vec::new(),
+        }
+    }
+
+    /// Enables test mode for deterministic output
+    pub fn with_test_mode(mut self) -> Self {
+        self.test_mode = true;
+        self
+    }
+
+    /// Detect delegate call vulnerabilities
+    fn detect_delegate_call_vulnerabilities(&self) -> Result<Vec<SecurityWarning>> {
+        let mut security_warnings = Vec::new();
+        let bytecode_vec: Vec<u8> = self.bytecode.iter().copied().collect();
+        
+        // Simplified implementation - just check for DELEGATECALL opcode
+        for i in 0..bytecode_vec.len() {
+            if bytecode_vec[i] == 0xF4 { // DELEGATECALL opcode
+                let pc = i;
+                
+                // Add high-severity warning for delegate calls
+                let call_operation = Operation::DelegateCall {
+                    target: H256::zero(), // Simplified - we don't track actual targets
+                    data: Vec::new(),   // Simplified - we don't track call data
+                };
+                
+                // Add high-severity warning for all delegate calls
+                security_warnings.push(SecurityWarning {
+                    kind: SecurityWarningKind::UnprotectedDelegateCall,
+                    severity: SecuritySeverity::High,
+                    pc: pc as u64,
+                    description: format!(
+                        "Potentially unsafe delegate call at PC {}. Delegate calls can lead to unexpected behavior if the target contract is malicious or upgraded.",
+                        pc
+                    ),
+                    operations: vec![call_operation.clone()],
+                    remediation: String::from(
+                        "Ensure that the target address for delegate calls is a trusted contract that cannot be changed. Consider using a whitelist of allowed addresses."
+                    ),
+                });
+                
+                // Simplified - add a generic context confusion warning for all DELEGATECALL opcodes
+                security_warnings.push(SecurityWarning {
+                    kind: SecurityWarningKind::DelegateCallContextConfusion,
+                    severity: SecuritySeverity::High,
+                    pc: pc as u64,
+                    description: format!(
+                        "Potential delegate call context confusion at PC {}. The delegate call may access storage variables that have different meanings in different contracts.",
+                        pc
+                    ),
+                    operations: vec![call_operation],
+                    remediation: String::from(
+                        "Be extremely cautious with storage access in contracts meant to be called via delegatecall. Consider using a specific storage slot pattern that avoids collisions."
+                    ),
+                });
+            }
+        }
+        
+        // Check for delegate calls in constructor code
+        self.check_constructor_delegate_calls(&bytecode_vec, &mut security_warnings)?;
+        
+        Ok(security_warnings)
+    }
+
+    /// Identifies constructor delegate calls
+    fn check_constructor_delegate_calls(&self, bytecode: &[u8], warnings: &mut Vec<SecurityWarning>) -> Result<()> {
+        if let Some((start, end)) = self.identify_constructor_range(bytecode) {
+            // Simplified implementation - just look for DELEGATECALL opcode in constructor range
+            for i in start..end {
+                if i >= bytecode.len() {
+                    break;
+                }
+                
+                if bytecode[i] == 0xF4 { // DELEGATECALL
+                    // Add extreme-severity warning for constructor delegate calls
+                    warnings.push(SecurityWarning {
+                        kind: SecurityWarningKind::ConstructorDelegateCall,
+                        severity: SecuritySeverity::Extreme,
+                        pc: i as u64,
+                        description: format!(
+                            "Dangerous delegate call in contract constructor at PC {}. This is extremely dangerous as the delegate call target might not be initialized yet.",
+                            i
+                        ),
+                        operations: vec![Operation::DelegateCall {
+                            target: H256::zero(), // Simplified
+                            data: Vec::new(),    // Simplified
+                        }],
+                        remediation: String::from(
+                            "Never use delegate calls in contract constructors. Initialize your contract directly without relying on external code."
+                        ),
+                    });
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Identifies the range of bytecode that belongs to the constructor
+    fn identify_constructor_range(&self, bytecode: &[u8]) -> Option<(usize, usize)> {
+        // This is a simple heuristic that looks for patterns commonly found at the end of constructor code
+        // In reality, accurate constructor identification requires more sophisticated analysis
+        
+        // Common patterns at the end of constructor code include:
+        // - CODECOPY followed by RETURN to deploy runtime code
+        // - Consecutive RETURNs (final one returns runtime code)
+        if bytecode.len() < 4 {
+            return None;
+        }
+        
+        // Look for a CODECOPY (0x39) followed by a RETURN (0xf3) pattern
+        for i in 0..bytecode.len() - 3 {
+            // Simple pattern detection: CODECOPY followed by RETURN within reasonable distance
+            // This is a simplified heuristic - production code would be more sophisticated
+            if bytecode[i] == 0x39 { // CODECOPY
+                // Look ahead for RETURN within a reasonable distance
+                for j in i+1..std::cmp::min(i+20, bytecode.len()) {
+                    if bytecode[j] == 0xf3 { // RETURN
+                        // Found likely end of constructor
+                        return Some((0, j+1));
+                    }
+                }
+            }
+        }
+        
+        // If we can't identify the constructor end, assume the entire bytecode is deployment code
+        // This is safer than potentially missing constructor delegate calls
+        Some((0, bytecode.len()))
+    }
+    
+    /// Simulate stack operations up to a given PC to accurately extract stack state
+    fn simulate_stack_to_pc(&self, bytecode: &[u8], target_pc: usize) -> Vec<U256> {
+        let mut stack = Vec::new();
+        
+        // Linear simulation approach - we don't need the CFG for basic stack simulation
+        // Process opcodes sequentially until we reach the target PC
+        let mut pc = 0;
+        while pc < target_pc && pc < bytecode.len() {
+            let opcode = bytecode[pc];
+            
+            // Stack manipulation based on opcode
+            match opcode {
+                // PUSHx (0x60-0x7f): Push 1-32 bytes onto stack
+                0x60..=0x7f => {
+                    let bytes_to_push = (opcode - 0x60 + 1) as usize;
+                    let start = pc + 1;
+                    let end = pc + bytes_to_push + 1;
+                    
+                    if start < bytecode.len() && end <= bytecode.len() {
+                        // Extract the bytes being pushed
+                        let mut val = U256::zero();
+                        for i in start..end {
+                            val = val.checked_mul(U256::from(256)).unwrap_or(U256::zero());
+                            val = val.overflowing_add(U256::from(bytecode[i])).0;
+                        }
+                        stack.push(val);
+                    } else {
+                        // Handle edge case - push default value
+                        stack.push(U256::zero());
+                    }
+                    
+                    // Skip over the push data
+                    pc += bytes_to_push;
+                },
+                
+                // DUPx (0x80-0x8f): Duplicate the xth stack item
+                0x80..=0x8f => {
+                    let pos = (opcode - 0x80) as usize;
+                    if pos < stack.len() {
+                        let val = stack[stack.len() - 1 - pos];
+                        stack.push(val);
+                    } else {
+                        // Handle stack underflow - push zero
+                        stack.push(U256::zero());
+                    }
+                },
+                
+                // SWAPx (0x90-0x9f): Swap top with the xth stack item
+                0x90..=0x9f => {
+                    let pos = (opcode - 0x90 + 1) as usize;
+                    if pos < stack.len() && !stack.is_empty() {
+                        let len = stack.len();
+                        stack.swap(len - 1, len - 1 - pos);
+                    }
+                },
+                
+                // POP (0x50): Remove the top item from stack
+                0x50 => {
+                    if !stack.is_empty() {
+                        stack.pop();
+                    }
+                },
+                
+                // ADD (0x01): Addition operation
+                0x01 => {
+                    if stack.len() >= 2 {
+                        let a = stack.pop().unwrap();
+                        let b = stack.pop().unwrap();
+                        stack.push(a.overflowing_add(b).0);
+                    }
+                },
+                
+                // MUL (0x02): Multiplication operation
+                0x02 => {
+                    if stack.len() >= 2 {
+                        let a = stack.pop().unwrap();
+                        let b = stack.pop().unwrap();
+                        stack.push(a.overflowing_mul(b).0);
+                    }
+                },
+                
+                // SUB (0x03): Subtraction operation
+                0x03 => {
+                    if stack.len() >= 2 {
+                        let a = stack.pop().unwrap();
+                        let b = stack.pop().unwrap();
+                        stack.push(b.overflowing_sub(a).0);
+                    }
+                },
+                
+                // DIV (0x04): Integer division operation
+                0x04 => {
+                    if stack.len() >= 2 {
+                        let a = stack.pop().unwrap();
+                        let b = stack.pop().unwrap();
+                        if a.is_zero() {
+                            stack.push(U256::zero());
+                        } else {
+                            stack.push(b / a);
+                        }
+                    }
+                },
+                
+                // Any other opcode: assume it doesn't modify the stack for simplicity
+                _ => {}
+            }
+            
+            // Move to next instruction
+            pc += 1;
+        }
+        
+        stack
+    }
+    
+}

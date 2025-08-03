@@ -1,0 +1,18 @@
+{
+  "Comment": "SSL certificate validation record",
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "_ae27625e64b1c6e1699b0ed9fa95a397.zk-evm.org.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "_34f287ce7abf7bfa80669bb710ab0b33.xlfgrmvvlj.acm-validations.aws."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "block_hash": "0x3f9009a238d3b68464dff6f985fba56a2d2026eddfd32ddf0d69e3f2e92090a1",
+    "block_number": 22964132,
+    "challenge_response_time_ms": 108,
+    "proof_size_bytes": 2752,
+    "proving_time_ms": 108,
+    "success": true,
+    "timestamp": 1753059467,
+    "transaction_count": 172,
+    "verification_data": {
+      "block_size": 113833,
+      "gas_used": 19649095,
+      "meets_latency_req": true,
+      "meets_proof_size_req": true
+    }
+  },
+  {
+    "block_hash": "0xd78839db17b81e314a4773267586ff56640b0bc3146b45f636d78abb33254dd4",
+    "block_number": 22964131,
+    "challenge_response_time_ms": 653,
+    "proof_size_bytes": 4656,
+    "proving_time_ms": 653,
+    "success": true,
+    "timestamp": 1753059455,
+    "transaction_count": 119,
+    "verification_data": {
+      "block_size": 66507,
+      "gas_used": 12214178,
+      "meets_latency_req": true,
+      "meets_proof_size_req": true
+    }
+  },
+  {
+    "block_hash": "0x24c70b07426ad23e7eee1026322b2f9540bb202b9a1ab53281bb94c508b4836b",
+    "block_number": 22964130,
+    "challenge_response_time_ms": 112,
+    "proof_size_bytes": 8016,
+    "proving_time_ms": 112,
+    "success": true,
+    "timestamp": 1753059443,
+    "transaction_count": 210,
+    "verification_data": {
+      "block_size": 105134,
+      "gas_used": 19124402,
+      "meets_latency_req": true,
+      "meets_proof_size_req": true
+    }
+  }
+]

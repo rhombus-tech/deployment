@@ -1,0 +1,582 @@
+warning: unused import: `Zero`
+ --> common/src/utils.rs:1:21
+  |
+1 | use ark_ff::{Field, Zero};
+  |                     ^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `evm-verify-common` (lib) generated 1 warning
+warning: unused import: `std::cmp::min`
+ --> pcc/src/circuits/memory.rs:6:5
+  |
+6 | use std::cmp::min;
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `ConstraintSystemRef`
+  --> pcc/src/tests.rs:17:49
+   |
+17 |     use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef, ConstraintSynthesizer};
+   |                                                 ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Field`
+  --> pcc/src/tests.rs:18:18
+   |
+18 |     use ark_ff::{Field, One, Zero};
+   |                  ^^^^^
+
+warning: unused import: `Field`
+    --> pcc/src/tests.rs:1236:22
+     |
+1236 |         use ark_ff::{Field, One, Zero}; // Import One and Zero traits
+     |                      ^^^^^
+
+warning: unused imports: `Field`, `One`, and `Zero`
+    --> pcc/src/tests.rs:1647:18
+     |
+1647 |     use ark_ff::{Field, One, Zero};
+     |                  ^^^^^  ^^^  ^^^^
+
+warning: unused import: `ConstraintSystemRef`
+    --> pcc/src/tests.rs:1649:49
+     |
+1649 |     use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef};
+     |                                                 ^^^^^^^^^^^^^^^^^^^
+
+warning: variable `mask_value` is assigned to, but never used
+   --> pcc/src/analyzer/bytecode.rs:492:29
+    |
+492 |                     let mut mask_value = Vec::new();
+    |                             ^^^^^^^^^^
+    |
+    = note: consider using `_mask_value` instead
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: value assigned to `mask_value` is never read
+   --> pcc/src/analyzer/bytecode.rs:501:33
+    |
+501 | ...                   mask_value = self.bytecode[push_pos+1..push_pos+1+push_size].to_vec();
+    |                       ^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `pos2`
+   --> pcc/src/analyzer/bytecode.rs:566:18
+    |
+566 |             let (pos2, op2) = bit_ops[i + 1];
+    |                  ^^^^ help: if this is intentional, prefix it with an underscore: `_pos2`
+
+warning: unused variable: `game_structure`
+   --> pcc/src/analyzer/game_theory.rs:357:36
+    |
+357 |     fn find_nash_equilibria(&self, game_structure: &GameStructure) -> Result<Vec<EquilibriumState>> {
+    |                                    ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_game_structure`
+
+warning: unused variable: `bytecode`
+   --> pcc/src/analyzer/dex_price_verifier.rs:367:37
+    |
+367 |     pub fn analyze_arbitrage(&self, bytecode: &[u8]) -> Result<ArbitrageAnalysis> {
+    |                                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bytecode`
+
+warning: unused variable: `result`
+   --> pcc/src/analyzer/recovery_mechanism.rs:428:13
+    |
+428 |         let result = analyzer.verify(&bytecode);
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+
+warning: unused variable: `analyzer`
+  --> pcc/src/analyzer/tests/stability_tests.rs:25:13
+   |
+25 |         let analyzer = StabilityAnalyzer::new(
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_analyzer`
+
+warning: unused variable: `analyzer`
+  --> pcc/src/analyzer/tests/game_theory_tests.rs:35:13
+   |
+35 |         let analyzer = GameTheoryAnalyzer::new(
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_analyzer`
+
+warning: unused variable: `analyzer`
+  --> pcc/src/analyzer/tests/economic_bounds_tests.rs:35:13
+   |
+35 |         let analyzer = EconomicBoundsAnalyzer::new(
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_analyzer`
+
+warning: unused variable: `verifier`
+  --> pcc/src/analyzer/tests/dex_price_verifier_tests.rs:40:13
+   |
+40 |         let verifier = DEXPriceVerifier::new(
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_verifier`
+
+warning: unused variable: `all_accesses_safe`
+   --> pcc/src/circuits/memory.rs:141:13
+    |
+141 |         let all_accesses_safe = cs.new_input_variable(|| {
+    |             ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_all_accesses_safe`
+
+warning: unused variable: `in_bounds`
+   --> pcc/src/circuits/memory.rs:380:25
+    |
+380 |                     let in_bounds = combined_in_bounds;
+    |                         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_in_bounds`
+
+warning: unused variable: `sandwich_pattern_var`
+    --> pcc/src/circuits/bytecode.rs:1170:17
+     |
+1170 |             let sandwich_pattern_var = cs.new_witness_variable(|| Ok(F::from(if has_sandwich_pattern { 1u32 } else { 0u32 })))?;
+     |                 ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sandwich_pattern_var`
+
+warning: unused variable: `time_bandit_var`
+    --> pcc/src/circuits/bytecode.rs:1171:17
+     |
+1171 |             let time_bandit_var = cs.new_witness_variable(|| Ok(F::from(if has_time_bandit_vulnerability { 1u32 } else { 0u32 })))?;
+     |                 ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_time_bandit_var`
+
+warning: unused variable: `oracle_manipulation_var`
+    --> pcc/src/circuits/bytecode.rs:1172:17
+     |
+1172 |             let oracle_manipulation_var = cs.new_witness_variable(|| Ok(F::from(if has_oracle_manipulation { 1u32 } else { 0u32 })))?;
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_oracle_manipulation_var`
+
+warning: unused variable: `vuln_pattern1_var`
+    --> pcc/src/circuits/bytecode.rs:1265:17
+     |
+1265 |             let vuln_pattern1_var = cs.new_witness_variable(|| {
+     |                 ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_vuln_pattern1_var`
+
+warning: unused variable: `pattern1_or_sandwich_var`
+    --> pcc/src/circuits/bytecode.rs:1273:17
+     |
+1273 |             let pattern1_or_sandwich_var = cs.new_witness_variable(|| {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pattern1_or_sandwich_var`
+
+warning: unused variable: `final_vulnerability_var`
+    --> pcc/src/circuits/bytecode.rs:1280:17
+     |
+1280 |             let final_vulnerability_var = cs.new_witness_variable(|| {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_vulnerability_var`
+
+warning: unused variable: `cs`
+    --> pcc/src/circuits/bytecode.rs:1457:42
+     |
+1457 |     pub fn verify_sandwich_attack(&self, cs: &mut ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+     |                                          ^^ help: if this is intentional, prefix it with an underscore: `_cs`
+
+warning: unused variable: `bitmask_vulnerability_var`
+    --> pcc/src/circuits/bytecode.rs:1618:13
+     |
+1618 |         let bitmask_vulnerability_var = cs.new_input_variable(|| {
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bitmask_vulnerability_var`
+
+warning: variable does not need to be mutable
+   --> pcc/src/tests.rs:864:13
+    |
+864 |         let mut full_vulnerable_cs = ConstraintSystem::<Fr>::new_ref();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> pcc/src/tests.rs:865:13
+    |
+865 |         let mut full_safe_cs = ConstraintSystem::<Fr>::new_ref();
+    |             ----^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> pcc/src/tests.rs:965:13
+    |
+965 |         let mut full_vulnerable_cs = ConstraintSystem::<Fr>::new_ref();
+    |             ----^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> pcc/src/tests.rs:966:13
+    |
+966 |         let mut full_vulnerable_cs2 = ConstraintSystem::<Fr>::new_ref();
+    |             ----^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> pcc/src/tests.rs:967:13
+    |
+967 |         let mut full_safe_cs = ConstraintSystem::<Fr>::new_ref();
+    |             ----^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1079:13
+     |
+1079 |         let mut cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1147:13
+     |
+1147 |         let mut cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1219:13
+     |
+1219 |         let mut cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1325:13
+     |
+1325 |         let mut full_vulnerable_cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^^^^^^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1326:13
+     |
+1326 |         let mut full_safe_cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1516:13
+     |
+1516 |         let mut full_vulnerable_cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^^^^^^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> pcc/src/tests.rs:1517:13
+     |
+1517 |         let mut full_safe_cs = ConstraintSystem::<Fr>::new_ref();
+     |             ----^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: field `player_types` is never read
+  --> pcc/src/analyzer/game_theory.rs:12:5
+   |
+10 | pub struct GameTheoryAnalyzer {
+   |            ------------------ field in this struct
+11 |     /// Number of player types to analyze
+12 |     player_types: usize,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `GameTheoryAnalyzer` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: fields `players`, `strategies_per_player`, and `payoff_matrix` are never read
+   --> pcc/src/analyzer/game_theory.rs:524:5
+    |
+523 | struct GameStructure {
+    |        ------------- fields in this struct
+524 |     players: usize,
+    |     ^^^^^^^
+525 |     strategies_per_player: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+526 |     payoff_matrix: Vec<Vec<f64>>,
+    |     ^^^^^^^^^^^^^
+    |
+    = note: `GameStructure` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `min_liquidity_per_dex` is never read
+  --> pcc/src/analyzer/dex_price_verifier.rs:15:5
+   |
+9  | pub struct DEXPriceVerifier {
+   |            ---------------- field in this struct
+...
+15 |     min_liquidity_per_dex: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `DEXPriceVerifier` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `MUL` is never used
+  --> pcc/src/circuits/bytecode.rs:13:7
+   |
+13 | const MUL: u8 = 0x02;       // Multiplication
+   |       ^^^
+
+warning: constant `AND` is never used
+  --> pcc/src/circuits/bytecode.rs:22:7
+   |
+22 | const AND: u8 = 0x16;       // Bitwise AND
+   |       ^^^
+
+warning: constant `OR` is never used
+  --> pcc/src/circuits/bytecode.rs:23:7
+   |
+23 | const OR: u8 = 0x17;        // Bitwise OR
+   |       ^^
+
+warning: constant `XOR` is never used
+  --> pcc/src/circuits/bytecode.rs:24:7
+   |
+24 | const XOR: u8 = 0x18;       // Bitwise XOR
+   |       ^^^
+
+warning: constant `NOT` is never used
+  --> pcc/src/circuits/bytecode.rs:25:7
+   |
+25 | const NOT: u8 = 0x19;       // Bitwise NOT
+   |       ^^^
+
+warning: constant `SHL` is never used
+  --> pcc/src/circuits/bytecode.rs:26:7
+   |
+26 | const SHL: u8 = 0x1b;       // Shift left
+   |       ^^^
+
+warning: constant `SHR` is never used
+  --> pcc/src/circuits/bytecode.rs:27:7
+   |
+27 | const SHR: u8 = 0x1c;       // Shift right
+   |       ^^^
+
+warning: constant `SAR` is never used
+  --> pcc/src/circuits/bytecode.rs:28:7
+   |
+28 | const SAR: u8 = 0x1d;       // Shift arithmetic right
+   |       ^^^
+
+warning: fields `gas_usage`, `complexity`, `max_bytecode_len`, `max_stack_len`, and `max_jumps` are never read
+  --> pcc/src/circuits/bytecode.rs:76:5
+   |
+49 | pub struct BytecodeSafetyCircuit<F: Field> {
+   |            --------------------- fields in this struct
+...
+76 |     gas_usage: U256,
+   |     ^^^^^^^^^
+77 |     complexity: u32,
+   |     ^^^^^^^^^^
+...
+81 |     max_bytecode_len: usize,
+   |     ^^^^^^^^^^^^^^^^
+82 |     max_stack_len: usize,
+   |     ^^^^^^^^^^^^^
+83 |     max_jumps: usize,
+   |     ^^^^^^^^^
+   |
+   = note: `BytecodeSafetyCircuit` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: field `bytecode_hash` is never read
+    --> pcc/src/circuits/bytecode.rs:1384:17
+     |
+1383 |             struct ProofWitness {
+     |                    ------------ field in this struct
+1384 |                 bytecode_hash: String,
+     |                 ^^^^^^^^^^^^^
+
+warning: `pcc` (lib test) generated 51 warnings (run `cargo fix --lib -p pcc --tests` to apply 18 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running unittests src/lib.rs (/Users/talzisckind/Downloads/deployment/evm-verify/target/debug/deps/pcc-017263a20f418d3c)
+
+running 111 tests
+test analyzer::recovery_mechanism::tests::test_recovery_mechanism_analyzer_creation ... ok
+test analyzer::cross_chain_risk::tests::test_cross_chain_risk_analyzer_creation ... ok
+test analyzer::systemic_risk::tests::test_stress_test_analysis ... ok
+test analyzer::recovery_mechanism::tests::test_user_protection_guarantees ... ok
+test analyzer::systemic_risk::tests::test_systemic_risk_analyzer_creation ... ok
+test analyzer::systemic_risk::tests::test_black_swan_resilience ... ok
+test analyzer::systemic_risk::tests::test_systemic_risk_verification_success ... ok
+test analyzer::recovery_mechanism::tests::test_insufficient_emergency_funds ... ok
+test analyzer::tests::cross_chain_risk_tests::tests::test_bridge_exposure_limits ... ok
+test analyzer::cross_chain_risk::tests::test_bridge_exposure_analysis ... ok
+test analyzer::cross_chain_risk::tests::test_validator_security_requirements ... ok
+test analyzer::systemic_risk::tests::test_high_correlation_failure ... ok
+test analyzer::recovery_mechanism::tests::test_recovery_time_limits ... ok
+test analyzer::systemic_risk::tests::test_insufficient_liquidity_buffer ... ok
+test analyzer::recovery_mechanism::tests::test_recovery_mechanism_verification ... ok
+test analyzer::recovery_mechanism::tests::test_proof_integrity ... ok
+test analyzer::systemic_risk::tests::test_proof_integrity ... ok
+test analyzer::tests::cross_chain_risk_tests::tests::test_cross_chain_risk_analyzer_creation ... ok
+test analyzer::tests::cross_chain_risk_tests::tests::test_synchronization_bounds ... ok
+test analyzer::tests::cross_chain_risk_tests::tests::test_validator_security_requirements ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_dex_price_verifier_creation ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_manipulation_resistance ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_price_consensus ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_arbitrage_analysis ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_basic_price_verification ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_manipulation_attack_detection ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_performance_benchmarks ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_proof_integrity ... ok
+test analyzer::tests::dex_price_verifier_tests::tests::test_twap_analysis ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_economic_bounds_analyzer_creation ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_comprehensive_bounds_verification ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_collateral_bounds_verification ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_concentration_limits ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_market_cap_growth_sustainability ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_economic_proof_integrity ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_performance_benchmarks ... ok
+test analyzer::tests::economic_bounds_tests::tests::test_price_impact_bounds ... ok
+test analyzer::tests::game_theory_tests::tests::test_game_theory_analyzer_creation ... ok
+test analyzer::tests::game_theory_tests::tests::test_attack_resistance_analysis ... ok
+test analyzer::tests::game_theory_tests::tests::test_nash_equilibrium_verification ... ok
+test analyzer::tests::cross_chain_risk_tests::tests::test_validator_distribution ... FAILED
+test analyzer::tests::cross_chain_risk_tests::tests::test_manipulation_resistance ... FAILED
+test analyzer::cross_chain_risk::tests::test_cross_chain_risk_verification ... FAILED
+test analyzer::tests::cross_chain_risk_tests::tests::test_cross_chain_risk_verification ... FAILED
+test analyzer::tests::cross_chain_risk_tests::tests::test_reorg_risk_assessment ... FAILED
+test analyzer::tests::cross_chain_risk_tests::tests::test_proof_integrity ... FAILED
+test analyzer::tests::cross_chain_risk_tests::tests::test_bridge_exposure_analysis_details ... FAILED
+test analyzer::cross_chain_risk::tests::test_proof_integrity ... FAILED
+test analyzer::tests::game_theory_tests::tests::test_incentive_compatibility ... ok
+test analyzer::tests::game_theory_tests::tests::test_performance_benchmarks ... ok
+test analyzer::tests::game_theory_tests::tests::test_game_theory_proof_integrity ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_edge_case_maximum_security_parameters ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_edge_case_minimum_parameters ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_emergency_fund_analysis ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_fund_composition_diversification ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_governance_recovery_mechanisms ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_invalid_fund_ratio ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_governance_threshold_too_high ... FAILED
+test analyzer::tests::recovery_mechanism_tests::tests::test_intervention_delay_too_slow ... FAILED
+test analyzer::tests::recovery_mechanism_tests::tests::test_liquidity_assessment ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_performance_benchmarks ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_proof_integrity ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_recovery_mechanism_analyzer_creation ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_recovery_simulation_results ... FAILED
+test analyzer::tests::recovery_mechanism_tests::tests::test_user_loss_cap_exceeded ... FAILED
+test analyzer::tests::recovery_mechanism_tests::tests::test_technical_recovery_systems ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_recovery_verification_success ... ok
+test analyzer::tests::recovery_mechanism_tests::tests::test_user_protection_guarantees ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_black_swan_resilience ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_contagion_risk_assessment ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_emergency_shutdown_capability ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_extreme_event_scenarios ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_high_correlation_failure ... ok
+test analyzer::tests::stability_tests::tests::test_stability_analyzer_creation ... ok
+test analyzer::tests::stability_tests::tests::test_anti_death_spiral_proof ... ok
+test analyzer::tests::stability_tests::tests::test_convergence_proof ... ok
+test analyzer::tests::stability_tests::tests::test_attack_resistance ... ok
+test analyzer::tests::stability_tests::tests::test_performance ... ok
+test analyzer::tests::stability_tests::tests::test_basic_verification ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_insufficient_diversification ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_insufficient_liquidity_buffer ... ok
+test analyzer::tests::stability_tests::tests::test_proof_integrity ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_liquidity_crisis_preparedness ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_market_correlation_analysis ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_performance_benchmarks ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_proof_integrity ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_stress_test_scenarios ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_systemic_risk_analyzer_creation ... ok
+test analyzer::tests::systemic_risk_tests::tests::test_systemic_risk_verification_success ... ok
+test tests::tests::test_analysis_pipeline ... ok
+test tests::tests::test_precision_loss_detection_simplified ... ok
+test tests::test_bitmask_vulnerability_detection ... ok
+test tests::tests::test_precision_loss_detection ... ok
+test tests::tests::test_centralized_control_detection ... ok
+test tests::tests::test_proxy_vulnerability_detection ... ok
+test tests::tests::test_gas_griefing_detection ... ok
+test tests::tests::test_cross_contract_reentrancy_detection ... ok
+test tests::tests::test_safe_governance_contract ... ok
+test tests::test_time_bandit_vulnerability_detection ... ok
+test tests::test_oracle_manipulation_vulnerability_detection ... ok
+test tests::tests::test_governance_vulnerability_detection ... ok
+test tests::tests::test_block_number_dependence_detection ... ok
+test tests::tests::test_unchecked_return_value_detection ... ok
+test tests::tests::test_weak_randomness_detection ... ok
+test tests::tests::test_uninitialized_storage_detection_simplified ... ok
+test tests::tests::test_uninitialized_storage_vulnerability ... ok
+test tests::test_mev_vulnerability_detection ... ok
+test tests::tests::test_memory_safety_circuit ... ok
+test tests::tests::test_uninitialized_storage_detection ... ok
+test tests::tests::test_self_destruct_detection ... ok
+test tests::tests::test_bytecode_safety_circuit ... ok
+
+failures:
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_validator_distribution stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_validator_distribution' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:128:58:
+called `Result::unwrap()` on an `Err` value: Chain synchronization outside acceptable bounds
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_manipulation_resistance stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_manipulation_resistance' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:81:9:
+assertion failed: result.is_ok()
+
+---- analyzer::cross_chain_risk::tests::test_cross_chain_risk_verification stdout ----
+
+thread 'analyzer::cross_chain_risk::tests::test_cross_chain_risk_verification' panicked at pcc/src/analyzer/cross_chain_risk.rs:280:9:
+assertion failed: result.is_ok()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_cross_chain_risk_verification stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_cross_chain_risk_verification' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:34:9:
+Cross-chain risk verification should succeed
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_reorg_risk_assessment stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_reorg_risk_assessment' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:141:58:
+called `Result::unwrap()` on an `Err` value: Chain synchronization outside acceptable bounds
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_proof_integrity stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_proof_integrity' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:96:58:
+called `Result::unwrap()` on an `Err` value: Chain synchronization outside acceptable bounds
+
+---- analyzer::tests::cross_chain_risk_tests::tests::test_bridge_exposure_analysis_details stdout ----
+
+thread 'analyzer::tests::cross_chain_risk_tests::tests::test_bridge_exposure_analysis_details' panicked at pcc/src/analyzer/tests/cross_chain_risk_tests.rs:114:58:
+called `Result::unwrap()` on an `Err` value: Chain synchronization outside acceptable bounds
+
+---- analyzer::cross_chain_risk::tests::test_proof_integrity stdout ----
+
+thread 'analyzer::cross_chain_risk::tests::test_proof_integrity' panicked at pcc/src/analyzer/cross_chain_risk.rs:314:48:
+called `Result::unwrap()` on an `Err` value: Chain synchronization outside acceptable bounds
+
+---- analyzer::tests::recovery_mechanism_tests::tests::test_governance_threshold_too_high stdout ----
+
+thread 'analyzer::tests::recovery_mechanism_tests::tests::test_governance_threshold_too_high' panicked at pcc/src/analyzer/tests/recovery_mechanism_tests.rs:63:9:
+assertion failed: result.unwrap_err().to_string().contains("Governance emergency threshold")
+
+---- analyzer::tests::recovery_mechanism_tests::tests::test_intervention_delay_too_slow stdout ----
+
+thread 'analyzer::tests::recovery_mechanism_tests::tests::test_intervention_delay_too_slow' panicked at pcc/src/analyzer/tests/recovery_mechanism_tests.rs:73:9:
+assertion failed: result.is_err()
+
+---- analyzer::tests::recovery_mechanism_tests::tests::test_recovery_simulation_results stdout ----
+
+thread 'analyzer::tests::recovery_mechanism_tests::tests::test_recovery_simulation_results' panicked at pcc/src/analyzer/tests/recovery_mechanism_tests.rs:176:9:
+assertion failed: simulations.scenarios_tested.len() >= 10
+
+---- analyzer::tests::recovery_mechanism_tests::tests::test_user_loss_cap_exceeded stdout ----
+
+thread 'analyzer::tests::recovery_mechanism_tests::tests::test_user_loss_cap_exceeded' panicked at pcc/src/analyzer/tests/recovery_mechanism_tests.rs:85:9:
+assertion failed: result.unwrap_err().to_string().contains("User loss cap")
+
+
+failures:
+    analyzer::cross_chain_risk::tests::test_cross_chain_risk_verification
+    analyzer::cross_chain_risk::tests::test_proof_integrity
+    analyzer::tests::cross_chain_risk_tests::tests::test_bridge_exposure_analysis_details
+    analyzer::tests::cross_chain_risk_tests::tests::test_cross_chain_risk_verification
+    analyzer::tests::cross_chain_risk_tests::tests::test_manipulation_resistance
+    analyzer::tests::cross_chain_risk_tests::tests::test_proof_integrity
+    analyzer::tests::cross_chain_risk_tests::tests::test_reorg_risk_assessment
+    analyzer::tests::cross_chain_risk_tests::tests::test_validator_distribution
+    analyzer::tests::recovery_mechanism_tests::tests::test_governance_threshold_too_high
+    analyzer::tests::recovery_mechanism_tests::tests::test_intervention_delay_too_slow
+    analyzer::tests::recovery_mechanism_tests::tests::test_recovery_simulation_results
+    analyzer::tests::recovery_mechanism_tests::tests::test_user_loss_cap_exceeded
+
+test result: FAILED. 99 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+error: test failed, to rerun pass `--lib`

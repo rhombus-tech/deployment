@@ -11,6 +11,10 @@ pub mod unified;
 pub mod pcd_adapter;
 pub mod pcd;
 pub mod accumulation_strategy;
+pub mod hybrid_zoda_warp_strategy;
+pub mod realtime;
+pub mod realtime_endpoints;
+pub mod external_client;
 
 #[cfg(test)]
 mod integration_tests;
@@ -21,6 +25,9 @@ pub use report::*;
 pub use unified::UnifiedVerifier;
 pub use pcd_adapter::PCDAdapter;
 pub use accumulation_strategy::{AccumulationStrategy, VerificationStrategy, Groth16Strategy, ZODAStrategy};
+pub use realtime::{RealtimeConfig, RealtimeStatus, RealtimeProcessor, ProofResult, get_processor};
+pub use realtime_endpoints::create_realtime_router;
+pub use external_client::{create_external_client_router, ExternalProofRequest, ExternalProofResponse};
 
 use anyhow::{Result, Context};
 use ethers::types::Bytes;

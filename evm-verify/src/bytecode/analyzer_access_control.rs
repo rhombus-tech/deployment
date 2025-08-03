@@ -156,6 +156,7 @@ fn detect_weak_access_controls(analyzer: &BytecodeAnalyzer, warnings: &mut Vec<S
     for (i, window) in _bytecode.windows(4).enumerate() {
         if (window[0] == 0x73 || window[0] == 0x74) && // PUSH20 or similar
            window[3] == EQ && 
+           i + 21 <= _bytecode.len() && // Bounds check
            is_address_like(&_bytecode[i+1..i+21]) {
             warnings.push(SecurityWarning::hardcoded_access_control(i as u64));
         }

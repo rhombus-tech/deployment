@@ -1,0 +1,115 @@
+# CloudWatch Alarms to detect service hangs and trigger auto-restart
+
+Resources:
+  # Alarm when no successful requests for 5 minutes (service hung)
+  ServiceHangAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: zk-evm-service-hang-detection
+      AlarmDescription: Detects when zkEVM service stops responding
+      MetricName: RequestCount
+      Namespace: AWS/ApplicationELB
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 0  # No requests = hung
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+      AlarmActions:
+        - !Ref RestartServiceTopic
+
+  # Alarm for high error rate (service failing)
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: zk-evm-high-error-rate
+      AlarmDescription: High error rate indicates service issues
+      MetricName: HTTPCode_Target_5XX_Count
+      Namespace: AWS/ApplicationELB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5  # More than 5 errors
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+      AlarmActions:
+        - !Ref RestartServiceTopic
+
+  # SNS Topic to trigger service restart
+  RestartServiceTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: zk-evm-service-restart
+      Subscription:
+        - Endpoint: !GetAtt RestartServiceLambda.Arn
+          Protocol: lambda
+
+  # Lambda function to restart ECS service
+  RestartServiceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: zk-evm-service-restarter
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              ecs = boto3.client('ecs')
+              
+              try:
+                  # Force new deployment (restarts tasks with July 22nd image)
+                  response = ecs.update_service(
+                      cluster='zk-evm-cluster',
+                      service='zk-evm-live-proving-service',
+                      forceNewDeployment=True
+                  )
+                  
+                  logger.info(f"Service restart triggered: {response}")
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Service restart initiated successfully')
+                  }
+              except Exception as e:
+                  logger.error(f"Failed to restart service: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSUpdatePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:UpdateService
+                  - ecs:DescribeServices
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'

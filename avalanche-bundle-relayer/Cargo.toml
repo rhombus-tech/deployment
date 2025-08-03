@@ -1,0 +1,59 @@
+[package]
+name = "avalanche-bundle-relayer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Avalanche Developers"]
+description = "Relayer service for transaction bundles on Avalanche"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1", features = ["full", "macros"] }
+futures = "0.3"
+futures-util = { version = "0.3.28", default-features = false }
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+# Command-line interface
+clap = "3.2"
+
+# Web and API
+warp = "0.3"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["serde", "v4"] }
+rand = "0.8"
+base64 = "0.13"
+
+# Blockchain
+ethers = { version = "2.0", features = ["abigen", "ws", "rustls"] }
+hex = "0.4"
+
+# Storage
+rusqlite = { version = "0.28", features = ["bundled"] }
+toml = "0.7"
+
+# Path for integration with our EVM Verify
+evm-verify = { path = "../evm-verify", optional = true }
+anyhow = "1.0.98"
+http = "1.3.1"
+
+[features]
+default = []
+security-verification = ["evm-verify"]
+
+[dev-dependencies]
+mockall = "0.11"
+tokio-test = "0.4"
+assert_matches = "1.5"
+sha2 = "0.10.9"
+mockito = "1.7.0"

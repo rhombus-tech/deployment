@@ -33,17 +33,30 @@ fn detect_unsafe_additions(bytecode: &[u8], warnings: &mut Vec<SecurityWarning>)
     let mut i = 0;
     
     while i < bytecode.len() {
+        let opcode = bytecode[i];
+        
         // Check for ADD opcode (0x01)
-        if bytecode[i] == 0x01 {
+        if opcode == 0x01 {
             // Look back to see if there's a safety check before the ADD
             let has_safety_check = check_for_safety_check(bytecode, i);
+            
+
             
             if !has_safety_check {
                 warnings.push(SecurityWarning::integer_overflow(i as u64));
             }
         }
         
+        // Skip instruction parameters based on opcode
         i += 1;
+        match opcode {
+            // PUSH1 through PUSH32 - skip the data bytes
+            0x60..=0x7F => {
+                let num_bytes = (opcode - 0x60 + 1) as usize;
+                i += num_bytes;
+            },
+            _ => {}
+        }
     }
 }
 
@@ -56,17 +69,30 @@ fn detect_unsafe_multiplications(bytecode: &[u8], warnings: &mut Vec<SecurityWar
     let mut i = 0;
     
     while i < bytecode.len() {
+        let opcode = bytecode[i];
+        
         // Check for MUL opcode (0x02)
-        if bytecode[i] == 0x02 {
+        if opcode == 0x02 {
             // Look back to see if there's a safety check before the MUL
             let has_safety_check = check_for_safety_check(bytecode, i);
+            
+
             
             if !has_safety_check {
                 warnings.push(SecurityWarning::integer_overflow(i as u64));
             }
         }
         
+        // Skip instruction parameters based on opcode
         i += 1;
+        match opcode {
+            // PUSH1 through PUSH32 - skip the data bytes
+            0x60..=0x7F => {
+                let num_bytes = (opcode - 0x60 + 1) as usize;
+                i += num_bytes;
+            },
+            _ => {}
+        }
     }
 }
 
@@ -103,7 +129,6 @@ fn check_for_safety_check(bytecode: &[u8], op_position: usize) -> bool {
         }
     }
     
-    // If we have both a comparison and a conditional jump, likely there's a safety check
     has_comparison && has_conditional_jump
 }
 
@@ -154,23 +179,23 @@ mod tests {
     fn test_safe_addition() {
         // Create bytecode with safe addition (includes check)
         let mut bytecode = vec![];
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0xFF); // value 255
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0x01); // value 1
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0xFF); // value 255 (max value)
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0xFF); // value 255
-        bytecode.push(0x11); // GT (255 > 255? - checking if first value > max - 1)
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0x0F); // jump destination
-        bytecode.push(0x57); // JUMPI (conditional jump)
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0xFF); // value 255
-        bytecode.push(0x60); // PUSH1
-        bytecode.push(0x01); // value 1
-        bytecode.push(0x01); // ADD (safe because we checked 255 > max - 1)
+        bytecode.push(0x60); // PUSH1 - position 0
+        bytecode.push(0xFF); // value 255 - position 1
+        bytecode.push(0x60); // PUSH1 - position 2
+        bytecode.push(0x01); // value 1 - position 3
+        bytecode.push(0x60); // PUSH1 - position 4
+        bytecode.push(0xFF); // value 255 (max value) - position 5
+        bytecode.push(0x60); // PUSH1 - position 6
+        bytecode.push(0xFF); // value 255 - position 7
+        bytecode.push(0x11); // GT (255 > 255? - checking if first value > max - 1) - position 8
+        bytecode.push(0x60); // PUSH1 - position 9
+        bytecode.push(0x0F); // jump destination - position 10
+        bytecode.push(0x57); // JUMPI (conditional jump) - position 11
+        bytecode.push(0x60); // PUSH1 - position 12
+        bytecode.push(0xFF); // value 255 - position 13
+        bytecode.push(0x60); // PUSH1 - position 14
+        bytecode.push(0x01); // value 1 - position 15
+        bytecode.push(0x01); // ADD (safe because we checked 255 > max - 1) - position 16
         
         let mut analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
         // Disable other analyzers that might interfere with our test

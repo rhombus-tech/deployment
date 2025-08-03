@@ -1,0 +1,102 @@
+# Production Configuration for zkEVM Production Server
+environment = "Production"
+
+[network]
+rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+ws_url = "wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID"
+chain_id = 1
+max_retries = 5
+timeout_seconds = 45
+rate_limit_rps = 200
+connection_pooling = true
+pool_size = 20
+
+[proving]
+default_strategy = "hybrid"
+max_concurrent_proofs = 8
+proof_timeout_seconds = 600
+enable_caching = true
+cache_size_mb = 2048
+
+[proving.zoda]
+field_size = 2147483647
+test_mode = false
+distance = 16
+parallel_processing = true
+worker_threads = 8
+
+[proving.warp]
+batch_size = 200
+linear_time_optimizations = true
+memory_limit_mb = 4096
+
+[proving.hybrid]
+zoda_weight = 0.6
+warp_weight = 0.4
+auto_strategy_selection = true
+strategy_switch_threshold = 0.5
+
+[performance]
+max_memory_mb = 8192
+max_cpu_percent = 90.0
+max_disk_percent = 85.0
+enable_monitoring = true
+monitoring_interval_seconds = 30
+
+[performance.alert_thresholds]
+memory_threshold_percent = 90.0
+cpu_threshold_percent = 95.0
+disk_threshold_percent = 90.0
+proof_time_threshold_seconds = 600.0
+error_rate_threshold = 3.0
+
+[server]
+host = "0.0.0.0"
+port = 8081
+max_connections = 1000
+request_timeout_ms = 30000
+enable_cors = true
+enable_compression = true
+log_level = "info"
+
+[logging]
+level = "info"
+format = "Json"
+include_location = true
+include_thread = true
+max_file_size_mb = 100
+max_files = 10
+
+[logging.component_levels]
+proof_generation = "info"
+network = "info"
+security = "warn"
+
+[metrics]
+enable_prometheus = true
+prometheus_port = 9090
+enable_detailed_metrics = true
+histogram_buckets = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+flush_interval_seconds = 10
+
+[security]
+enable_tls = false
+enable_auth = false
+enable_rate_limiting = true
+rate_limit_per_ip = 1000
+enable_audit_log = true
+
+[storage]
+data_dir = "./data"
+enable_compression = true
+compression_level = 6
+enable_encryption = false
+
+[storage.backup]
+enabled = true
+interval_hours = 24
+retention_count = 7
+backup_dir = "./backups"
+remote_backup = false
+
+[custom]

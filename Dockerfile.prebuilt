@@ -1,0 +1,39 @@
+# zkEVM Block Fix Update - Using Pre-Built Binary
+# Lightweight container with locally compiled binary
+
+FROM debian:bullseye-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r zkvm && useradd -r -g zkvm zkvm
+
+# Create app directory and set permissions
+WORKDIR /app
+RUN mkdir -p ./bin && chown -R zkvm:zkvm /app
+
+# Copy the pre-built binary (with block availability fixes)
+COPY live-proving-service-updated ./bin/live-proving-service
+RUN chmod +x ./bin/live-proving-service && chown zkvm:zkvm ./bin/live-proving-service
+
+# Copy demo-playground files for serving
+COPY demo-playground/ ./demo-playground/
+RUN chown -R zkvm:zkvm ./demo-playground/
+
+# Switch to non-root user
+USER zkvm
+
+# Expose port
+EXPOSE 3030
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3030/health || exit 1
+
+# Start the live proving service
+CMD ["./bin/live-proving-service"]

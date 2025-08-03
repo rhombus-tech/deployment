@@ -16,14 +16,14 @@ fn get_vulnerable_bytecode() -> Vec<u8> {
     ]
 }
 
-#[test]
-fn test_groth16_strategy() -> Result<()> {
+#[tokio::test]
+async fn test_groth16_strategy() -> Result<()> {
     // Create a verifier with Groth16 strategy
     let verifier = UnifiedVerifier::with_strategy(VerificationStrategy::Groth16);
 
     // Analyze bytecode with a reentrancy vulnerability
     let bytecode = get_vulnerable_bytecode();
-    let result = verifier.analyze_bytecode_pcd(&bytecode)?;
+    let result = verifier.analyze_bytecode_pcd(&bytecode).await?;
 
     // Print the result for debugging
     println!("Groth16 analysis result: {:?}", result);
@@ -32,14 +32,14 @@ fn test_groth16_strategy() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn test_zoda_strategy() -> Result<()> {
+#[tokio::test]
+async fn test_zoda_strategy() -> Result<()> {
     // Create a verifier with ZODA strategy
     let verifier = UnifiedVerifier::with_strategy(VerificationStrategy::ZODA);
 
     // Analyze bytecode with a reentrancy vulnerability
     let bytecode = get_vulnerable_bytecode();
-    let result = verifier.analyze_bytecode_pcd(&bytecode)?;
+    let result = verifier.analyze_bytecode_pcd(&bytecode).await?;
 
     // Print the result for debugging
     println!("ZODA analysis result: {:?}", result);

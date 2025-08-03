@@ -1,0 +1,12 @@
+{
+  "Rules": [
+    {
+      "ID": "PrivacyRetentionRule",
+      "Status": "Enabled",
+      "Filter": {},
+      "Expiration": {
+        "Days": 30
+      }
+    }
+  ]
+}

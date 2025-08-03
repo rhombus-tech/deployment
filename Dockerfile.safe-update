@@ -1,0 +1,14 @@
+# Start FROM your proven working image (12:53 PM - achieving sub-100ms proving times)
+FROM 586794479606.dkr.ecr.us-east-1.amazonaws.com/zkvm-production@sha256:7576b93db25a6fd24c16d7da9a7c513bc96e064499eab9aad9c9bfba4f04e79c
+
+# Copy ONLY the updated live proving service file
+COPY evm-verify/src/bin/live_proving_service.rs /app/evm-verify/src/bin/live_proving_service.rs
+
+# Rebuild ONLY the live proving service (preserve everything else)
+WORKDIR /app/evm-verify
+RUN cargo build --bin live-proving-service --release
+
+# Keep same working directory and entry point
+WORKDIR /app
+EXPOSE 3001
+CMD ["./evm-verify/target/release/live-proving-service"]

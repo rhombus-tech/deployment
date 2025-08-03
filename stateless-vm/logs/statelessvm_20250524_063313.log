@@ -1,0 +1,8 @@
+Connecting to Avalanche C-Chain at: https://api.avax.network/ext/bc/C/rpc
+Starting StatelessVM server on 127.0.0.1:7548
+StatelessVM server started on http://localhost:7548 - Connected to Avalanche C-Chain
+Chain ID: 43114, Provider: https://api.avax.network/ext/bc/C/rpc
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/warp-0.3.7/src/server.rs:217:27:
+error binding to 127.0.0.1:7548: error creating server listener: Address already in use (os error 48)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

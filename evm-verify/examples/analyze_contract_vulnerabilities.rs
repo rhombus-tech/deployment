@@ -1,4 +1,5 @@
 use evm_verify::api::{EVMVerify, AnalysisConfig, VulnerabilityType, Vulnerability};
+use evm_verify::api::types::VerificationStrategy;
 use std::time::Instant;
 use hex;
 use std::collections::HashMap;
@@ -30,6 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         detect_event_emission: true,
         detect_front_running: true,
         test_mode: false,
+        verification_strategy: VerificationStrategy::Groth16,
     };
 
     // Create a verifier instance

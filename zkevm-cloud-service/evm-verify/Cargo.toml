@@ -1,0 +1,160 @@
+[package]
+name = "evm-verify"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    "common",
+    "contracts",
+    "pcd",
+    "pcc",
+]
+
+[features]
+default = ["pcd", "pcc"]
+pcd = ["dep:pcd"]
+pcc = ["dep:pcc"]
+accumulation = ["pcd/accumulation"]
+zoda = ["pcd/zoda"]
+warp = ["accumulation", "pcd/warp"]
+integration-tests = ["zoda"]
+all = ["pcd", "pcc", "accumulation", "zoda", "warp", "integration-tests"]
+
+[dependencies]
+# Internal dependencies
+evm-verify-common = { path = "./common" }
+pcd = { path = "./pcd", optional = true }
+pcc = { path = "./pcc", optional = true }
+
+# Ethereum - Official EF Standards
+ethers = { version = "2.0", features = ["ws"] }
+ethereum-types = "0.14"
+# Official Ethereum Foundation RLP library
+rlp = "0.5.2"  # Latest stable EF-approved version
+# Official Ethereum Foundation Keccak implementation
+keccak-hash = "0.10"  # EF's canonical keccak implementation
+tiny-keccak = { version = "2.0", features = ["keccak"] }  # Backup for compatibility
+hex = "0.4"
+hex-literal = "0.4"
+
+# Cryptographic proof systems
+ark-ff = "0.3"
+ark-ec = "0.3"
+ark-bn254 = { version = "0.3" }
+ark-bls12-381 = "0.3"
+ark-poly = "0.3"
+ark-std = { version = "0.3" }
+ark-r1cs-std = { version = "0.3" }
+ark-relations = { version = "0.3" }
+ark-groth16 = { version = "0.3" }
+ark-snark = "0.3.0"
+ark-serialize = "0.3.0"
+
+# Error handling and utilities
+anyhow = "1.0"
+thiserror = "1.0"
+blake3 = "1.5"
+sha2 = "0.10"
+sha3 = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+toml = "0.8"
+
+# Randomness
+rand = "0.8"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# Logging and tracing
+log = "0.4"
+env_logger = "0.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "fmt", "env-filter", "std"] }
+tracing-appender = "0.2"
+
+# Production-grade dependencies
+warp = "0.3"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
+actix-web = "4.0"
+actix-cors = "0.6"
+tokio-tungstenite = "0.20"
+
+# Parallel processing
+rayon = "1.8"
+num_cpus = "1.16"
+
+# Compression
+flate2 = "1.0"
+
+# Memory security
+zeroize = "1.7"
+
+# Temporary files for testing
+tempfile = "3.8"
+
+# Integration test dependencies (using existing dependencies)
+
+[dev-dependencies]
+hex-literal = "0.4"
+
+[[example]]
+name = "pcc_example"
+path = "examples/pcc_example.rs"
+required-features = ["pcc"]
+
+[[example]]
+name = "bytecode_circuit_example"
+path = "examples/bytecode_circuit_example.rs"
+
+[[bin]]
+name = "zoda-integration-test"
+path = "src/bin/zoda_integration_test.rs"
+required-features = ["integration-tests"]
+
+[[bin]]
+name = "real-block-reentrancy-test"
+path = "real_block_reentrancy_test.rs"
+
+[[bin]]
+name = "zoda-proof-size-analyzer"
+path = "src/bin/zoda_proof_size_analyzer.rs"
+
+[[bin]]
+name = "real-zoda-proof-generator"
+path = "src/bin/real_zoda_proof_generator.rs"
+required-features = ["integration-tests"]
+
+[[bin]]
+name = "production-zkvm-server"
+path = "src/bin/production_zkvm_server.rs"
+required-features = ["accumulation"]
+
+[[bin]]
+name = "simple-production-server"
+path = "src/bin/simple_production_server.rs"
+
+[[bin]]
+name = "ultimate-zoda-warp-demo"
+path = "src/bin/ultimate_zoda_warp_demo.rs"
+required-features = ["accumulation"]
+
+[[bin]]
+name = "test-false-positives"
+path = "test_false_positives.rs"
+required-features = ["accumulation"]
+
+[[bin]]
+name = "test-production-reentrancy"
+path = "test_production_reentrancy.rs"
+required-features = ["accumulation"]

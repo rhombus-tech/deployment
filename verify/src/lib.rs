@@ -6,6 +6,9 @@ pub mod prover;
 pub mod zk;
 pub mod tee;
 
+#[cfg(test)]
+pub mod tests;
+
 use anyhow::Result;
 use wasmparser::WasmFeatures;
 

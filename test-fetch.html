@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test zkEVM AWS Service</title>
+</head>
+<body>
+    <h1>Testing zkEVM AWS Service</h1>
+    <div id="result">Loading...</div>
+    
+    <script>
+        async function testFetch() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('🔄 Testing AWS service...');
+                const response = await fetch('https://zk-evm.org/status');
+                console.log('✅ Response received:', response);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Data:', data);
+                    resultDiv.innerHTML = `
+                        <h2>✅ SUCCESS!</h2>
+                        <p><strong>Proving Time:</strong> ${data.average_proving_time}ms</p>
+                        <p><strong>Latest Block:</strong> #${data.latest_block}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `❌ Response not OK: ${response.status}`;
+                }
+            } catch (error) {
+                console.error('❌ Fetch failed:', error);
+                resultDiv.innerHTML = `❌ Fetch failed: ${error.message}`;
+            }
+        }
+        
+        // Test immediately
+        testFetch();
+    </script>
+</body>
+</html>

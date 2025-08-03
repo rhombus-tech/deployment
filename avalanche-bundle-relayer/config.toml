@@ -1,0 +1,22 @@
+# Avalanche Bundle Relayer Configuration
+
+[server]
+rest_port = 3000
+ws_port = 3001
+api_keys = ["test_api_key_1", "test_api_key_2"]
+
+[chain]
+name = "Avalanche"
+chain_id = 43114
+rpc_url = "https://api.avax.network/ext/bc/C/rpc"
+ws_url = "wss://api.avax.network/ext/bc/C/ws"
+block_explorer_url = "https://snowtrace.io"
+
+[security]
+# Configuration for security validation levels
+level = "Standard"  # Basic, Standard, or Comprehensive
+test_mode = false
+
+[metrics]
+enabled = true
+endpoint = "http://localhost:9090/metrics"

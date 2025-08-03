@@ -15,7 +15,7 @@ fn test_detect_block_number_dependency() {
     let warnings = analyzer.detect_block_number_dependency().unwrap();
     
     assert_eq!(warnings.len(), 1);
-    assert!(warnings[0].description.contains("Block number dependency detected"));
+    assert!(warnings[0].description.contains("Block number dependence detected"));
 }
 
 #[test]

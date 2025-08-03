@@ -195,6 +195,9 @@ fn detect_missing_gas_limits(analyzer: &BytecodeAnalyzer, warnings: &mut Vec<Sec
             let mut all_gas_forwarded = false;
             
             // Check up to 10 instructions back for gas parameter setup
+            if i == 0 {
+                continue; // Skip if we're at the first instruction
+            }
             let j = i - 1;
             let search_start = if j > 10 { j - 10 } else { 0 };
             
@@ -245,6 +248,9 @@ fn detect_insufficient_gas_stipends(analyzer: &BytecodeAnalyzer, warnings: &mut 
             let mut low_stipend_found = false;
             
             // Check up to 10 instructions back for gas parameter setup
+            if i == 0 {
+                continue; // Skip if we're at the first instruction
+            }
             let j = i - 1;
             let search_start = if j > 10 { j - 10 } else { 0 };
             

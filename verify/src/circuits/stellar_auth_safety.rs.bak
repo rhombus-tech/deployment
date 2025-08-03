@@ -1,0 +1,354 @@
+// Stellar Auth Safety Module - Compatible with Walrus 0.19.0
+use ark_ff::Field;
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
+use ark_r1cs_std::boolean::Boolean;
+use walrus::{Module, FunctionId, ImportId, ExportItem};
+use std::collections::{HashSet, HashMap};
+use crate::lc;
+
+/// Represents a vulnerability in Stellar contract authentication mechanisms
+#[derive(Debug, Clone)]
+pub enum StellarAuthVulnerability {
+    /// Missing authentication checks for sensitive operations
+    MissingAuth(String),
+    /// Improperly verified signatures
+    ImproperSignatureVerification(String),
+    /// Weak parameter validation
+    WeakParameterValidation(String),
+    /// Lack of admin role segregation
+    ImproperRoleSeparation(String),
+    /// Improper handling of auth data in storage
+    ImproperAuthDataHandling(String),
+    /// Improper cross-contract authorization
+    ImproperContractAuthorization(String),
+}
+
+/// Circuit for verifying the absence of authentication vulnerabilities in Stellar contracts
+pub struct StellarAuthCircuit<F: Field> {
+    /// Wasm module to analyze
+    pub module: Option<Module>,
+    /// List of detected vulnerabilities
+    pub vulnerabilities: Vec<StellarAuthVulnerability>,
+    /// Phantom data for the field type
+    _phantom: std::marker::PhantomData<F>,
+}
+
+impl<F: Field> StellarAuthCircuit<F> {
+    /// Create a new Stellar auth circuit with the provided module
+    pub fn new(module: Option<Module>, vulnerabilities: Vec<StellarAuthVulnerability>) -> Self {
+        Self {
+            module,
+            vulnerabilities,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: Field> ConstraintSynthesizer<F> for StellarAuthCircuit<F> {
+    fn generate_constraints(
+        self,
+        cs: ConstraintSystemRef<F>,
+    ) -> Result<(), SynthesisError> {
+        // Create a variable for each type of vulnerability
+        // The circuit passes only if all vulnerabilities are false
+        
+        let missing_auth = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::MissingAuth(_))))
+        })?;
+        
+        let improper_sig = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::ImproperSignatureVerification(_))))
+        })?;
+        
+        let weak_params = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::WeakParameterValidation(_))))
+        })?;
+        
+        let role_separation = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::ImproperRoleSeparation(_))))
+        })?;
+        
+        let auth_data = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::ImproperAuthDataHandling(_))))
+        })?;
+        
+        let contract_auth = Boolean::new_witness(cs.clone(), || {
+            Ok(self.vulnerabilities.iter().any(|v| matches!(v, StellarAuthVulnerability::ImproperContractAuthorization(_))))
+        })?;
+        
+        // Enforce that all vulnerability flags are zero (i.e., no vulnerabilities)
+        missing_auth.enforce_equal(&Boolean::constant(false))?;
+        improper_sig.enforce_equal(&Boolean::constant(false))?;
+        weak_params.enforce_equal(&Boolean::constant(false))?;
+        role_separation.enforce_equal(&Boolean::constant(false))?;
+        auth_data.enforce_equal(&Boolean::constant(false))?;
+        contract_auth.enforce_equal(&Boolean::constant(false))?;
+        
+        Ok(())
+    }
+}
+
+/// Analyze a Stellar smart contract for authentication vulnerabilities
+pub fn analyze_stellar_auth_vulnerabilities(module: &Module) -> Vec<StellarAuthVulnerability> {
+    let mut vulnerabilities = Vec::new();
+    
+    // Detect missing authentication checks
+    detect_missing_auth(module, &mut vulnerabilities);
+    
+    // Detect improper signature verification
+    detect_improper_signature_verification(module, &mut vulnerabilities);
+    
+    // Detect weak parameter validation
+    detect_weak_parameter_validation(module, &mut vulnerabilities);
+    
+    // Detect improper role separation
+    detect_improper_role_separation(module, &mut vulnerabilities);
+    
+    // Detect improper auth data handling
+    detect_improper_auth_data_handling(module, &mut vulnerabilities);
+    
+    // Detect improper contract authorization
+    detect_improper_contract_authorization(module, &mut vulnerabilities);
+    
+    vulnerabilities
+}
+
+/// Detect missing authentication checks in exported functions
+fn detect_missing_auth(module: &Module, vulnerabilities: &mut Vec<StellarAuthVulnerability>) {
+    // Step 1: Identify auth-related imports
+    let auth_imports: HashSet<ImportId> = module.imports.iter()
+        .filter(|import| {
+            if let walrus::ImportKind::Function(_) = &import.kind {
+                let name = import.name.as_str();
+                name.contains("require_auth") || 
+                name.contains("check_auth") || 
+                name.contains("is_authorized")
+            } else {
+                false
+            }
+        })
+        .map(|import| import.id())
+        .collect::<HashSet<walrus::ImportId>>();
+    
+    // Step 2: Check all exported functions
+    for export in module.exports.iter() {
+        // Only interested in exported functions
+        let func_id = match &export.item {
+            ExportItem::Function(id) => *id,
+            _ => continue,
+        };
+        if let Some(func) = module.funcs.get(func_id) {
+            if let walrus::FunctionKind::Local(local_func) = &func.kind {
+                let mut uses_auth = false;
+                
+                // Check if this function calls any auth imports
+                if let Ok(block) = local_func.block(module) {
+                    for (instr, _) in &block.instrs {
+                        if let walrus::ir::Instr::Call(call) = &instr.0 {
+                            // Check if this is a call to an auth import
+                            for import in module.imports.iter() {
+                                if let walrus::ImportKind::Function(func_idx) = &import.kind {
+                                    if *func_idx == call.func && auth_imports.contains(&import.id()) {
+                                        uses_auth = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // If function doesn't use auth imports, it might be vulnerable
+                if !uses_auth && is_sensitive_operation(&export.name) {
+                    vulnerabilities.push(StellarAuthVulnerability::MissingAuth(
+                        format!("Exported function '{}' performs sensitive operations without authentication checks", export.name)
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// Check if an operation name suggests it performs sensitive actions
+fn is_sensitive_operation(name: &str) -> bool {
+    let sensitive_keywords = [
+        "transfer", "send", "withdraw", "admin", "set", "update", "delete", "remove",
+        "mint", "burn", "create", "modify", "change", "approve"
+    ];
+    
+    sensitive_keywords.iter().any(|keyword| name.contains(keyword))
+}
+
+/// Detect functions that use signature verification improperly
+fn detect_improper_signature_verification(module: &Module, vulnerabilities: &mut Vec<StellarAuthVulnerability>) {
+    // Step 1: Identify signature verification functions
+    let sig_imports: HashSet<ImportId> = module.imports.iter()
+        .filter(|import| {
+            if let walrus::ImportKind::Function(_) = &import.kind {
+                let name = import.name.as_str();
+                name.contains("verify_") && (name.contains("sig") || name.contains("signature"))
+            } else {
+                false
+            }
+        })
+        .map(|import| import.id())
+        .collect::<HashSet<walrus::ImportId>>();
+    
+    // Step 2: Identify imports for hash functions
+    let hash_imports: HashSet<ImportId> = module.imports.iter()
+        .filter(|import| {
+            if let walrus::ImportKind::Function(_) = &import.kind {
+                let name = import.name.as_str();
+                name.contains("hash") || name.contains("sha") || name.contains("keccak")
+            } else {
+                false
+            }
+        })
+        .map(|import| import.id())
+        .collect::<HashSet<walrus::ImportId>>();
+    
+    // Find functions that use signature verification
+    for (func_id, func) in module.funcs.iter() {
+        if let walrus::FunctionKind::Local(local_func) = &func.kind {
+            let mut uses_sig_verify = false;
+            let mut uses_hash = false;
+            
+            // Check if this function uses signature verification and hash functions
+            if let Ok(block) = local_func.block(module) {
+                for (instr, _) in &block.instrs {
+                    if let walrus::ir::Instr::Call(call) = &instr.0 {
+                        // Check if this is a signature verification call
+                        for import in module.imports.iter() {
+                            if let walrus::ImportKind::Function(func_idx) = &import.kind {
+                                if *func_idx == call.func && sig_imports.contains(&import.id()) {
+                                    uses_sig_verify = true;
+                                }
+                                if *func_idx == call.func && hash_imports.contains(&import.id()) {
+                                    uses_hash = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If the function uses signature verification without using a hash function,
+            // it might be vulnerable to signature replay attacks
+            if uses_sig_verify && !uses_hash {
+                // Find the export name if it's exported
+                let export_name = module.exports.iter()
+                    .filter_map(|export| {
+                        if let ExportItem::Function(id) = &export.item { if *id == func_id {
+                            Some(export.name.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                    })
+                    .next()
+                    .unwrap_or_else(|| format!("function_{}", func_id.index()));
+                
+                vulnerabilities.push(StellarAuthVulnerability::ImproperSignatureVerification(
+                    format!("Function '{}' uses signature verification without hashing the data, which may be vulnerable to replay attacks", export_name)
+                ));
+            }
+        }
+fn identify_auth_imports(module: &Module) -> HashSet<ImportId> {
+    module.imports.iter()
+        .filter(|import| {
+            if let walrus::ImportKind::Function(_) = import.kind {
+                let name = import.name.as_str();
+                name == "require_auth" || name == "check_auth" || name.contains("auth")
+            } else {
+                false
+            }
+        })
+        .map(|import| import.id())
+        .collect::<HashSet<walrus::ImportId>>
+}
+
+/// Helper function to create a test Stellar module with different auth patterns
+fn create_test_module(with_auth_checks: bool) -> Module {
+    // Create empty module
+    let mut module = Module::default();
+    
+    // Define function types
+    let void_void_type = module.types.add(&[], &[]);
+    let void_i32_type = module.types.add(&[], &[walrus::ValType::I32]);
+    
+    // Add standard Stellar imports
+    let require_auth = module.imports.add("stellar", "require_auth", walrus::ImportKind::Function(void_void_type));
+    
+    // Create an auth import function
+    let auth_ty = module.types.add(&[], &[walrus::ValType::I32]);
+    let auth_import = module.imports.add("env", "require_auth", walrus::ImportKind::Function(auth_ty));
+    
+    // Define function type
+    let func_type = module.types.add(&[walrus::ValType::I32], &[walrus::ValType::I32]);
+        
+    // Create a block to hold our instructions
+    let mut block = walrus::ir::Block::default();
+        
+    // Add auth check if needed
+    if with_auth_checks {
+        block.instrs.push((walrus::ir::Instr::Call(walrus::ir::Call {
+            func: auth_import,
+            args: vec![],
+            rets: vec![],
+        }), Default::default()));
+            block.instrs.push((walrus::ir::Instr::Call(walrus::ir::Call {
+                func: auth_import
+            }), Default::default()));
+        }
+        
+        // Simple return 42 function
+        block.instrs.push((walrus::ir::Instr::Const(walrus::ir::Value::I32(42)), Default::default()));
+        block.instrs.push((walrus::ir::Instr::Return(None), Default::default()));
+        
+        // Create and add the function to the module
+        let func_id = module.funcs.add_local(
+            func_type,
+            vec![],
+            block,
+        );
+        
+        // Export the function
+        let export_name = if with_auth_checks {
+            "secure_function"
+        } else {
+            "set_value" // Using a sensitive name to trigger detection
+        };
+        module.exports.add(export_name, func_id);
+        
+        module
+    }
+    
+    #[test]
+    fn test_detect_missing_auth() {
+        // Create a module with auth checks
+        let secure_module = create_test_module(true);
+        let mut secure_vulns = Vec::new();
+        detect_missing_auth(&secure_module, &mut secure_vulns);
+        assert!(secure_vulns.is_empty(), "Secure module should have no vulnerabilities");
+        
+        // Create a module without auth checks
+        let insecure_module = create_test_module(false);
+        let mut insecure_vulns = Vec::new();
+        detect_missing_auth(&insecure_module, &mut insecure_vulns);
+        assert!(!insecure_vulns.is_empty(), "Insecure module should have vulnerabilities");
+    }
+    
+    #[test]
+    fn test_analyze_stellar_auth_vulnerabilities() {
+        // Test the full analysis function
+        let secure_module = create_test_module(true);
+        let secure_vulns = analyze_stellar_auth_vulnerabilities(&secure_module);
+        assert!(secure_vulns.is_empty(), "Secure module should have no vulnerabilities");
+        
+        let insecure_module = create_test_module(false);
+        let insecure_vulns = analyze_stellar_auth_vulnerabilities(&insecure_module);
+        assert!(!insecure_vulns.is_empty(), "Insecure module should have vulnerabilities");
+    }
+}

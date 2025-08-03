@@ -1,0 +1,16 @@
+# Use the working image as base
+FROM 586794479606.dkr.ecr.us-east-1.amazonaws.com/zkvm-production@sha256:f3d264ae512b29370de10a88db372e03010614f5de6356e4b00387ad36233c53
+
+# Copy only the updated live_proving_service.rs source
+COPY evm-verify/src/bin/live_proving_service.rs /app/evm-verify/src/bin/
+
+# Set working directory
+WORKDIR /app
+
+# Rebuild only the live_proving_service binary with the fixed block selection logic
+RUN cd evm-verify && \
+    cargo build --release --bin live_proving_service && \
+    cp target/release/live_proving_service /app/
+
+# The rest of the image remains unchanged - same website, same other binaries
+# This preserves all the performance optimizations while adding the block selection fix

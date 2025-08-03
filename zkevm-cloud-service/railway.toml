@@ -1,0 +1,9 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "cargo run --bin server"
+
+[env]
+PORT = 8080
+RUST_LOG = info

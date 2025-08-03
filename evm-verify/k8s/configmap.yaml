@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zkevm-config
+  namespace: zkevm-system
+  labels:
+    app.kubernetes.io/name: zkevm
+    app.kubernetes.io/component: config
+data:
+  production.toml: |
+    [server]
+    host = "0.0.0.0"
+    port = 8080
+    workers = 4
+    
+    [api]
+    rate_limit = 1000
+    timeout_ms = 30000
+    max_request_size = "10MB"
+    
+    [proving]
+    max_concurrent_proofs = 10
+    proof_cache_size = 1000
+    enable_warp_acceleration = true
+    
+    [monitoring]
+    metrics_port = 9090
+    health_check_port = 8080
+    enable_prometheus = true
+    enable_jaeger = true
+    
+    [ethereum]
+    rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+    rpc_timeout_ms = 10000
+    max_block_cache = 1000
+    
+    [security]
+    enable_tls = true
+    cert_file = "/etc/ssl/certs/tls.crt"
+    key_file = "/etc/ssl/private/tls.key"
+    
+    [logging]
+    level = "info"
+    format = "json"
+    output = "stdout"
+    
+    [performance]
+    gc_interval_ms = 60000
+    memory_limit_mb = 2048
+    cpu_limit_cores = 2
+    
+  nginx.conf: |
+    upstream zkvm_backend {
+        least_conn;
+        server zkevm-service:8080 max_fails=3 fail_timeout=30s;
+    }
+    
+    server {
+        listen 80;
+        listen 443 ssl http2;
+        server_name zkvm.example.com;
+        
+        # SSL configuration
+        ssl_certificate /etc/ssl/certs/tls.crt;
+        ssl_certificate_key /etc/ssl/private/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+        
+        # Security headers
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+        
+        # Rate limiting
+        limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
+        limit_req zone=api burst=20 nodelay;
+        
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1000;
+        gzip_types text/plain application/json application/javascript text/css;
+        
+        location / {
+            proxy_pass http://zkvm_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # Timeouts
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+            
+            # Health check
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503;
+        }
+        
+        location /health {
+            access_log off;
+            proxy_pass http://zkvm_backend/health;
+            proxy_set_header Host $host;
+        }
+        
+        location /metrics {
+            access_log off;
+            proxy_pass http://zkvm_backend:9090/metrics;
+            proxy_set_header Host $host;
+            
+            # Secure metrics endpoint
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            deny all;
+        }
+    }

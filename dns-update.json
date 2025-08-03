@@ -1,0 +1,17 @@
+{
+    "Comment": "Update zk-evm.org to point to ALB",
+    "Changes": [
+        {
+            "Action": "UPSERT",
+            "ResourceRecordSet": {
+                "Name": "zk-evm.org",
+                "Type": "A",
+                "AliasTarget": {
+                    "HostedZoneId": "Z35SXDOTRQ7X7K",
+                    "DNSName": "zkvm-alb-1035435474.us-east-1.elb.amazonaws.com",
+                    "EvaluateTargetHealth": true
+                }
+            }
+        }
+    ]
+}

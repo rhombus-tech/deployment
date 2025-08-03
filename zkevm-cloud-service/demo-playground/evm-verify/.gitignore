@@ -1,0 +1,48 @@
+# Build artifacts
+/target/
+*.exe
+*.pdb
+*.so
+*.dylib
+*.dll
+
+# Rust specific
+Cargo.lock
+*.rs.bk
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test artifacts
+test_results/
+benchmark_results/
+*.json
+
+# Temporary files
+*.tmp
+*.temp
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Documentation build
+docs/_build/
+
+# Local development
+.env
+.env.local

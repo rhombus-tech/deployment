@@ -1,0 +1,72 @@
+{
+    "family": "zkvm-production",
+    "executionRoleArn": "arn:aws:iam::586794479606:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "4096",
+    "memory": "8192",
+    "containerDefinitions": [
+        {
+            "name": "zkvm-container", 
+            "image": "586794479606.dkr.ecr.us-east-1.amazonaws.com/zkvm-production@sha256:a31a59b6d7e8433da21b9f1afe1016252befb54c82d90dd37131a0e6f1f84afc",
+            "cpu": 0,
+            "memory": 8192,
+            "memoryReservation": 6144,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                {
+                    "name": "PORT",
+                    "value": "8080"
+                },
+                {
+                    "name": "RUST_LOG", 
+                    "value": "info"
+                },
+                {
+                    "name": "REFRESH_STATUS",
+                    "value": "1"
+                },
+                {
+                    "name": "MEMORY_LIMIT_MB",
+                    "value": "6144"
+                },
+                {
+                    "name": "GC_INTERVAL_SECS", 
+                    "value": "300"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/zkvm-production",
+                    "awslogs-region": "us-east-1", 
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8080/status || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            },
+            "ulimits": [
+                {
+                    "name": "nofile",
+                    "softLimit": 65536,
+                    "hardLimit": 65536
+                }
+            ]
+        }
+    ]
+}

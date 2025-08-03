@@ -1,0 +1,81 @@
+environment = "Development"
+
+[network]
+rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+chain_id = 1
+max_retries = 3
+timeout_seconds = 30
+rate_limit_rps = 10
+connection_pooling = true
+pool_size = 10
+
+[proving]
+default_strategy = "ZodaWarpHybrid"
+max_concurrent_proofs = 2
+proof_timeout_seconds = 300
+enable_caching = true
+cache_size_mb = 512
+
+[proving.zoda]
+field_size = 128
+test_mode = true
+distance = 10
+parallel_processing = true
+worker_threads = 14
+
+[proving.warp]
+batch_size = 100
+linear_time_optimizations = true
+memory_limit_mb = 1024
+
+[proving.hybrid]
+zoda_weight = 0.7
+warp_weight = 0.3
+auto_strategy_selection = true
+strategy_switch_threshold = 1000.0
+
+[performance]
+max_memory_mb = 4096
+max_cpu_percent = 80.0
+max_disk_percent = 90.0
+enable_monitoring = true
+monitoring_interval_seconds = 30
+
+[performance.alert_thresholds]
+memory_threshold_percent = 85.0
+cpu_threshold_percent = 90.0
+disk_threshold_percent = 95.0
+proof_time_threshold_seconds = 10.0
+error_rate_threshold = 10.0
+
+[security]
+enable_tls = false
+enable_auth = false
+enable_rate_limiting = true
+rate_limit_per_ip = 100
+enable_audit_log = true
+
+[storage]
+data_dir = "./data"
+enable_compression = true
+compression_level = 6
+enable_encryption = false
+
+[storage.backup]
+enabled = true
+interval_hours = 24
+retention_count = 7
+backup_dir = "./backups"
+remote_backup = false
+
+[logging]
+level = "info"
+format = "Human"
+include_location = true
+include_thread = false
+max_file_size_mb = 100
+max_files = 10
+
+[logging.component_levels]
+
+[custom]

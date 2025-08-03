@@ -1,0 +1,13 @@
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.github
+README.md
+*.log
+node_modules
+target/
+Cargo.toml
+main.rs
+railway.toml
+start.sh

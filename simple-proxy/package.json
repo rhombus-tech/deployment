@@ -1,0 +1,15 @@
+{
+  "name": "zkevm-proxy",
+  "version": "1.0.0", 
+  "description": "Simple CORS proxy for zkEVM tunnel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

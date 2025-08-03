@@ -1,0 +1,19 @@
+{
+  "TargetGroupArn": "arn:aws:elasticloadbalancing:region:account:targetgroup/zk-evm-targets/1234567890abcdef",
+  "HealthCheckConfig": {
+    "Protocol": "HTTP",
+    "Port": "8080",
+    "Path": "/status",
+    "IntervalSeconds": 30,
+    "TimeoutSeconds": 10,
+    "HealthyThresholdCount": 2,
+    "UnhealthyThresholdCount": 3,
+    "Matcher": {
+      "HttpCode": "200"
+    }
+  },
+  "DeregistrationDelay": 30
+}
+
+// AWS CLI command to apply this config:
+// aws elbv2 modify-target-group --target-group-arn YOUR_TARGET_GROUP_ARN --health-check-interval-seconds 30 --health-check-timeout-seconds 10 --unhealthy-threshold-count 3

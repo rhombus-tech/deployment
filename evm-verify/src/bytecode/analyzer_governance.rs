@@ -62,15 +62,15 @@ fn has_insufficient_timelock(bytecode: &[u8]) -> bool {
     // Look for timestamp comparisons with small values
     // This is a heuristic approach - in real code, we'd do more sophisticated analysis
     
-    println!("Bytecode length: {}", bytecode.len());
+    // println!("Bytecode length: {}", bytecode.len()); // Disabled debug output
     for i in 0..bytecode.len() {
-        println!("Index {}: Opcode: {:02X}", i, bytecode[i]);
+        // println!("Index {}: Opcode: {:02X}", i, bytecode[i]); // Disabled verbose debug output
     }
     
     // Check for TIMESTAMP opcode followed by small value comparison
     for i in 0..bytecode.len().saturating_sub(3) {
         if bytecode[i] == TIMESTAMP {
-            println!("Found TIMESTAMP at index {}", i);
+            // println!("Found TIMESTAMP at index {}", i); // Disabled debug output
             // Check for comparison with a small value (e.g., PUSH1 <small_value> LT/GT/EQ)
             if i+2 < bytecode.len() && bytecode[i+1] == PUSH1 {
                 println!("Found PUSH1 at index {}", i+1);
@@ -158,26 +158,26 @@ fn has_centralized_admin_controls(bytecode: &[u8]) -> bool {
     // Check for address comparisons (CALLER followed by PUSH operation and EQ)
     for i in 0..bytecode.len().saturating_sub(3) {
         if bytecode[i] == CALLER {
-            println!("Found CALLER at index {}", i);
+            // println!("Found CALLER at index {}", i); // Disabled debug output
             
             // Check if next opcode is any PUSH operation
             if i+1 < bytecode.len() && is_push_operation(bytecode[i+1]) {
-                println!("Found PUSH operation at index {}: {:02X}", i+1, bytecode[i+1]);
+                // println!("Found PUSH operation at index {}: {:02X}", i+1, bytecode[i+1]); // Disabled debug
                 
                 // Skip the push data
                 let push_size = get_push_size(bytecode[i+1]);
-                println!("Push size: {}", push_size);
+                // println!("Push size: {}", push_size); // Disabled debug
                 
                 // The next index after the PUSH operation and its data
                 let next_index = i + 2 + push_size;
-                println!("Next index: {}", next_index);
+                // println!("Next index: {}", next_index); // Disabled debug
                 
                 // Check if EQ follows the push data
                 if next_index < bytecode.len() && bytecode[next_index] == EQ {
-                    println!("Found EQ at index {}", next_index);
+                    // println!("Found EQ at index {}", next_index); // Disabled debug
                     return true;
                 } else if next_index < bytecode.len() {
-                    println!("Opcode at index {}: {:02X} (expected EQ: {:02X})", next_index, bytecode[next_index], EQ);
+                    // println!("Opcode at index {}: {:02X} (expected EQ: {:02X})", next_index, bytecode[next_index], EQ); // Disabled debug
                 }
             }
         }

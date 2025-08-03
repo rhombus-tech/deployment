@@ -15,7 +15,7 @@ mod solidity_checks_tests {
         
         // Simulate unchecked call operations that could cause issues
         analyzer.record_memory_allocation(U256::from(0), U256::from(64))?;
-        analyzer.record_memory_access(U256::from(0), U256::from(64), true, None)?;
+        analyzer.record_memory_access(U256::from(0), U256::from(64), true)?;
 
         // Check for unchecked call patterns in memory accesses
         let memory = analyzer.get_memory();
@@ -37,7 +37,7 @@ mod solidity_checks_tests {
         
         // Simulate safe call operations
         analyzer.record_memory_allocation(U256::from(0), U256::from(32))?;
-        analyzer.record_memory_access(U256::from(0), U256::from(32), true, None)?;
+        analyzer.record_memory_access(U256::from(0), U256::from(32), true)?;
 
         // Check for unchecked call patterns in memory accesses
         let memory = analyzer.get_memory();

@@ -1,0 +1,10 @@
+// pub mod stability_tests;
+// pub mod game_theory_tests;
+// pub mod economic_bounds_tests;
+// pub mod dex_price_verifier_tests;
+// pub mod cross_chain_risk_tests;
+// pub mod systemic_risk_tests;
+// pub mod recovery_mechanism_tests;
+// pub mod death_spiral_tests;
+// pub mod peg_stability_tests;
+pub mod autonomous_stablecoin_tests;

@@ -1,0 +1,11 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/api/proxy/*"
+  to = "/.netlify/functions/proxy/:splat"
+  status = 200
+
+[dev]
+  command = "python3 server.py"
+  port = 8888

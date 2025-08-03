@@ -6,7 +6,6 @@
 
 use ethers::types::Bytes;
 use std::sync::Arc;
-use std::marker::PhantomData;
 use anyhow::{anyhow, Result};
 
 use crate::api::pcd::PCDVerifier;
@@ -193,6 +192,93 @@ impl PCDAdapter {
     pub fn add_verifying_key(&mut self, vk: Vec<u8>) {
         self.verifying_keys.push(vk);
     }
+}
+
+/// High-performance batch proof serialization with buffer reuse
+pub struct SerializationBuffer {
+    buffer: Vec<u8>,
+    proof_offsets: Vec<usize>,
+}
+
+impl SerializationBuffer {
+    /// Create a new serialization buffer with optimized capacity
+    pub fn new(estimated_proof_count: usize) -> Self {
+        // Pre-allocate based on typical proof sizes (1KB per proof estimate)
+        let estimated_capacity = estimated_proof_count * 1024;
+        Self {
+            buffer: Vec::with_capacity(estimated_capacity),
+            proof_offsets: Vec::with_capacity(estimated_proof_count),
+        }
+    }
+    
+    /// Serialize multiple proofs in a single batch operation
+    pub fn serialize_proof_batch(&mut self, proofs: &[ark_groth16::Proof<ark_bn254::Bn254>]) -> Result<&[u8]> {
+        use ark_serialize::CanonicalSerialize;
+        
+        self.buffer.clear();
+        self.proof_offsets.clear();
+        
+        for proof in proofs {
+            self.proof_offsets.push(self.buffer.len());
+            proof.serialize_uncompressed(&mut self.buffer)?;
+        }
+        
+        Ok(&self.buffer)
+    }
+    
+    /// Get serialized proof data for a specific proof index
+    pub fn get_proof_data(&self, index: usize) -> Option<&[u8]> {
+        if index >= self.proof_offsets.len() {
+            return None;
+        }
+        
+        let start = self.proof_offsets[index];
+        let end = if index + 1 < self.proof_offsets.len() {
+            self.proof_offsets[index + 1]
+        } else {
+            self.buffer.len()
+        };
+        
+        Some(&self.buffer[start..end])
+    }
+    
+    /// Reset buffer for reuse
+    pub fn reset(&mut self) {
+        self.buffer.clear();
+        self.proof_offsets.clear();
+    }
+}
+
+/// Serialize a proof to bytes (optimized single proof version)
+pub fn serialize_proof(proof: &ark_groth16::Proof<ark_bn254::Bn254>) -> Result<Vec<u8>> {
+    use ark_serialize::CanonicalSerialize;
+    // Pre-allocate with typical proof size to avoid reallocations
+    let mut bytes = Vec::with_capacity(256); // Typical proof size
+    proof.serialize_uncompressed(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// Serialize a verifying key to bytes (optimized with pre-allocation)
+pub fn serialize_vk(vk: &ark_groth16::VerifyingKey<ark_bn254::Bn254>) -> Result<Vec<u8>> {
+    use ark_serialize::CanonicalSerialize;
+    // Pre-allocate with typical VK size to avoid reallocations  
+    let mut bytes = Vec::with_capacity(1024); // Typical VK size
+    vk.serialize_uncompressed(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// Deserialize a proof from bytes
+pub fn deserialize_proof(bytes: &[u8]) -> Result<ark_groth16::Proof<ark_bn254::Bn254>> {
+    use ark_serialize::CanonicalDeserialize;
+    let proof = ark_groth16::Proof::<ark_bn254::Bn254>::deserialize_uncompressed(bytes)?;
+    Ok(proof)
+}
+
+/// Deserialize a verifying key from bytes
+pub fn deserialize_vk(bytes: &[u8]) -> Result<ark_groth16::VerifyingKey<ark_bn254::Bn254>> {
+    use ark_serialize::CanonicalDeserialize;
+    let vk = ark_groth16::VerifyingKey::<ark_bn254::Bn254>::deserialize_uncompressed(bytes)?;
+    Ok(vk)
 }
 
 #[cfg(test)]

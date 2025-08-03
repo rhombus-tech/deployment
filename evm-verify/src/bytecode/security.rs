@@ -120,6 +120,13 @@ pub enum Operation {
         /// Type of arithmetic operation
         operation: String,
     },
+    /// Oracle query operation
+    OracleQuery {
+        /// Oracle address
+        oracle: H256,
+        /// Storage slot
+        slot: H256,
+    },
 }
 
 /// Security warning type
@@ -243,6 +250,14 @@ pub enum SecurityWarningKind {
     MissingTransactionOrderingProtection,
     /// Sandwich attack vulnerability
     SandwichAttackVulnerability,
+    /// Price oracle manipulation vulnerability
+    PriceOracleManipulation,
+    /// Time manipulation vulnerability
+    TimeManipulation,
+    /// Insufficient slippage protection vulnerability
+    InsufficientSlippageProtection,
+    /// Flash loan attack vector vulnerability
+    FlashLoanAttackVector,
     /// Other security issue
     Other(String),
 }
@@ -254,7 +269,7 @@ impl Default for SecurityWarningKind {
 }
 
 /// Security severity level
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SecuritySeverity {
     /// Informational issue
     Info,
@@ -266,6 +281,18 @@ pub enum SecuritySeverity {
     High,
     /// Critical severity issue
     Critical,
+}
+
+impl std::fmt::Display for SecuritySeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SecuritySeverity::Info => write!(f, "Info"),
+            SecuritySeverity::Low => write!(f, "Low"),
+            SecuritySeverity::Medium => write!(f, "Medium"),
+            SecuritySeverity::High => write!(f, "High"),
+            SecuritySeverity::Critical => write!(f, "Critical"),
+        }
+    }
 }
 
 /// Security warning
@@ -825,6 +852,30 @@ impl SecurityWarning {
             pc,
             operations: Vec::new(),
             remediation: "Implement slippage protection with minimum/maximum bounds and transaction deadlines.".to_string(),
+        }
+    }
+
+    /// Create a block number dependence warning
+    pub fn block_number_dependence(pc: u64) -> Self {
+        SecurityWarning {
+            kind: SecurityWarningKind::BlockNumberDependence,
+            description: "Block number dependence detected. Contract logic depends on block numbers which can be manipulated.".to_string(),
+            severity: SecuritySeverity::Medium,
+            pc,
+            operations: Vec::new(),
+            remediation: "Avoid using block numbers for critical logic. Consider using timestamps or external oracles.".to_string(),
+        }
+    }
+
+    /// Create an uninitialized storage warning
+    pub fn uninitialized_storage(pc: u64) -> Self {
+        SecurityWarning {
+            kind: SecurityWarningKind::UninitializedStorage,
+            description: "Uninitialized storage access detected. Reading from uninitialized storage slots.".to_string(),
+            severity: SecuritySeverity::Medium,
+            pc,
+            operations: Vec::new(),
+            remediation: "Initialize all storage variables before use or add proper checks for uninitialized values.".to_string(),
         }
     }
 }

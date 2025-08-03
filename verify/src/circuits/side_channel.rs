@@ -55,7 +55,7 @@ impl fmt::Display for SideChannelVulnerability {
 }
 
 /// The circuit for verifying side-channel safety
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SideChannelSafetyCircuit<F: Field> {
     /// Detected side-channel vulnerabilities
     pub vulnerabilities: Vec<SideChannelVulnerability>,
@@ -68,7 +68,7 @@ pub struct SideChannelSafetyCircuit<F: Field> {
 impl<F: Field> SideChannelSafetyCircuit<F> {
     /// Create a new side-channel safety verification circuit
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(module: Module) -> Self {
+    pub fn new(module: &Module) -> Self {
         let vulnerabilities = analyze_side_channel_vulnerabilities(&module);
         Self {
             vulnerabilities,

@@ -202,7 +202,7 @@ fn detect_implementation_shadowing(analyzer: &BytecodeAnalyzer, warnings: &mut V
     while i < bytecode.len() {
         // Look for potential function selector comparison
         // Simplified heuristic: PUSH4 followed by EQ or AND
-        if i + 2 < bytecode.len() && 
+        if i + 5 < bytecode.len() && 
            bytecode[i] == 0x63 && // 0x63 is PUSH4
            (bytecode[i+5] == EQ as u8 || bytecode[i+5] == AND as u8) {
             has_function_selector_check = true;

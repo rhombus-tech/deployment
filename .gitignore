@@ -9,3 +9,6 @@ Cargo.lock
 # Test contracts
 swap_router_test/
 trader_joe_exploit/
+
+# Local Netlify folder
+.netlify

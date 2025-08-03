@@ -1,0 +1,227 @@
+Connecting to Avalanche C-Chain at: https://api.avax.network/ext/bc/C/rpc
+Starting StatelessVM server on 127.0.0.1:7548
+StatelessVM server started on http://localhost:7548 - Connected to Avalanche C-Chain
+Chain ID: 43114, Provider: https://api.avax.network/ext/bc/C/rpc
+[2m2025-05-24T10:07:12.265621Z[0m [32m INFO[0m [1mServer::run[0m[1m{[0m[3maddr[0m[2m=[0m127.0.0.1:7548[1m}[0m[2m:[0m [2mwarp::server[0m[2m:[0m listening on http://127.0.0.1:7548
+[2m2025-05-24T10:07:28.789550Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:62280 "GET /health HTTP/1.1" 200 "-" "curl/8.7.1" 37.958µs    
+[2m2025-05-24T10:07:46.649579Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:62354 "GET /health HTTP/1.1" 200 "-" "-" 77µs    
+[2m2025-05-24T10:07:46.671583Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081266665", transactions: ["{\"from\":\"0x1965…d244\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0x1965…d244\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-bdde0d20-50cd-49ff-ba5d-fd201e5aeed8\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081266, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:07:46.671746Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081266665
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[2m2025-05-24T10:07:47.685141Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081266665", transactions: ["{\"from\":\"0x1965…d244\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0x1965…d244\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-bdde0d20-50cd-49ff-ba5d-fd201e5aeed8\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081266, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:07:47.685282Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081266665
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:07:49.690927Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081266665", transactions: ["{\"from\":\"0x1965…d244\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0x1965…d244\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-bdde0d20-50cd-49ff-ba5d-fd201e5aeed8\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081266, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:07:49.691046Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081266665
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:13:46.263562Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:63793 "GET /health HTTP/1.1" 200 "-" "curl/8.7.1" 16.541µs    
+[2m2025-05-24T10:14:03.515976Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:63861 "GET /health HTTP/1.1" 200 "-" "-" 49.042µs    
+[2m2025-05-24T10:14:03.540035Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081643530", transactions: ["{\"from\":\"0xe82a…437c\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xe82a…437c\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-6386b1d2-5937-4c6d-b140-0a9135532306\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081643, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:14:03.540115Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081643530
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:14:04.555658Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081643530", transactions: ["{\"from\":\"0xe82a…437c\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xe82a…437c\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-6386b1d2-5937-4c6d-b140-0a9135532306\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081643, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:14:04.555786Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081643530
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:14:06.561214Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081643530", transactions: ["{\"from\":\"0xe82a…437c\",\"to\":\"0x0000…0000\",\"value\":\"0\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xe82a…437c\",\"enabled\":true,\"max_risk_score\":50,\"verify_reentrancy\":true,\"verify_integer_underflow\":true,\"verify_integer_overflow\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true,\"verify_mev_vulnerability\":true,\"verify_cross_contract_reentrancy\":true,\"verify_precision_loss\":true,\"verify_gas_griefing\":true},\"bundle_id\":\"test-6386b1d2-5937-4c6d-b140-0a9135532306\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081643, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:14:06.561375Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081643530
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:18:46.419502Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:65016 "GET /health HTTP/1.1" 200 "-" "-" 18.417µs    
+[2m2025-05-24T10:18:46.484836Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081926436", transactions: ["0x838e…50e10x0000…00000x48656c6c6f2c2053746174656c657373564d21"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081926, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:18:46.484949Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081926436
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:18:47.500373Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081926436", transactions: ["0x838e…50e10x0000…00000x48656c6c6f2c2053746174656c657373564d21"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081926, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:18:47.500487Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081926436
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:18:49.507249Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748081926436", transactions: ["0x838e…50e10x0000…00000x48656c6c6f2c2053746174656c657373564d21"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748081926, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:18:49.507345Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748081926436
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:24:11.698128Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49954 "GET /health HTTP/1.1" 200 "-" "-" 37.542µs    
+[2m2025-05-24T10:24:11.768804Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748082251759", transactions: ["{\"bundle_id\":\"test-071fca14-e25b-42af-b26a-f35890b42238\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"from\":\"0xdea9…4f2c\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xdea9…4f2c\",\"enabled\":true,\"max_risk_score\":50,\"verify_cross_contract_reentrancy\":true,\"verify_gas_griefing\":true,\"verify_integer_overflow\":true,\"verify_integer_underflow\":true,\"verify_mev_vulnerability\":true,\"verify_precision_loss\":true,\"verify_reentrancy\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true},\"to\":\"0x0000…0000\",\"value\":\"0\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748082251, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:24:11.768888Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748082251759
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:24:12.774202Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748082251759", transactions: ["{\"bundle_id\":\"test-071fca14-e25b-42af-b26a-f35890b42238\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"from\":\"0xdea9…4f2c\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xdea9…4f2c\",\"enabled\":true,\"max_risk_score\":50,\"verify_cross_contract_reentrancy\":true,\"verify_gas_griefing\":true,\"verify_integer_overflow\":true,\"verify_integer_underflow\":true,\"verify_mev_vulnerability\":true,\"verify_precision_loss\":true,\"verify_reentrancy\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true},\"to\":\"0x0000…0000\",\"value\":\"0\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748082251, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:24:12.774275Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748082251759
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:24:14.779649Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748082251759", transactions: ["{\"bundle_id\":\"test-071fca14-e25b-42af-b26a-f35890b42238\",\"data\":\"0x48656c6c6f2c2053746174656c657373564d21\",\"from\":\"0xdea9…4f2c\",\"gas_limit\":\"100000\",\"gas_price\":\"2000000000\",\"security_verification\":{\"address\":\"0xdea9…4f2c\",\"enabled\":true,\"max_risk_score\":50,\"verify_cross_contract_reentrancy\":true,\"verify_gas_griefing\":true,\"verify_integer_overflow\":true,\"verify_integer_underflow\":true,\"verify_mev_vulnerability\":true,\"verify_precision_loss\":true,\"verify_reentrancy\":true,\"verify_unchecked_calls\":true,\"verify_upgradability\":true},\"to\":\"0x0000…0000\",\"value\":\"0\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748082251, metadata: Null }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:24:14.779728Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748082251759
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T10:31:56.915925Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51871 "POST /execute HTTP/1.1" 400 "-" "-" 77.459µs    
+[2m2025-05-24T10:33:15.957219Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52190 "POST /execute HTTP/1.1" 400 "-" "-" 41.542µs    
+[2m2025-05-24T10:36:09.353486Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52901 "POST /execute HTTP/1.1" 400 "-" "-" 47.667µs    
+[2m2025-05-24T10:44:30.992426Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55001 "POST /execute HTTP/1.1" 400 "-" "-" 36.125µs    
+[2m2025-05-24T10:47:43.592257Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55804 "POST /execute HTTP/1.1" 400 "-" "-" 46.833µs    
+[2m2025-05-24T10:50:44.254155Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56538 "POST /execute HTTP/1.1" 400 "-" "-" 261.625µs    
+[2m2025-05-24T10:51:23.429988Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56709 "POST /execute HTTP/1.1" 400 "-" "-" 70.333µs    
+[2m2025-05-24T10:52:44.054566Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:57038 "POST /execute HTTP/1.1" 400 "-" "-" 45.625µs    
+[2m2025-05-24T10:56:14.507775Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748084174503", transactions: ["7e5f4552091a69125d5dfcb7b8c2659029395bdf12345678901234567890123456789012345678900a9059cbb000000000000000000000000123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000011000003b9aca00test49ca620437464c039be69f1bd4ffec3e"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748084174, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T10:56:14.508067Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748084174503
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 21
+ right: 20
+[2m2025-05-24T11:35:38.648966Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-05-24T11:35:38.649628Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51047 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 710.333µs    
+[2m2025-05-24T11:35:38.653641Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51047 "POST /sequence HTTP/1.1" 400 "-" "-" 66.75µs    
+[2m2025-05-24T11:38:00.775353Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51619 "GET /health HTTP/1.1" 200 "-" "-" 58.417µs    
+[2m2025-05-24T11:38:00.781107Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51620 "POST /sequence HTTP/1.1" 400 "-" "-" 111.917µs    
+[2m2025-05-24T11:38:00.783914Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51621 "POST /sequence HTTP/1.1" 400 "-" "-" 55.083µs    
+[2m2025-05-24T11:38:46.798108Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51813 "GET /health HTTP/1.1" 200 "-" "-" 27.208µs    
+[2m2025-05-24T11:38:46.801968Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "test_seq_1748086726800", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748086726, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:38:46.802032Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence test_seq_1748086726800
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:38:46.803437Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51815 "POST /sequence HTTP/1.1" 400 "-" "-" 26.959µs    
+[2m2025-05-24T11:50:43.057526Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:54793 "GET /health HTTP/1.1" 200 "-" "-" 16.917µs    
+[2m2025-05-24T11:50:43.060299Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "test_seq_1748087443059", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087443, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:50:43.060323Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence test_seq_1748087443059
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:50:43.061399Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748087443060", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087443, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:50:43.061421Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748087443060
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:50:43.062106Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:54796 "POST /execute HTTP/1.1" 400 "-" "-" 9.584µs    
+[2m2025-05-24T11:54:57.876992Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55857 "GET /health HTTP/1.1" 200 "-" "-" 22.084µs    
+[2m2025-05-24T11:54:57.881117Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "test_seq_1748087697879", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087697, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:54:57.881183Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence test_seq_1748087697879
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:54:57.882334Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748087697881", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087697, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:54:57.882358Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748087697881
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:54:57.883182Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55860 "POST /execute HTTP/1.1" 400 "-" "-" 17.458µs    
+[2m2025-05-24T11:55:56.649999Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56094 "GET /health HTTP/1.1" 200 "-" "-" 8.375µs    
+[2m2025-05-24T11:55:56.653910Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "test_seq_1748087756652", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087756, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:55:56.653948Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence test_seq_1748087756652
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:55:56.655309Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748087756654", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087756, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:55:56.655369Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748087756654
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:55:56.656436Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56097 "POST /execute HTTP/1.1" 400 "-" "-" 13.875µs    
+[2m2025-05-24T11:56:37.964776Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56268 "GET /health HTTP/1.1" 200 "-" "-" 13.917µs    
+[2m2025-05-24T11:56:37.968115Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "test_seq_1748087797966", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087797, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:56:37.968156Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence test_seq_1748087797966
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:56:37.969487Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "seq_1748087797968", transactions: ["0000000000000000000000000000000f39f…2266123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000003b9aca00"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748087797, metadata: Object {} }, timeout_seconds: 30, atomic: true }
+[2m2025-05-24T11:56:37.969523Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence seq_1748087797968
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20
+[2m2025-05-24T11:56:37.971090Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:56271 "POST /execute HTTP/1.1" 400 "-" "-" 19.917µs    
+[2m2025-06-03T08:24:34.407440Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:24:34.409122Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:62866 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 3.136708ms    
+[2m2025-06-03T08:25:22.649971Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:25:22.651482Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:63231 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 1.566167ms    
+[2m2025-06-03T08:38:31.530842Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:38:31.531569Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:51067 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 939.417µs    
+[2m2025-06-03T08:42:32.933373Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:42:32.936998Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52840 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 3.648875ms    
+[2m2025-06-03T08:42:32.942623Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52840 "POST /verify HTTP/1.1" 200 "-" "-" 4.704167ms    
+[2m2025-06-03T08:42:42.997539Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:42:42.997738Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52915 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 210.25µs    
+[2m2025-06-03T08:42:42.998289Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:52915 "POST /verify HTTP/1.1" 200 "-" "-" 97µs    
+[2m2025-06-03T08:43:54.271294Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:43:54.271970Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:53429 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 724.791µs    
+[2m2025-06-03T08:43:54.272558Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:53429 "POST /verify HTTP/1.1" 200 "-" "-" 41.333µs    
+[2m2025-06-03T08:43:59.386616Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T08:43:59.386672Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:53467 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 407.459µs    
+[2m2025-06-03T08:43:59.387199Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:53467 "POST /verify HTTP/1.1" 200 "-" "-" 30.959µs    
+[2m2025-06-03T08:51:47.764553Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55292 "GET /health HTTP/1.1" 200 "-" "-" 11.417µs    
+[2m2025-06-03T08:51:47.766592Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55293 "GET /info HTTP/1.1" 404 "-" "-" 39.167µs    
+[2m2025-06-03T08:51:47.767663Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:55294 "GET /ping HTTP/1.1" 404 "-" "-" 9.5µs    
+[2m2025-06-03T09:31:38.215306Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T09:31:38.216147Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49357 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 2.061042ms    
+[2m2025-06-03T09:31:38.218092Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49357 "POST /verify HTTP/1.1" 200 "-" "-" 81.416µs    
+[2m2025-06-03T09:31:48.386616Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T09:31:48.386906Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49430 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 345.292µs    
+[2m2025-06-03T09:31:48.387493Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49430 "POST /verify HTTP/1.1" 200 "-" "-" 75.084µs    
+[2m2025-06-03T09:31:58.612184Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Fetching bytecode for address: 0x60aE616a2155Ee3d9A68541Ba4544862310933d4
+[2m2025-06-03T09:31:58.612437Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49504 "GET /bytecode/0x60aE616a2155Ee3d9A68541Ba4544862310933d4 HTTP/1.1" 200 "-" "-" 309.625µs    
+[2m2025-06-03T09:31:58.612994Z[0m [32m INFO[0m [2mapi[0m[2m:[0m 127.0.0.1:49504 "POST /verify HTTP/1.1" 200 "-" "-" 79.625µs    
+[2m2025-06-03T18:16:32.540066Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Received sequence execution request: SequenceExecutionRequest { sequence_id: "pooled_test", transactions: ["{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000000\",\"nonce\":\"0x0\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000001\",\"nonce\":\"0x1\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000002\",\"nonce\":\"0x2\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000003\",\"nonce\":\"0x3\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000004\",\"nonce\":\"0x4\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000005\",\"nonce\":\"0x5\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000006\",\"nonce\":\"0x6\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000007\",\"nonce\":\"0x7\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000008\",\"nonce\":\"0x8\",\"chain_id\":\"0xa86a\"}", "{\"from\":\"0x0000000000000000000000000000001234567890\",\"to\":\"0x0000000000000000000000000000009876543210\",\"gas\":\"0x30d40\",\"gas_price\":\"0x5d21dba00\",\"value\":\"0x0\",\"data\":\"0xa90000000000000000000000000000000000000000000000000000000009\",\"nonce\":\"0x9\",\"chain_id\":\"0xa86a\"}"], fallback_plans: None, market_conditions: None, mev_protection: None, state_verification: None, execution_context: ExecutionContext { chain_id: 43114, block_number: None, timestamp: 1748974592, metadata: Null }, timeout_seconds: 10, atomic: true }
+[2m2025-06-03T18:16:32.540808Z[0m [32m INFO[0m [2mserver[0m[2m:[0m Executing transaction 0 in sequence pooled_test
+
+thread 'tokio-runtime-worker' panicked at /Users/talzisckind/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/primitive-types-0.12.2/src/lib.rs:55:1:
+assertion `left == right` failed
+  left: 0
+ right: 20

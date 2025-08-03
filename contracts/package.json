@@ -1,0 +1,15 @@
+{
+  "name": "verified-atomic-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for verified atomic execution",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^4.9.0",
+    "hardhat": "^2.19.0"
+  }
+}

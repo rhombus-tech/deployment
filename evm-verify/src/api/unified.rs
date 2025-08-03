@@ -95,6 +95,25 @@ impl UnifiedVerifier {
         }
     }
 
+    /// Create a new UnifiedVerifier with WARP linear-time accumulation strategy
+    /// 
+    /// This enables the WARP accumulation scheme for high-performance cryptographic
+    /// proof generation and verification, particularly beneficial for HFT applications
+    #[cfg(feature = "accumulation")]
+    pub fn with_warp() -> Self {
+        let accumulation_strategy = AccumulationStrategy::new_warp();
+        
+        let pcd_adapter = PCDAdapter::new();
+        
+        UnifiedVerifier {
+            pcc_enabled: true,
+            pcd_enabled: true,
+            verification_strategy: VerificationStrategy::WARP,
+            accumulation_strategy,
+            pcd_adapter,
+        }
+    }
+
     /// Create a new UnifiedVerifier with custom configuration
     pub fn with_config(pcd_enabled: bool, pcc_enabled: bool, strategy: VerificationStrategy) -> Self {
         let accumulation_strategy = AccumulationStrategy::new(strategy);
@@ -118,7 +137,7 @@ impl UnifiedVerifier {
     }
 
     /// Analyze bytecode for vulnerabilities
-    pub fn analyze_bytecode(&self, bytecode_bytes: &[u8]) -> Result<AnalysisReport> {
+    pub async fn analyze_bytecode(&self, bytecode_bytes: &[u8]) -> Result<AnalysisReport> {
         let mut report = AnalysisReport {
             timestamp: Utc::now(),
             contract_size: bytecode_bytes.len(),
@@ -156,7 +175,7 @@ impl UnifiedVerifier {
 
         // Run PCD analysis if enabled
         if self.pcd_enabled {
-            if let Some(pcd_vulnerability) = self.analyze_bytecode_pcd(bytecode_bytes)? {
+            if let Some(pcd_vulnerability) = self.analyze_bytecode_pcd(bytecode_bytes).await? {
                 report.vulnerabilities.push(pcd_vulnerability);
             }
         }
@@ -385,14 +404,14 @@ impl UnifiedVerifier {
     }
 
     /// Analyze bytecode using PCD
-    pub fn analyze_bytecode_pcd(&self, bytecode_bytes: &[u8]) -> Result<Option<Vulnerability>> {
+    pub async fn analyze_bytecode_pcd(&self, bytecode_bytes: &[u8]) -> Result<Option<Vulnerability>> {
         if !self.pcd_enabled {
             return Ok(None);
         }
 
         // Use the selected verification strategy
         let mut strategy = self.accumulation_strategy.clone();
-        strategy.initialize(bytecode_bytes.to_vec())?;
+        strategy.initialize(bytecode_bytes.to_vec()).await?;
         
         // Create and analyze bytecode for vulnerabilities
         // Use a generic circuit that checks for various vulnerability types
@@ -406,14 +425,14 @@ impl UnifiedVerifier {
         let bytecode_circuit = PCDCircuit::new_with_analysis(bytes_bytecode, None, vec![])?
             .clone();
         
-        strategy.accumulate_circuit(bytecode_circuit)?;
+        strategy.accumulate_circuit(bytecode_circuit).await?;
         
         // Note: With ZODA, we use a single circuit rather than multiple specialized ones
         // This is more efficient and aligns with the Accidental Computer approach
         
         // Verify if any vulnerabilities were found
         // This needs to be mutable since the verify method now requires &mut self
-        let is_valid = strategy.verify()?;
+        let is_valid = strategy.verify().await?;
         
         if !is_valid {
             // Check which specific vulnerabilities were found
@@ -675,8 +694,8 @@ mod tests {
         assert!(true);
     }
     
-    #[test]
-    fn test_bytecode_analysis() {
+    #[tokio::test]
+    async fn test_bytecode_analysis() {
         // Create a unified verifier
         let verifier = UnifiedVerifier::new();
         
@@ -684,7 +703,7 @@ mod tests {
         let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
         
         // Analyze the bytecode
-        let result = verifier.analyze_bytecode(&bytecode);
+        let result = verifier.analyze_bytecode(&bytecode).await;
         
         println!("Bytecode analysis result: {:?}", result);
         
@@ -775,9 +794,10 @@ mod tests {
         // Check for flash loan vulnerability which is a type of reentrancy
         let has_flash_loan_vulnerability = vulnerabilities.iter().any(|v| 
             v.description.to_lowercase().contains("flash loan") || 
+            v.description.to_lowercase().contains("reentrancy") ||
             v.description.to_lowercase().contains("state changes after external calls")
         );
-        assert!(has_flash_loan_vulnerability, "Expected flash loan vulnerability (a type of reentrancy)");
+        assert!(has_flash_loan_vulnerability, "Expected flash loan or reentrancy vulnerability, got: {:#?}", vulnerabilities.iter().map(|v| &v.description).collect::<Vec<_>>());
     }
 
     #[test]

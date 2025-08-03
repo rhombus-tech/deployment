@@ -488,6 +488,8 @@ pub struct DelegateCall {
     pub child_call_ids: Vec<usize>,
     /// Gas limit for this call
     pub gas_limit: U256,
+    /// Call type (DELEGATECALL or CALLCODE)
+    pub call_type: String,
     /// Gas used by this call and its children
     pub gas_used: U256,
     /// Call depth in the call stack
