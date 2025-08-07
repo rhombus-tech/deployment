@@ -1,20 +1,15 @@
 use axum::{
     extract::{Json, Query},
     response::IntoResponse,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{info, warn, error, debug, instrument};
 use anyhow::{Result, Context};
-use chrono::{DateTime, Utc};
-use ethers::types::H256;
 
-use super::realtime::{RealtimeConfig, RealtimeStatus, RealtimeProcessor, get_processor, ProcessingMetrics, ConnectionStatus, CircuitStatus, HealthStatus, WorkerStatus};
-use uuid::Uuid;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use super::realtime::{RealtimeConfig, RealtimeStatus, RealtimeProcessor, get_processor, HealthStatus};
 
 /// Request to start real-time processing
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -99,8 +94,9 @@ pub struct SystemInfo {
 }
 
 /// Start real-time zkEVM processing - PRODUCTION IMPLEMENTATION
+#[axum::debug_handler]
 #[instrument(level = "info", skip(request))]
-pub async fn start_realtime(Json(request): Json<StartRealtimeRequest>) -> Json<StartRealtimeResponse> {
+pub async fn start_realtime(Json(request): Json<StartRealtimeRequest>) -> impl IntoResponse {
     info!("🚀 Starting real-time zkEVM proving service...");
     
     // Build configuration from request with intelligent defaults
@@ -176,17 +172,25 @@ pub async fn start_realtime(Json(request): Json<StartRealtimeRequest>) -> Json<S
 }
 
 /// Get status of real-time processing - LIVE METRICS
+#[axum::debug_handler]
 #[instrument(level = "debug")]
-pub async fn get_realtime_status(Query(query): Query<StatusQuery>) -> Json<StatusResponse> {
+pub async fn get_realtime_status(Query(query): Query<StatusQuery>) -> impl IntoResponse {
     debug!("📊 Fetching real-time processor status...");
     
-    // Get current processor state
-    let processor_guard = get_processor();
-    let processor_lock = processor_guard.lock().unwrap();
+    // Get current processor status (extract data before async calls)
+    let status = {
+        let processor_guard = get_processor();
+        let processor_lock = processor_guard.lock().unwrap();
+        
+        if let Some(ref processor) = *processor_lock {
+            Some(processor.get_status())
+        } else {
+            None
+        }
+    }; // MutexGuard is dropped here
     
-    if let Some(ref processor) = *processor_lock {
-        // Get live status from running processor
-        let status = processor.get_status();
+    if let Some(status) = status {
+        // Now safe to make async calls
         let system_info = get_system_info().await;
         let health = get_health_status(&status).await;
         
@@ -213,19 +217,24 @@ pub async fn get_realtime_status(Query(query): Query<StatusQuery>) -> Json<Statu
 }
 
 /// Stop real-time processing - GRACEFUL SHUTDOWN
+#[axum::debug_handler]
 #[instrument(level = "info")]
-pub async fn stop_realtime() -> Json<StopRealtimeResponse> {
+pub async fn stop_realtime() -> impl IntoResponse {
     info!("🛑 Stopping real-time zkEVM processor...");
     
-    let processor_guard = get_processor();
-    let mut processor_lock = processor_guard.lock().unwrap();
+    // Extract processor from global state
+    let processor = {
+        let processor_guard = get_processor();
+        let mut processor_lock = processor_guard.lock().unwrap();
+        processor_lock.take()
+    }; // MutexGuard is dropped here
     
-    if let Some(processor) = processor_lock.take() {
+    if let Some(processor) = processor {
         // Get final stats before shutdown
         let status = processor.get_status();
         let final_stats = create_final_stats(&status);
         
-        // Graceful shutdown
+        // Graceful shutdown - now safe to await
         match processor.stop_gracefully().await {
             Ok(_) => {
                 info!("✅ Real-time processor stopped gracefully");
@@ -261,16 +270,16 @@ async fn start_realtime_processor(config: RealtimeConfig) -> Result<String> {
     
     let instance_id = processor.instance_id.clone();
     
-    // Store the processor globally
-    let processor_guard = get_processor();
-    let mut processor_lock = processor_guard.lock().unwrap();
-    *processor_lock = Some(processor);
+    // Start the processor before storing it to avoid async calls while holding mutex
+    processor.start().await
+        .context("Failed to start real-time processor")?;
     
-    // Start the processor
-    if let Some(ref processor) = *processor_lock {
-        processor.start().await
-            .context("Failed to start real-time processor")?;
-    }
+    // Store the already-started processor globally
+    {
+        let processor_guard = get_processor();
+        let mut processor_lock = processor_guard.lock().unwrap();
+        *processor_lock = Some(processor);
+    } // MutexGuard is dropped here
     
     Ok(instance_id)
 }

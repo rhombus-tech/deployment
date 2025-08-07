@@ -4,9 +4,9 @@
 #[cfg(feature = "accumulation")]
 use ark_bn254::{Bn254, Fr};
 #[cfg(feature = "accumulation")]
-use ark_ec::PairingEngine;
+use ark_ff::One;
 #[cfg(feature = "accumulation")]
-use ark_ff::{One, Zero};
+use ark_ec::PairingEngine;
 #[cfg(feature = "accumulation")]
 use ark_groth16::{Groth16, Proof, VerifyingKey, ProvingKey};
 #[cfg(feature = "accumulation")]
@@ -123,7 +123,7 @@ pub mod dummy {
 mod tests {
     use super::*;
     use ark_bn254::Fr;
-    use ark_ff::{One, Zero};
+    
     
     /// A simple test circuit that checks if a value is equal to 1
     #[derive(Clone)]

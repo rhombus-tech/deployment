@@ -13,10 +13,10 @@ use crate::bytecode::analyzer_precision;
 #[derive(Clone)]
 pub struct PrecisionCircuit<F: PrimeField> {
     /// Deployment data
-    deployment: DeploymentData,
+    _deployment: DeploymentData,
 
     /// Runtime analysis
-    runtime: RuntimeAnalysis,
+    _runtime: RuntimeAnalysis,
 
     /// Precision vulnerability warnings
     warnings: Vec<SecurityWarning>,
@@ -35,8 +35,8 @@ impl<F: PrimeField> PrecisionCircuit<F> {
         let warnings = analyzer_precision::analyze(&analyzer);
         
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             warnings,
             _phantom: std::marker::PhantomData,
         }
@@ -45,8 +45,8 @@ impl<F: PrimeField> PrecisionCircuit<F> {
     /// Set warnings for testing purposes
     pub fn with_warnings(deployment: DeploymentData, runtime: RuntimeAnalysis, warnings: Vec<SecurityWarning>) -> Self {
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             warnings,
             _phantom: std::marker::PhantomData,
         }

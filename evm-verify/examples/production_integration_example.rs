@@ -49,7 +49,7 @@ async fn main() -> ZkEvmResult<()> {
     let metrics = Arc::new(ZkEvmMetrics::default());
     
     // Record some sample metrics
-    metrics.record_proof_generation(125.5).await;
+    metrics.record_proof_generation(Duration::from_millis(125), 2048, "example").await;
     metrics.record_proof_size(2048).await;
     metrics.increment_counter("example_operations").await;
     metrics.record_throughput(1500.0).await;
@@ -158,7 +158,7 @@ async fn main() -> ZkEvmResult<()> {
         let operation_duration = operation_start.elapsed();
         
         // Update metrics
-        metrics.record_proof_generation(operation_duration.as_millis() as f64).await;
+        metrics.record_proof_generation(operation_duration, 4096, "workflow").await;
         metrics.increment_counter("workflow_operations").await;
         
         // Log completion

@@ -8,7 +8,6 @@ use ethers::types::{H256, U256, Address, Bytes};
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use tiny_keccak::{Keccak, Hasher};
 
 use super::mpt::MerklePatriciaTrie;
 
@@ -108,7 +107,7 @@ impl AccountState {
     
     /// RLP decode account state (EF compliant)
     pub fn rlp_decode(data: &[u8]) -> Result<Self> {
-        use rlp::Decodable;
+        
         
         let rlp = rlp::Rlp::new(data);
         if rlp.item_count()? != 4 {
@@ -386,14 +385,15 @@ impl AccountTrie {
 
     
     /// Helper to get or create account mutably
-    async fn get_or_create_account_mut(&mut self, address: Address) -> Result<&mut AccountState> {
+    #[allow(dead_code)]
+    async fn get_or_create_account_mut(&mut self, address: &Address) -> Result<&mut AccountState> {
         if !self.account_cache.contains_key(&address) {
             // Load from trie or create new
             let account = match self.trie.get(address.as_bytes()).await? {
                 Some(bytes) => AccountState::rlp_decode(&bytes)?,
                 None => AccountState::default(),
             };
-            self.account_cache.insert(address, account);
+            self.account_cache.insert(address.clone(), account);
         }
         Ok(self.account_cache.get_mut(&address).unwrap())
     }

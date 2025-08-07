@@ -4,7 +4,7 @@
 // Ensures compliance with L1 zkEVM requirements
 
 use anyhow::{Result, anyhow};
-use ethers::types::{Block, Transaction, H256, U256, U64, Bytes, Address};
+use ethers::types::{Block, Transaction, H256, U256, U64, Address, Bytes};
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};

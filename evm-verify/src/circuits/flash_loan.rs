@@ -4,7 +4,7 @@ use ark_r1cs_std::{prelude::*, boolean::Boolean};
 
 use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
+use crate::bytecode::security::SecurityWarning;
 
 /// Circuit for proving absence of flash loan vulnerabilities
 #[derive(Clone)]

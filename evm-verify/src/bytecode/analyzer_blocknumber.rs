@@ -4,7 +4,7 @@
 // Block number dependencies can cause issues with cross-chain compatibility and L2 chains.
 
 use crate::bytecode::types::{AnalysisResults, BlockNumberDependency};
-use crate::bytecode::opcodes::{Opcode, NUMBER};
+use crate::bytecode::opcodes::NUMBER;
 use anyhow::Result;
 
 /// Block number dependency detector

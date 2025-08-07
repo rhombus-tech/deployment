@@ -7,7 +7,6 @@
 use ethers::types::{H256, Bytes};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
-use tiny_keccak::{Keccak, Hasher};
 use serde::{Serialize, Deserialize};
 
 /// Ethereum MPT node types as per Yellow Paper
@@ -324,7 +323,7 @@ impl MerklePatriciaTrie {
     
     /// Encode node to RLP (EF compliant)
     fn encode_node(&self, node: &TrieNode) -> Result<Vec<u8>> {
-        use rlp::{RlpStream, Encodable};
+        use rlp::RlpStream;
         
         match &node.node_type {
             TrieNodeType::Empty => {

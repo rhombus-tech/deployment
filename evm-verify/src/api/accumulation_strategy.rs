@@ -4,7 +4,6 @@ use ark_bn254::Fr;
 use ark_relations::r1cs::ConstraintSynthesizer;
 use log::{debug, info};
 use pcd::zoda_accumulation::ZODAAccumulationAdapter;
-use std::collections::HashMap;
 use std::fmt;
 use std::time::Instant;
 

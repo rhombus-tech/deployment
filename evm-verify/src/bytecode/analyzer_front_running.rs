@@ -1,5 +1,4 @@
 use anyhow::Result;
-use ethers::types::{Bytes, H256, U256};
 
 use crate::bytecode::opcodes::{
     GASPRICE, COINBASE, TIMESTAMP, BASEFEE,
@@ -7,7 +6,7 @@ use crate::bytecode::opcodes::{
     LT, GT, SLT, SGT, EQ, ISZERO, JUMPI, JUMP,
     SSTORE,
 };
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
+use crate::bytecode::security::SecurityWarning;
 use crate::bytecode::BytecodeAnalyzer;
 
 /// Analyze bytecode for front-running vulnerabilities
@@ -42,20 +41,20 @@ impl BytecodeAnalyzer {
         for i in 0..bytecode.len() {
             if bytecode[i] == GASPRICE {
                 // Check if GASPRICE is used in comparison or control flow
-                let mut is_used_in_comparison = false;
-                let mut is_used_in_control_flow = false;
+                let mut _is_used_in_comparison = false;
+                let mut _is_used_in_control_flow = false;
                 
                 // Look ahead for comparison or control flow opcodes
                 for j in i+1..std::cmp::min(bytecode.len(), i+15) {
                     match bytecode[j] {
                         // Comparison opcodes
                         LT | GT | SLT | SGT | EQ | ISZERO => {
-                            is_used_in_comparison = true;
+                            _is_used_in_comparison = true;
                             break;
                         },
                         // Control flow opcodes
                         JUMP | JUMPI => {
-                            is_used_in_control_flow = true;
+                            _is_used_in_control_flow = true;
                             break;
                         },
                         // Storage operations
@@ -69,12 +68,12 @@ impl BytecodeAnalyzer {
                     }
                 }
                 
-                if is_used_in_comparison {
+                if _is_used_in_comparison {
                     let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }
                 
-                if is_used_in_control_flow {
+                if _is_used_in_control_flow {
                     let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }
@@ -92,11 +91,11 @@ impl BytecodeAnalyzer {
         for i in 0..bytecode.len() {
             if bytecode[i] == TIMESTAMP || bytecode[i] == COINBASE || bytecode[i] == BASEFEE {
                 // Check if block info is used in comparison or control flow
-                let mut is_used_in_comparison = false;
-                let mut is_used_in_control_flow = false;
+                let mut _is_used_in_comparison = false;
+                let mut _is_used_in_control_flow = false;
                 
                 // Get the name of the block info opcode
-                let info_type = match bytecode[i] {
+                let _info_type = match bytecode[i] {
                     TIMESTAMP => "TIMESTAMP",
                     COINBASE => "COINBASE",
                     BASEFEE => "BASEFEE",
@@ -108,19 +107,19 @@ impl BytecodeAnalyzer {
                     match bytecode[j] {
                         // Comparison opcodes
                         LT | GT | SLT | SGT | EQ | ISZERO => {
-                            is_used_in_comparison = true;
+                            _is_used_in_comparison = true;
                             break;
                         },
                         // Control flow opcodes
                         JUMP | JUMPI => {
-                            is_used_in_control_flow = true;
+                            _is_used_in_control_flow = true;
                             break;
                         },
                         _ => continue,
                     }
                 }
                 
-                if is_used_in_comparison || is_used_in_control_flow {
+                if _is_used_in_comparison || _is_used_in_control_flow {
                     let warning = SecurityWarning::transaction_ordering_dependency(i as u64);
                     warnings.push(warning);
                 }

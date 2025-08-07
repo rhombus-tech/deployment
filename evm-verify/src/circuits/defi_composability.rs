@@ -1,7 +1,7 @@
 use ark_ff::{Field, PrimeField};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, LinearCombination, Variable};
 use std::marker::PhantomData;
-use ethers::types::{H256, Bytes, H160};
+use ethers::types::H160;
 
 use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;
@@ -102,7 +102,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for DeFiComposabilityCircui
         })?;
 
         // 3. Sandwich attack risks
-        let sandwich_attack_risk = cs.new_witness_variable(|| {
+        let _sandwich_attack_risk = cs.new_witness_variable(|| {
             if self.has_sandwich_attack_risks() {
                 Ok(F::one())
             } else {
@@ -111,7 +111,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for DeFiComposabilityCircui
         })?;
 
         // 4. Access control risks
-        let access_control_risk = cs.new_witness_variable(|| {
+        let _access_control_risk = cs.new_witness_variable(|| {
             if self.has_access_control_risks() {
                 Ok(F::one())
             } else {
@@ -120,7 +120,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for DeFiComposabilityCircui
         })?;
 
         // 5. Asset flow risks
-        let asset_flow_risk = cs.new_witness_variable(|| {
+        let _asset_flow_risk = cs.new_witness_variable(|| {
             if self.has_asset_flow_risks() {
                 Ok(F::one())
             } else {
@@ -129,7 +129,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for DeFiComposabilityCircui
         })?;
 
         // 6. Economic security risks
-        let economic_risk = cs.new_witness_variable(|| {
+        let _economic_risk = cs.new_witness_variable(|| {
             if self.has_economic_risks() {
                 Ok(F::one())
             } else {
@@ -265,7 +265,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for EconomicSecurityCircuit
         })?;
         
         // 2. Acceptable value at risk
-        let acceptable_var = cs.new_witness_variable(|| {
+        let _acceptable_var = cs.new_witness_variable(|| {
             if self.has_acceptable_var() {
                 Ok(F::one())
             } else {
@@ -274,7 +274,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for EconomicSecurityCircuit
         })?;
         
         // 3. Acceptable MEV
-        let acceptable_mev = cs.new_witness_variable(|| {
+        let _acceptable_mev = cs.new_witness_variable(|| {
             if self.has_acceptable_mev() {
                 Ok(F::one())
             } else {

@@ -12,6 +12,7 @@ use crate::bytecode::analyzer_cross_contract_reentrancy;
 
 /// Circuit for proving absence of reentrancy vulnerabilities
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct ReentrancyCircuit<F: PrimeField> {
     /// Deployment data
     deployment: DeploymentData,

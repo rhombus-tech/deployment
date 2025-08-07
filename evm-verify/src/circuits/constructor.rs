@@ -9,8 +9,7 @@ use ark_r1cs_std::{
     fields::fp::FpVar,
 };
 use std::marker::PhantomData;
-
-use ethers::types::{H160, U256};
+use ethers::types::H160;
 
 use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;

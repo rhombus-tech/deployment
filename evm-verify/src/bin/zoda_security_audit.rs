@@ -11,7 +11,7 @@ Comprehensive cryptographic security analysis for ZODA zkEVM system:
 Author: Cascade AI
 */
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -247,8 +247,8 @@ impl ZODASecurityAuditor {
     }
     
     fn conduct_vulnerability_assessment(&self) -> Result<VulnerabilityAssessment> {
-        let mut critical = Vec::new();
-        let mut high = Vec::new();
+        let critical = Vec::new();
+        let high = Vec::new();
         let mut medium = Vec::new();
         let mut low = Vec::new();
         
@@ -361,7 +361,7 @@ impl ZODASecurityAuditor {
     }
     
     fn calculate_overall_security_rating(&self, crypto: &CryptographicParameters, 
-                                       circuit: &CircuitSecurityAnalysis,
+                                       _circuit: &CircuitSecurityAnalysis,
                                        vulnerabilities: &VulnerabilityAssessment) -> String {
         let has_critical = !vulnerabilities.critical_vulnerabilities.is_empty();
         let has_high = !vulnerabilities.high_vulnerabilities.is_empty();

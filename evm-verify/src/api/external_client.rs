@@ -10,18 +10,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{info, warn, error, debug, instrument};
+use tracing::{info, error, instrument};
 use anyhow::{Result, Context};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-use ethers::types::H256;
 
-use crate::api::accumulation_strategy::{VerificationStrategy};
 // Note: SecurityAnalysisConfig not used in current implementation
-use crate::api::{RealtimeProcessor, get_processor, ProofResult};
-use crate::api::realtime::ProofResult as RealtimeProofResult;
+use crate::api::get_processor;
 
 /// External Proof Request - The API Aztec Will Use
 #[derive(Debug, Clone, Serialize, Deserialize)]

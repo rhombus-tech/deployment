@@ -33,7 +33,8 @@ use evm_verify::{
 
 /// Ethereum block data from RPC
 #[derive(Debug, Clone, Deserialize)]
-struct EthereumBlock {
+#[allow(dead_code)] // RPC deserialization struct
+pub struct EthereumBlock {
     #[serde(rename = "number")]
     block_number: String,
     #[serde(rename = "hash")]
@@ -47,6 +48,7 @@ struct EthereumBlock {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)] // Fields used for RPC deserialization
 struct EthereumTransaction {
     #[serde(rename = "hash")]
     tx_hash: String,
@@ -118,7 +120,7 @@ struct CompressionStats {
 
 /// Ethereum RPC client for fetching mainnet blocks
 #[derive(Clone)]
-struct EthereumRpcClient {
+pub struct EthereumRpcClient {
     client: reqwest::Client,
     rpc_url: String,
 }
@@ -190,12 +192,14 @@ pub struct ZODAProofSizeAnalyzer {
     /// Ethereum RPC client
     rpc_client: Option<EthereumRpcClient>,
     /// Production configuration
+    #[allow(dead_code)]
     config: Arc<ZodaConfig>,
     /// Metrics collection system
     metrics: Arc<ZodaMetrics>,
     /// Monitoring system
     monitoring: Arc<ZodaMonitoring>,
     /// Logger instance
+    #[allow(dead_code)]
     logger: ZodaLogger,
     /// Start time for uptime tracking
     start_time: SystemTime,

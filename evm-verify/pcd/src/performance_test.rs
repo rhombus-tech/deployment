@@ -2,7 +2,7 @@
 use std::time::Instant;
 use ethers::types::{Address, U256};
 use ark_bls12_381::Fr as TestField;
-use crate::complete_evm_matrix::{CompleteEVMExecutionMatrix, TransactionData, ExecutionMetrics};
+use crate::complete_evm_matrix::{CompleteEVMExecutionMatrix, TransactionData};
 
 /// Comprehensive performance benchmarking for CompleteEVMExecutionMatrix
 pub fn run_performance_benchmarks() {

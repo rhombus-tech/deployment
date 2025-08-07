@@ -120,6 +120,7 @@ async fn main() -> Result<()> {
 }
 
 /// Initialize structured logging
+#[allow(dead_code)]
 fn init_logging(level: &str) -> Result<()> {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("evm_verify={},realtime_server={}", level, level).into());
@@ -142,7 +143,7 @@ fn init_logging(level: &str) -> Result<()> {
 async fn load_config(config_path: &str) -> Result<ZkEvmConfig> {
     // For now, use default config
     // In production, this would load from the actual config file
-    let mut config = ZkEvmConfig::default();
+    let config = ZkEvmConfig::default();
     
     // Override with environment variables if present
     if let Ok(workers) = std::env::var("WORKER_COUNT") {
@@ -340,7 +341,7 @@ async fn batch_analyze(
 }
 
 /// Check if system is ready to accept requests
-async fn check_system_readiness(state: &AppState) -> bool {
+async fn check_system_readiness(_state: &AppState) -> bool {
     // Perform readiness checks
     // - Memory usage below threshold
     // - Config is valid

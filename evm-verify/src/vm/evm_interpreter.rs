@@ -325,6 +325,7 @@ impl EVMInterpreter {
         self.stack_push(a.overflowing_sub(b).0)
     }
     
+    #[allow(dead_code)]
     fn op_div(&mut self) -> Result<()> {
         let a = self.stack_pop()?;
         let b = self.stack_pop()?;
@@ -483,14 +484,17 @@ impl EVMInterpreter {
         Ok(())
     }
     
+    #[allow(dead_code)]
     fn op_pc(&mut self) -> Result<()> {
         self.stack_push(U256::from(self.pc))
     }
     
+    #[allow(dead_code)]
     fn op_msize(&mut self) -> Result<()> {
         self.stack_push(U256::from(self.state.memory.len()))
     }
     
+    #[allow(dead_code)]
     fn op_gas(&mut self) -> Result<()> {
         self.stack_push(U256::from(self.state.gas_remaining))
     }

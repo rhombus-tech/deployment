@@ -6,9 +6,8 @@
 // requirements for zkEVM proving.
 
 use ethers::types::{H256, U256, Address, Bytes, Transaction};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 // Import the concrete MPT implementations
 pub mod mpt;

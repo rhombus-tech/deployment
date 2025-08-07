@@ -4,7 +4,7 @@
 // Uses tensor optimization and accumulation for maximum efficiency
 
 use anyhow::{Result, anyhow};
-use ethers::types::{Block, Transaction, H256, U256, Bytes, TransactionReceipt};
+use ethers::types::{Block, Transaction, H256, U256, Bytes};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};

@@ -128,7 +128,7 @@ impl<F: Field + PrimeField> ConstraintSynthesizer<F> for SelfDestructCircuit<F> 
         })?;
 
         // 5. Overall contract safety status
-        let contract_vulnerable = cs.new_witness_variable(|| {
+        let _contract_vulnerable = cs.new_witness_variable(|| {
             if self.has_unprotected_self_destruct() 
                 || self.has_delegatecall_self_destruct()
                 || self.has_self_destruct_in_constructor()

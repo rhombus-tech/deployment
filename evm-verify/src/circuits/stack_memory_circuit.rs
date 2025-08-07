@@ -1,11 +1,9 @@
 // ZODA zkEVM Stack and Memory Circuit Verification
 // Cryptographic proofs for stack overflow/underflow and memory access constraints
 
-use crate::bytecode::types::*;
 use crate::circuits::execution_trace::*;
 use ethers::types::U256;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use anyhow::Result;
 
 /// Stack constraint verification circuit

@@ -1,4 +1,7 @@
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
+use std::collections::HashMap;
+use anyhow::Result;
+use crate::bytecode::{BytecodeAnalyzer, SecurityWarning};
+use crate::bytecode::security::{SecurityWarningKind, SecuritySeverity};
 use ethers::types::H160;
 use std::str::FromStr;
 

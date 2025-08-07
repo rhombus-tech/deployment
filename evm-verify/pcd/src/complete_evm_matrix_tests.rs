@@ -3,14 +3,7 @@
 //! This module tests the core functionality of the CompleteEVMExecutionMatrix
 //! for proving complete EVM state transitions using tensor operations.
 
-use crate::complete_evm_matrix::*;
-use crate::tensor_zoda::{TensorZODAError};
-use ark_ff::{Field, Zero};
-use ethers::types::{Address, H256, U256};
-use std::str::FromStr;
 
-// Use ark_test_curves for a simple test field
-use ark_bls12_381::Fr as TestField;
 
 #[cfg(test)]
 mod tests {

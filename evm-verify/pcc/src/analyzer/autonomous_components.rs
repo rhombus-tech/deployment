@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
+
 use std::collections::HashMap;
 use super::autonomous_stablecoin_engine::*;
 use super::mathematical_failure_detector::{MathematicalFailureDetector, MarketData};
@@ -119,16 +120,27 @@ impl AlgorithmicCollateralManager {
         }
         
         // Calculate required collateral adjustment
-        let adjustment = self.dynamic_ratio_calculator.calculate_adjustment(new_ratio)?;
+        let _adjustment = self.dynamic_ratio_calculator.calculate_adjustment(new_ratio)?;
         
         // Execute adjustment with risk controls
-        self.execute_collateral_adjustment(adjustment)
+        self.execute_collateral_adjustment(_adjustment)
     }
 
-    fn execute_collateral_adjustment(&mut self, adjustment: CollateralAdjustment) -> Result<()> {
+    fn execute_collateral_adjustment(&mut self, _adjustment: CollateralAdjustment) -> Result<()> {
         // Implementation would interact with actual collateral contracts
         Ok(())
     }
+}
+
+/// Arbitrage opportunity detection and metrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArbitrageOpportunity {
+    pub profit_potential: f64,
+    pub complexity_score: f64,
+    pub time_sensitivity: u64,
+    pub source_dex: String,
+    pub target_dex: String,
+    pub token_pair: String,
 }
 
 impl AutonomousArbitrageSystem {
@@ -156,7 +168,7 @@ impl AutonomousArbitrageSystem {
            opportunity.time_sensitivity > 60) // At least 1 minute window
     }
 
-    fn execute_single_arbitrage(&mut self, opportunity: &ArbitrageOpportunity) -> Result<()> {
+    fn execute_single_arbitrage(&mut self, _opportunity: &ArbitrageOpportunity) -> Result<()> {
         // Implementation would execute the arbitrage trade
         Ok(())
     }
@@ -174,8 +186,8 @@ impl RealTimeParameterOptimizer {
 
     pub fn optimize_parameters(
         &self, 
-        consensus: &ModelConsensusResult,
-        system_state: &SystemState,
+        _consensus: &ModelConsensusResult,
+        _system_state: &SystemState,
         market_data: &MarketData
     ) -> Result<OptimalParameters> {
         // Detect current market regime
@@ -188,6 +200,8 @@ impl RealTimeParameterOptimizer {
             consensus_proof: [0u8; 32],
             agreeing_models: vec!["model1".to_string()],
             risk_level: RiskLevel::Low,
+            confidence: 0.9,
+            reasoning: "Mock consensus for parameter optimization".to_string(),
         };
         let _adapted_params = self.adaptation_algorithm.adapt_parameters(&regime, &mock_consensus)?;
         
@@ -221,14 +235,14 @@ impl AutonomousLiquidityManager {
         }
 
         // Execute rebalancing with IL minimization
-        for (dex, allocation) in allocations {
-            self.rebalance_single_dex(dex, *allocation)?;
+        for (_dex, _allocation) in allocations {
+            self.rebalance_single_dex(_dex, *_allocation)?;
         }
         
         Ok(())
     }
 
-    fn rebalance_single_dex(&mut self, dex: &str, allocation: f64) -> Result<()> {
+    fn rebalance_single_dex(&mut self, _dex: &str, _allocation: f64) -> Result<()> {
         // Implementation would rebalance liquidity on specific DEX
         Ok(())
     }
@@ -253,6 +267,7 @@ impl MultiModelMathematicalCore {
         let phase_space_rec = self.phase_space_model.get_recommendation(market_data)?;
 
         // Achieve consensus using Byzantine fault tolerant algorithm
+        let _consensus = self.get_consensus();
         let consensus_decision = self.consensus_algorithm.achieve_consensus(&[
             &lyapunov_rec,
             &game_theory_rec, 
@@ -309,6 +324,19 @@ impl MultiModelMathematicalCore {
         let confidence_similarity = 1.0 - (rec1.confidence - rec2.confidence).abs();
         
         Ok((action_similarity + confidence_similarity) / 2.0)
+    }
+
+    /// Get consensus decision from models
+    fn get_consensus(&self) -> ConsensusDecision {
+        // Return a default consensus decision
+        ConsensusDecision {
+            action: RecommendedAction::Maintain,
+            confidence: 0.8,
+            reasoning: "Default consensus".to_string(),
+            consensus_proof: [0u8; 32],
+            agreeing_models: vec!["default_model".to_string()],
+            risk_level: RiskLevel::Low,
+        }
     }
 }
 
@@ -431,16 +459,43 @@ impl MintBurnRiskAssessor {
         let overall_risk = (size_risk + volatility_risk + liquidity_risk) / 3.0;
         
         Ok(RiskAssessment {
-            overall_risk,
+            overall_risk: self.f64_to_risk_level(overall_risk),
             is_safe: overall_risk < 0.5,
+            liquidity_risk: self.f64_to_risk_level(liquidity_risk),
+            market_risk: self.f64_to_risk_level(volatility_risk),
+            operational_risk: self.f64_to_risk_level(size_risk),
+            systemic_risk: RiskLevel::Low,
+            risk_score: overall_risk,
+            mitigation_strategies: vec!["Monitor liquidity".to_string(), "Adjust position size".to_string()],
         })
+    }
+    
+    /// Convert f64 risk value to RiskLevel enum
+    fn f64_to_risk_level(&self, risk: f64) -> RiskLevel {
+        if risk < 0.2 {
+            RiskLevel::Minimal
+        } else if risk < 0.4 {
+            RiskLevel::Low
+        } else if risk < 0.6 {
+            RiskLevel::Medium
+        } else if risk < 0.8 {
+            RiskLevel::High
+        } else {
+            RiskLevel::Critical
+        }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiskAssessment {
-    pub overall_risk: f64,
+    pub overall_risk: RiskLevel,
     pub is_safe: bool,
+    pub liquidity_risk: RiskLevel,
+    pub market_risk: RiskLevel,
+    pub operational_risk: RiskLevel,
+    pub systemic_risk: RiskLevel,
+    pub risk_score: f64,
+    pub mitigation_strategies: Vec<String>,
 }
 
 impl RiskAssessment {
@@ -605,7 +660,7 @@ impl EmergencyPegProtection {
     /// Check if emergency governance activation is required
     pub fn check_emergency_required(&mut self, 
         peg_deviation: f64, 
-        collateral_ratio: f64,
+        _collateral_ratio: f64,
         volume_24h: f64) -> Result<Option<super::mathematical_failure_detector::MathematicalFailureProof>> {
         // Update health check timestamp
         self.last_health_check = std::time::SystemTime::now()
@@ -692,7 +747,7 @@ impl DynamicCollateralRatioCalculator {
 impl ModelConsensusAlgorithm {
     pub fn achieve_consensus(&self, recommendations: &[&ModelRecommendation]) -> Result<ConsensusDecision> {
         // Simple majority consensus - would be more sophisticated Byzantine fault tolerant algorithm
-        let actions: Vec<_> = recommendations.iter().map(|r| &r.action).collect();
+        let _actions: Vec<_> = recommendations.iter().map(|r| &r.action).collect();
         
         // For now, just return the first recommendation with high confidence
         if let Some(first_rec) = recommendations.first() {
@@ -701,6 +756,8 @@ impl ModelConsensusAlgorithm {
                 consensus_proof: [0u8; 32], // Would be real cryptographic proof
                 agreeing_models: vec!["All".to_string()],
                 risk_level: RiskLevel::Low,
+                confidence: 0.85,
+                reasoning: "Consensus achieved from model recommendations".to_string(),
             })
         } else {
             Ok(ConsensusDecision {
@@ -708,6 +765,8 @@ impl ModelConsensusAlgorithm {
                 consensus_proof: [0u8; 32],
                 agreeing_models: vec![],
                 risk_level: RiskLevel::Minimal,
+                confidence: 0.5,
+                reasoning: "No recommendations available, defaulting to maintain".to_string(),
             })
         }
     }

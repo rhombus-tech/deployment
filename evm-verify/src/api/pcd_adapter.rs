@@ -6,7 +6,7 @@
 
 use ethers::types::Bytes;
 use std::sync::Arc;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use crate::api::pcd::PCDVerifier;
 use crate::api::unified::VerificationResult;

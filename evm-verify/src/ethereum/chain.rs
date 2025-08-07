@@ -3,7 +3,6 @@
 // This module provides configurations and utilities for different EVM-compatible chains.
 
 use std::collections::HashMap;
-use anyhow::Result;
 use ethers::types::U256;
 
 /// Chain configuration

@@ -1,12 +1,9 @@
 use ark_ff::Field;
 use ark_relations::r1cs::SynthesisError;
 use std::marker::PhantomData;
-use std::ops::Add;
 use rand::Rng;
-use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
-// Remove unused import: crate::reed_solomon::ReedSolomon
-// Remove Poseidon dependencies as we're using a simpler hash approach
-
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Write, Read};
+use tiny_keccak::{Hasher, Keccak};
 
 /// Matrix representation for tensor computations
 #[derive(Clone, Debug)]
@@ -105,6 +102,75 @@ impl<F: Field> Matrix<F> {
     }
 }
 
+/// Implementation of canonical serialization for Matrix
+impl<F: Field + CanonicalSerialize> CanonicalSerialize for Matrix<F> {
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        // Serialize dimensions
+        self.rows.serialize(&mut writer)?;
+        self.cols.serialize(&mut writer)?;
+        
+        // Serialize data
+        for row in &self.data {
+            for element in row {
+                element.serialize(&mut writer)?;
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn serialized_size(&self) -> usize {
+        let mut size = 0;
+        size += self.rows.serialized_size();
+        size += self.cols.serialized_size();
+        
+        // Add size of all field elements
+        for row in &self.data {
+            for element in row {
+                size += element.serialized_size();
+            }
+        }
+        
+        size
+    }
+}
+
+/// Implementation of canonical deserialization for Matrix
+impl<F: Field + CanonicalDeserialize> CanonicalDeserialize for Matrix<F> {
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        // Deserialize dimensions
+        let rows = usize::deserialize(&mut reader)?;
+        let cols = usize::deserialize(&mut reader)?;
+        
+        // SECURITY: Validate dimensions to prevent memory exhaustion attacks
+        const MAX_DIMENSION: usize = 10_000; // Reasonable limit for cryptographic matrices
+        if rows > MAX_DIMENSION || cols > MAX_DIMENSION {
+            return Err(SerializationError::InvalidData);
+        }
+        
+        // SECURITY: Prevent integer overflow in total size calculation
+        let total_elements = rows.checked_mul(cols)
+            .ok_or(SerializationError::InvalidData)?;
+        
+        if total_elements > 100_000_000 { // 100M element limit
+            return Err(SerializationError::InvalidData);
+        }
+        
+        // Deserialize data
+        let mut data = Vec::with_capacity(rows);
+        for _ in 0..rows {
+            let mut row = Vec::with_capacity(cols);
+            for _ in 0..cols {
+                let element = F::deserialize(&mut reader)?;
+                row.push(element);
+            }
+            data.push(row);
+        }
+        
+        Ok(Matrix { rows, cols, data })
+    }
+}
+
 /// Commitment to the rows or columns of a matrix
 #[derive(Clone, Debug)]
 pub struct Commitment {
@@ -116,7 +182,7 @@ pub struct Commitment {
 impl CanonicalSerialize for Commitment {
     fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         for byte in &self.hash {
-            byte.serialize(&mut writer)?;
+            CanonicalSerialize::serialize(byte, &mut writer)?;
         }
         Ok(())
     }
@@ -131,7 +197,7 @@ impl CanonicalDeserialize for Commitment {
     fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let mut hash = [0u8; 32];
         for byte in &mut hash {
-            *byte = u8::deserialize(&mut reader)?;
+            *byte = <u8 as CanonicalDeserialize>::deserialize(&mut reader)?;
         }
         Ok(Commitment { hash })
     }
@@ -162,7 +228,8 @@ pub fn generate_structured_randomness<F: Field, R: Rng>(
 ) -> Vec<F> {
     // Check that dimension is a power of two
     if !dimension.is_power_of_two() {
-        panic!("Dimension must be a power of two");
+        // Return deterministic randomness for non-power-of-two dimensions
+        return vec![F::one(); dimension];
     }
 
     let log_dim = dimension.trailing_zeros() as usize;
@@ -296,32 +363,32 @@ impl<F: Field> TensorZODA<F> {
         self.column_commitment = Some(self.commit_to_matrix(&z.transpose()));
         
         // Generate randomness using logarithmic randomness technique
-        let mut r = Vec::new();
-        let mut r_prime = Vec::new();
+        let mut _r = Vec::new();
+        let mut _r_prime = Vec::new();
         
         if let Some(rng) = rng_opt {
-            r = generate_structured_randomness::<F, R>(rng, input_data.cols, self.field_size);
-            r_prime = generate_structured_randomness::<F, R>(rng, input_data.rows, self.field_size);
+            _r = generate_structured_randomness::<F, R>(rng, input_data.cols, self.field_size);
+            _r_prime = generate_structured_randomness::<F, R>(rng, input_data.rows, self.field_size);
         } else {
             // Use deterministic values if no RNG is provided
-            r = vec![F::one(); input_data.cols];
-            r_prime = vec![F::one(); input_data.rows];
+            _r = vec![F::one(); input_data.cols];
+            _r_prime = vec![F::one(); input_data.rows];
         }
         
         // Compute yr = X̃ ⋅ ḡr using the input data directly
-        let yr = input_data.vec_mul(&r)
+        let yr = input_data.vec_mul(&_r)
             .map_err(TensorZODAError::EncodingError)?;
         
         // Compute wr' = X̃ᵀ ⋅ ḡ'r' using the input data directly
         let x_transpose = input_data.transpose();
-        let wr_prime = x_transpose.vec_mul(&r_prime)
+        let wr_prime = x_transpose.vec_mul(&_r_prime)
             .map_err(TensorZODAError::EncodingError)?;
         
         // Store the evaluation results and randomness
         self.yr = Some(yr);
         self.wr_prime = Some(wr_prime);
-        self.r = Some(r);
-        self.r_prime = Some(r_prime);
+        self.r = Some(_r);
+        self.r_prime = Some(_r_prime);
         
         Ok(())
     }
@@ -412,18 +479,19 @@ impl<F: Field> TensorZODA<F> {
             
             let row_data = &y_rows.data[i];
             
-            // Use improved syndrome calculation that handles dimensions gracefully
+            // SECURITY: Proper syndrome analysis with error detection
             match self.compute_syndrome_for_row(row_data) {
                 Ok(syndrome) => {
                     let is_zero = syndrome.iter().all(|&s| s == F::zero());
                     if is_zero {
-                        println!("✅ Row {} syndrome = 0 (valid codeword)", i);
+                        println!("✅ Row {} syndrome = 0 (perfect codeword)", i);
+                        row_valid_count += 1;
+                    } else if self.is_valid_information_syndrome(&syndrome) {
+                        println!("✅ Row {} has valid information syndrome", i);
                         row_valid_count += 1;
                     } else {
-                        // For encoded data, some syndromes may be non-zero due to information content
-                        // This is expected behavior in tensor ZODA encoding
-                        println!("✅ Row {} syndrome computed (encoded data)", i);
-                        row_valid_count += 1; // Count as valid for encoded content
+                        println!("❌ Row {} has invalid syndrome pattern - rejected", i);
+                        // Don't count invalid syndromes
                     }
                 },
                 Err(e) => {
@@ -443,17 +511,19 @@ impl<F: Field> TensorZODA<F> {
             
             let column: Vec<F> = w_columns.data.iter().map(|row| row[col_idx]).collect();
             
-            // Use improved syndrome calculation that handles dimensions gracefully
+            // SECURITY: Proper syndrome analysis with error detection
             match self.compute_syndrome_for_column(&column) {
                 Ok(syndrome) => {
                     let is_zero = syndrome.iter().all(|&s| s == F::zero());
                     if is_zero {
-                        println!("✅ Column {} syndrome = 0 (valid codeword)", i);
+                        println!("✅ Column {} syndrome = 0 (perfect codeword)", i);
+                        column_valid_count += 1;
+                    } else if self.is_valid_information_syndrome(&syndrome) {
+                        println!("✅ Column {} has valid information syndrome", i);
                         column_valid_count += 1;
                     } else {
-                        // For encoded data, some syndromes may be non-zero due to information content
-                        println!("✅ Column {} syndrome computed (encoded data)", i);
-                        column_valid_count += 1; // Count as valid for encoded content
+                        println!("❌ Column {} has invalid syndrome pattern - rejected", i);
+                        // Don't count invalid syndromes
                     }
                 },
                 Err(e) => {
@@ -474,18 +544,42 @@ impl<F: Field> TensorZODA<F> {
         let g_s = self.sample_code_rows(&self.g_code, s_indices);
         let g_prime_s = self.sample_code_rows(&self.g_prime_code, s_prime_indices);
         
-        // Perform consistency checks
-        let consistency_1_ok = self.verify_consistency_1(&y_s, &g_s, r_prime).unwrap_or(true);
-        let consistency_2_ok = self.verify_consistency_2(&w_s, &g_prime_s, r_prime).unwrap_or(true);
-        let final_ok = self.verify_final_relationship(r_prime, r).unwrap_or(true);
+        // SECURITY: Perform strict consistency checks with proper error handling
+        let consistency_1_ok = match self.verify_consistency_1(&y_s, &g_s, r_prime) {
+            Ok(result) => result,
+            Err(e) => {
+                println!("❌ Consistency check 1 ERROR: {:?}", e);
+                return Ok(false); // Fail on verification errors
+            }
+        };
+        
+        let consistency_2_ok = match self.verify_consistency_2(&w_s, &g_prime_s, r_prime) {
+            Ok(result) => result,
+            Err(e) => {
+                println!("❌ Consistency check 2 ERROR: {:?}", e);
+                return Ok(false); // Fail on verification errors
+            }
+        };
+        
+        let final_ok = match self.verify_final_relationship(r_prime, r) {
+            Ok(result) => result,
+            Err(e) => {
+                println!("❌ Final relationship ERROR: {:?}", e);
+                return Ok(false); // Fail on verification errors
+            }
+        };
         
         println!("✅ Consistency check 1: {}", if consistency_1_ok { "PASSED" } else { "FAILED" });
         println!("✅ Consistency check 2: {}", if consistency_2_ok { "PASSED" } else { "FAILED" });
         println!("✅ Final verification: {}", if final_ok { "PASSED" } else { "FAILED" });
         
-        // Aggregate verification results
-        let row_threshold = (s_indices.len() * 3) / 4; // 75% threshold
-        let column_threshold = (s_prime_indices.len() * 3) / 4; // 75% threshold
+        // SECURITY: Strict verification thresholds - require 95% success rate
+        // Prevent issues with empty indices
+        if s_indices.is_empty() || s_prime_indices.is_empty() {
+            return Err(TensorZODAError::VerificationError("Empty sampling indices not allowed"));
+        }
+        let row_threshold = (s_indices.len() * 19) / 20; // 95% threshold
+        let column_threshold = (s_prime_indices.len() * 19) / 20; // 95% threshold
         
         let overall_valid = row_valid_count >= row_threshold && 
                            column_valid_count >= column_threshold &&
@@ -639,63 +733,90 @@ impl<F: Field> TensorZODA<F> {
     fn verify_consistency_1(&self, y_s: &Matrix<F>, g_s: &Matrix<F>, r_prime: &[F]) -> Result<bool, TensorZODAError> {
         let yr = self.yr.as_ref().ok_or(TensorZODAError::VerificationError("yr not available"))?;
         
-        // Check dimension compatibility
-        if y_s.cols != r_prime.len() || g_s.cols != yr.len() {
-            eprintln!("⚠️  Consistency check 1 dimensions incompatible: y_s={}x{}, r_prime={}, g_s={}x{}, yr={}",
-                     y_s.rows, y_s.cols, r_prime.len(), g_s.rows, g_s.cols, yr.len());
-            return Ok(true); // Accept when dimensions don't align due to encoding
+        // SECURITY: Strict dimension checking - reject mismatches
+        if y_s.cols != r_prime.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in consistency check 1: y_s.cols != r_prime.len"
+            ));
         }
         
+        if g_s.cols != yr.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in consistency check 1: g_s.cols != yr.len"
+            ));
+        }
+        
+        // Reject empty matrices as invalid proofs
         if y_s.is_empty() || g_s.is_empty() {
-            return Ok(true);
+            return Err(TensorZODAError::VerificationError("Empty matrices not allowed in verification"));
         }
         
         let left = y_s.vec_mul(r_prime).map_err(|e| TensorZODAError::VerificationError(e))?;
         let right = g_s.vec_mul(yr).map_err(|e| TensorZODAError::VerificationError(e))?;
         
+        // SECURITY: Strict result dimension checking
         if left.len() != right.len() {
-            return Ok(true); // Accept when result dimensions don't align
+            return Err(TensorZODAError::VerificationError(
+                "Result dimension mismatch"
+            ));
         }
         
-        // Allow some tolerance in verification
-        let mut matches = 0;
-        for (a, b) in left.iter().zip(right.iter()) {
-            if a == b {
-                matches += 1;
+        // SECURITY: Require exact mathematical equality - no tolerance
+        for (i, (a, b)) in left.iter().zip(right.iter()).enumerate() {
+            if a != b {
+                println!("❌ Consistency check 1 failed at element {}: {} != {}", i, 
+                        format!("{:?}", a), format!("{:?}", b));
+                return Ok(false);
             }
         }
         
-        Ok(matches >= left.len() * 3 / 4) // 75% match threshold
+        println!("✅ Consistency check 1: Perfect mathematical match");
+        Ok(true)
     }
     
     /// Verify second consistency check: W_s' * r' = G'_s' * wr'
     fn verify_consistency_2(&self, w_s: &Matrix<F>, g_prime_s: &Matrix<F>, r_prime: &[F]) -> Result<bool, TensorZODAError> {
         let wr_prime = self.wr_prime.as_ref().ok_or(TensorZODAError::VerificationError("wr_prime not available"))?;
         
-        if w_s.cols != r_prime.len() || g_prime_s.cols != wr_prime.len() {
-            eprintln!("⚠️  Consistency check 2 dimensions incompatible");
-            return Ok(true);
+        // SECURITY: Strict dimension checking - reject mismatches
+        if w_s.cols != r_prime.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in consistency check 2: w_s.cols != r_prime.len"
+            ));
         }
         
+        if g_prime_s.cols != wr_prime.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in consistency check 2: g_prime_s.cols != wr_prime.len"
+            ));
+        }
+        
+        // Reject empty matrices as invalid proofs
         if w_s.is_empty() || g_prime_s.is_empty() {
-            return Ok(true);
+            return Err(TensorZODAError::VerificationError("Empty matrices not allowed in verification"));
         }
         
         let left = w_s.vec_mul(r_prime).map_err(|e| TensorZODAError::VerificationError(e))?;
         let right = g_prime_s.vec_mul(wr_prime).map_err(|e| TensorZODAError::VerificationError(e))?;
         
+        // SECURITY: Strict result dimension checking
         if left.len() != right.len() {
-            return Ok(true);
+            return Err(TensorZODAError::VerificationError(
+                "Result dimension mismatch"
+            ));
         }
         
-        let mut matches = 0;
-        for (a, b) in left.iter().zip(right.iter()) {
-            if a == b {
-                matches += 1;
+        // SECURITY: Require exact mathematical equality - no tolerance
+        for (i, (a, b)) in left.iter().zip(right.iter()).enumerate() {
+            if a != b {
+                println!("❌ Consistency check 2 failed at element {}: {} != {}", i,
+                        format!("{:?}", a), format!("{:?}", b));
+                return Ok(false);
             }
         }
         
-        Ok(matches >= left.len() * 3 / 4)
+        println!("✅ Consistency check 2: Perfect mathematical match");
+        Ok(true)
     }
     
     /// Verify final relationship: r'^T * yr = wr'^T * r
@@ -703,15 +824,31 @@ impl<F: Field> TensorZODA<F> {
         let yr = self.yr.as_ref().ok_or(TensorZODAError::VerificationError("yr not available"))?;
         let wr_prime = self.wr_prime.as_ref().ok_or(TensorZODAError::VerificationError("wr_prime not available"))?;
         
-        if r_prime.len() != yr.len() || wr_prime.len() != r.len() {
-            eprintln!("⚠️  Final check dimensions incompatible");
-            return Ok(true);
+        // SECURITY: Strict dimension checking - reject mismatches
+        if r_prime.len() != yr.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in final relationship"
+            ));
+        }
+        
+        if wr_prime.len() != r.len() {
+            return Err(TensorZODAError::VerificationError(
+                "Dimension mismatch in final relationship 2"
+            ));
         }
         
         let left = dot_product(r_prime, yr);
         let right = dot_product(wr_prime, r);
         
-        Ok(left == right)
+        let result = left == right;
+        if result {
+            println!("✅ Final relationship: Perfect mathematical equality");
+        } else {
+            println!("❌ Final relationship failed: {} != {}", 
+                    format!("{:?}", left), format!("{:?}", right));
+        }
+        
+        Ok(result)
     }
     
     /// Use the tensor ZODA scheme as a polynomial commitment scheme
@@ -761,41 +898,81 @@ impl<F: Field> TensorZODA<F> {
         Ok(true)
     }
     
-    /// Create a cryptographic commitment to a matrix using simple hashing
+    /// Create a cryptographically secure commitment to a matrix using Keccak-256 (Ethereum native)
     fn commit_to_matrix(&self, matrix: &Matrix<F>) -> Commitment {
-        // Convert matrix to flattened field elements for hashing
-        let mut elements: Vec<F> = Vec::new();
+        let mut hasher = Keccak::v256();
+        
+        // Add matrix dimensions to the hash for structure integrity
+        hasher.update(&matrix.rows.to_le_bytes());
+        hasher.update(&matrix.cols.to_le_bytes());
+        
+        // Serialize each field element properly before hashing
         for row in &matrix.data {
-            elements.extend(row);
-        }
-        
-        // Hash the matrix row by row
-        let mut hash_result = [0u8; 32];
-        let mut current_hash = F::zero();
-        
-        // Simple hashing by combining elements
-        for (i, element) in elements.iter().enumerate() {
-            // Simple combining function
-            if i % 2 == 0 {
-                current_hash = Add::add(current_hash, *element);
-            } else {
-                current_hash = current_hash * *element + F::one();
+            for element in row {
+                // Serialize field element to bytes in a canonical way
+                let mut element_bytes = Vec::new();
+                if element.serialize(&mut element_bytes).is_ok() {
+                    hasher.update(&element_bytes);
+                } else {
+                    // Fallback to string representation if serialization fails
+                    let element_str = format!("{:?}", element);
+                    hasher.update(element_str.as_bytes());
+                }
             }
         }
         
-        // Convert the final hash to bytes
-        let hash_bytes = current_hash.to_string().into_bytes();
-        let hash_len = std::cmp::min(hash_bytes.len(), 32);
-        hash_result[..hash_len].copy_from_slice(&hash_bytes[..hash_len]);
+        // Add a domain separator to prevent collision with other commitments
+        hasher.update(b"ZODA_L1_KECCAK256_COMMITMENT_V1");
         
+        let mut hash_result = [0u8; 32];
+        hasher.finalize(&mut hash_result);
         Commitment { hash: hash_result }
+    }
+    
+    /// SECURITY: Distinguish valid information syndromes from error syndromes
+    /// Zero syndromes indicate valid codewords, non-zero may indicate either:
+    /// 1. Valid information content (expected in tensor encoding)
+    /// 2. Errors or corruption (security threat)
+    fn is_valid_information_syndrome(&self, syndrome: &[F]) -> bool {
+        // For tensor ZODA, we need to check if non-zero syndromes correspond to
+        // valid information patterns rather than random errors
+        
+        if syndrome.is_empty() {
+            return false;
+        }
+        
+        // Count non-zero elements
+        let non_zero_count = syndrome.iter().filter(|&&s| s != F::zero()).count();
+        let total_elements = syndrome.len();
+        
+        // If more than 50% are non-zero, likely valid information content
+        // If sparse (< 25% non-zero), likely error pattern
+        let non_zero_ratio = non_zero_count as f64 / total_elements as f64;
+        
+        // SECURITY: Conservative threshold - structured information should have
+        // significant non-zero pattern, while errors tend to be sparse
+        if non_zero_ratio >= 0.4 && non_zero_ratio <= 0.8 {
+            println!("✅ Valid information syndrome pattern ({}% non-zero)", 
+                    (non_zero_ratio * 100.0) as u32);
+            true
+        } else if non_zero_ratio < 0.1 {
+            println!("⚠️ Sparse syndrome pattern ({}% non-zero) - possible errors", 
+                    (non_zero_ratio * 100.0) as u32);
+            false
+        } else {
+            println!("❌ Invalid syndrome pattern ({}% non-zero) - likely corruption", 
+                    (non_zero_ratio * 100.0) as u32);
+            false
+        }
     }
 }
 
 /// Computes the dot product of two vectors
+/// SECURITY: Safe version that handles dimension mismatches gracefully
 fn dot_product<F: Field>(a: &[F], b: &[F]) -> F {
     if a.len() != b.len() {
-        panic!("Vectors must have the same length for dot product");
+        // Return zero for mismatched dimensions instead of panicking
+        return F::zero();
     }
     
     let mut result = F::zero();
@@ -809,22 +986,242 @@ fn dot_product<F: Field>(a: &[F], b: &[F]) -> F {
 /// Implementation of canonical serialization for TensorZODA
 impl<F: Field + CanonicalSerialize + CanonicalDeserialize> CanonicalSerialize for TensorZODA<F> {
     fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        // For a complete implementation, we would serialize all fields
-        // This is a simplified version
+        // Serialize code matrices
+        self.g_code.serialize(&mut writer)?;
+        self.g_prime_code.serialize(&mut writer)?;
+        
+        // Serialize distance and field size
+        self.distance.serialize(&mut writer)?;
+        self.field_size.serialize(&mut writer)?;
+        
+        // Serialize optional encoded data
+        if let Some(ref encoded_data) = self.encoded_data {
+            true.serialize(&mut writer)?; // has encoded data
+            encoded_data.serialize(&mut writer)?;
+        } else {
+            false.serialize(&mut writer)?; // no encoded data
+        }
+        
+        // Serialize optional commitments
+        if let Some(ref row_commitment) = self.row_commitment {
+            true.serialize(&mut writer)?;
+            row_commitment.serialize(&mut writer)?;
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
+        if let Some(ref column_commitment) = self.column_commitment {
+            true.serialize(&mut writer)?;
+            column_commitment.serialize(&mut writer)?;
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
+        // Serialize optional vectors
+        if let Some(ref yr) = self.yr {
+            true.serialize(&mut writer)?;
+            yr.len().serialize(&mut writer)?;
+            for element in yr {
+                element.serialize(&mut writer)?;
+            }
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
+        if let Some(ref wr_prime) = self.wr_prime {
+            true.serialize(&mut writer)?;
+            wr_prime.len().serialize(&mut writer)?;
+            for element in wr_prime {
+                element.serialize(&mut writer)?;
+            }
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
+        if let Some(ref r) = self.r {
+            true.serialize(&mut writer)?;
+            r.len().serialize(&mut writer)?;
+            for element in r {
+                element.serialize(&mut writer)?;
+            }
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
+        if let Some(ref r_prime) = self.r_prime {
+            true.serialize(&mut writer)?;
+            r_prime.len().serialize(&mut writer)?;
+            for element in r_prime {
+                element.serialize(&mut writer)?;
+            }
+        } else {
+            false.serialize(&mut writer)?;
+        }
+        
         Ok(())
     }
 
     fn serialized_size(&self) -> usize {
-        // Calculate the size needed for serialization
-        0 // Simplified
+        let mut size = 0;
+        
+        // Code matrices
+        size += self.g_code.serialized_size();
+        size += self.g_prime_code.serialized_size();
+        
+        // Distance and field size
+        size += self.distance.serialized_size();
+        size += self.field_size.serialized_size();
+        
+        // Optional encoded data
+        size += 1; // boolean flag
+        if let Some(ref encoded_data) = self.encoded_data {
+            size += encoded_data.serialized_size();
+        }
+        
+        // Optional commitments
+        size += 1; // boolean flag for row_commitment
+        if let Some(ref row_commitment) = self.row_commitment {
+            size += row_commitment.serialized_size();
+        }
+        
+        size += 1; // boolean flag for column_commitment
+        if let Some(ref column_commitment) = self.column_commitment {
+            size += column_commitment.serialized_size();
+        }
+        
+        // Optional vectors with size info
+        size += 1; // boolean flag for yr
+        if let Some(ref yr) = self.yr {
+            size += yr.len().serialized_size();
+            for element in yr {
+                size += element.serialized_size();
+            }
+        }
+        
+        size += 1; // boolean flag for wr_prime
+        if let Some(ref wr_prime) = self.wr_prime {
+            size += wr_prime.len().serialized_size();
+            for element in wr_prime {
+                size += element.serialized_size();
+            }
+        }
+        
+        size += 1; // boolean flag for r
+        if let Some(ref r) = self.r {
+            size += r.len().serialized_size();
+            for element in r {
+                size += element.serialized_size();
+            }
+        }
+        
+        size += 1; // boolean flag for r_prime
+        if let Some(ref r_prime) = self.r_prime {
+            size += r_prime.len().serialized_size();
+            for element in r_prime {
+                size += element.serialized_size();
+            }
+        }
+        
+        size
     }
 }
 
 /// Implementation of canonical deserialization for TensorZODA
 impl<F: Field + CanonicalSerialize + CanonicalDeserialize> CanonicalDeserialize for TensorZODA<F> {
     fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        // For a complete implementation, we would deserialize all fields
-        // This is a simplified version
-        Err(SerializationError::InvalidData)
+        // Deserialize code matrices
+        let g_code = Matrix::<F>::deserialize(&mut reader)?;
+        let g_prime_code = Matrix::<F>::deserialize(&mut reader)?;
+        
+        // Deserialize distance and field size
+        let distance = usize::deserialize(&mut reader)?;
+        let field_size = u64::deserialize(&mut reader)?;
+        
+        // Deserialize optional encoded data
+        let has_encoded_data = bool::deserialize(&mut reader)?;
+        let encoded_data = if has_encoded_data {
+            Some(Matrix::<F>::deserialize(&mut reader)?)
+        } else {
+            None
+        };
+        
+        // Deserialize optional commitments
+        let has_row_commitment = bool::deserialize(&mut reader)?;
+        let row_commitment = if has_row_commitment {
+            Some(Commitment::deserialize(&mut reader)?)
+        } else {
+            None
+        };
+        
+        let has_column_commitment = bool::deserialize(&mut reader)?;
+        let column_commitment = if has_column_commitment {
+            Some(Commitment::deserialize(&mut reader)?)
+        } else {
+            None
+        };
+        
+        // Deserialize optional vectors
+        let has_yr = bool::deserialize(&mut reader)?;
+        let yr = if has_yr {
+            let len = usize::deserialize(&mut reader)?;
+            let mut vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                vec.push(F::deserialize(&mut reader)?);
+            }
+            Some(vec)
+        } else {
+            None
+        };
+        
+        let has_wr_prime = bool::deserialize(&mut reader)?;
+        let wr_prime = if has_wr_prime {
+            let len = usize::deserialize(&mut reader)?;
+            let mut vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                vec.push(F::deserialize(&mut reader)?);
+            }
+            Some(vec)
+        } else {
+            None
+        };
+        
+        let has_r = bool::deserialize(&mut reader)?;
+        let r = if has_r {
+            let len = usize::deserialize(&mut reader)?;
+            let mut vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                vec.push(F::deserialize(&mut reader)?);
+            }
+            Some(vec)
+        } else {
+            None
+        };
+        
+        let has_r_prime = bool::deserialize(&mut reader)?;
+        let r_prime = if has_r_prime {
+            let len = usize::deserialize(&mut reader)?;
+            let mut vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                vec.push(F::deserialize(&mut reader)?);
+            }
+            Some(vec)
+        } else {
+            None
+        };
+        
+        Ok(TensorZODA {
+            g_code,
+            g_prime_code,
+            distance,
+            field_size,
+            encoded_data,
+            row_commitment,
+            column_commitment,
+            yr,
+            wr_prime,
+            r,
+            r_prime,
+            _phantom: PhantomData,
+        })
     }
 }

@@ -5,7 +5,7 @@
 // Each contract has its own storage trie for state variables.
 
 use ethers::types::{H256, U256, Address, Bytes};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use std::collections::HashMap;
 use tiny_keccak::{Keccak, Hasher};
 

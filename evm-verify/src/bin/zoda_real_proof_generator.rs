@@ -6,20 +6,16 @@ use serde_json::json;
 use reqwest;
 use anyhow::Result;
 use tokio;
-use ark_bn254::{Bn254, Fr};
-use ark_groth16::Groth16;
-use ark_snark::SNARK;
-use ark_ec::PairingEngine;
-use ark_serialize::CanonicalSerialize;
-use ark_ff::PrimeField;
-use ethers::types::{H256, H160, U256, Block, Transaction};
-use evm_verify::circuits::complete_evm_circuit::{CompleteEVMCircuit, CompleteEVMProof};
+use ark_bn254::Fr;
+use ethers::types::{H256, H160, Block, Transaction};
+use evm_verify::circuits::complete_evm_circuit::CompleteEVMCircuit;
 use evm_verify::circuits::CircuitBuilder;
 use evm_verify::common::DeploymentData;
 use evm_verify::bytecode::types::RuntimeAnalysis;
 
 // Missing struct definitions
 #[derive(Clone)]
+#[allow(dead_code)] // Mock implementation for compilation
 struct EthereumRpcClient {
     client: reqwest::Client,
     rpc_url: String,
@@ -38,6 +34,7 @@ impl EthereumRpcClient {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)] // Mock implementation for compilation
 struct BlockRpcData {
     number: String,
     hash: String,
@@ -45,11 +42,13 @@ struct BlockRpcData {
     transactions: Vec<String>,
 }
 
+#[allow(dead_code)] // Mock implementation for compilation
 struct ZodaProver {
     config: ProofGenerationConfig,
 }
 
 impl ZodaProver {
+    #[allow(dead_code)] // Mock implementation for compilation
     fn prove_circuit(&self, _circuit: &EvmExecutionCircuit, _witness: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         // Mock implementation
         Ok(vec![1, 2, 3, 4]) // Mock proof
@@ -73,6 +72,7 @@ impl LinearTimeAccumulator {
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)] // Mock implementation for compilation
 struct ProofGenerationConfig {
     security_level: u32,
     optimization_level: u32,
@@ -188,6 +188,7 @@ impl EvmExecutionCircuit {
         Self::new(block_hash, gas_used, transaction_count).await
     }
     
+    #[allow(dead_code)] // Mock implementation for compilation
     fn get_proving_key(&self) -> Result<Vec<u8>> {
         // Return a dummy proving key since CompleteEVMCircuit doesn't expose this
         Ok(vec![1, 2, 3, 4, 5, 6, 7, 8])
@@ -336,6 +337,7 @@ impl EthereumRpcClient {
         })
     }
     
+    #[allow(dead_code)] // Mock implementation for compilation
     pub async fn get_block(&self, block_number: u64) -> Result<EthereumBlock> {
         let payload = json!({
             "jsonrpc": "2.0",
@@ -384,6 +386,7 @@ impl LinearTimeAccumulator {
         Ok(Self {})
     }
     
+    #[allow(dead_code)] // Mock implementation for compilation
     pub fn accumulate(&mut self, _proof: Vec<u8>) -> Result<()> {
         // Mock accumulation
         Ok(())
@@ -399,11 +402,13 @@ impl ProofCarryingCode {
 }
 
 impl ProofCarryingData {
+    #[allow(dead_code)] // Mock implementation for compilation
     pub fn accumulate_state_transition(_proof: Vec<u8>) -> Result<Vec<u8>> {
         Ok(vec![0u8; 96]) // Mock PCD
     }
 }
 
+#[allow(dead_code)] // Mock implementation for compilation
 struct ZodaRealProofGenerator {
     rpc_client: EthereumRpcClient,
     prover: ZodaProver,
@@ -463,7 +468,7 @@ impl ZodaRealProofGenerator {
         
         // Step 4: Witness generation (most critical step)
         let witness_start = Instant::now();
-        let witness = evm_circuit.generate_witness(&ethereum_block)?;
+        let _witness = evm_circuit.generate_witness(&ethereum_block)?;
         let witness_generation_time_ms = witness_start.elapsed().as_millis() as u64;
         
         println!("   📝 Witness generated in {}ms", witness_generation_time_ms);
@@ -478,12 +483,12 @@ impl ZodaRealProofGenerator {
         
         // Step 6: Proof Carrying Code integration
         let pcc_start = Instant::now();
-        let pcc = ProofCarryingCode::embed_proof(&ethereum_block, proof.clone())?;
+        let _pcc = ProofCarryingCode::embed_proof(&ethereum_block, proof.clone())?;
         let pcc_integration_time_ms = pcc_start.elapsed().as_millis() as u64;
         
         // Step 7: Proof Carrying Data accumulation
         let pcd_start = Instant::now();
-        let pcd = ProofCarryingData::accumulate_state_transitions(&ethereum_block)?;
+        let _pcd = ProofCarryingData::accumulate_state_transitions(&ethereum_block)?;
         let pcd_accumulation_time_ms = pcd_start.elapsed().as_millis() as u64;
         
         // Step 8: Linear time accumulation (key innovation)

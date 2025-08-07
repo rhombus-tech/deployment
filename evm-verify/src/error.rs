@@ -3,8 +3,6 @@
 //! This module provides comprehensive error handling for the zkEVM proving system,
 //! with detailed error categorization, recovery strategies, and monitoring integration.
 
-use std::fmt;
-use std::error::Error as StdError;
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
 

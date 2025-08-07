@@ -1,15 +1,14 @@
 use anyhow::{Result, Context};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH, Instant};
-use chrono::{DateTime, Utc};
-use tokio::sync::{broadcast, mpsc, RwLock};
+use std::time::{SystemTime, Instant};
+use chrono::Utc;
+use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
-use std::collections::HashMap;
-use tokio::time::{interval, Duration};
+use tokio::time::Duration;
 use ethers::{
     providers::{Http, Provider, Ws, StreamExt, Middleware},
-    types::{Block, H256},
+    types::H256,
     core::types::U64,
 };
 use tracing::{info, warn, error, debug};

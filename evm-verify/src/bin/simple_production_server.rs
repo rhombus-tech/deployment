@@ -11,6 +11,7 @@ use serde_json;
 use warp::Rejection;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ApiError {
     message: String,
 }

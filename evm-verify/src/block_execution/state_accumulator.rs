@@ -3,9 +3,9 @@
 // Accumulates state transitions across the entire block using ZODA tensor operations
 // Designed for efficient state root computation and proof generation
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use ethers::types::{H256, U256, Bytes};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use serde::{Serialize, Deserialize};
@@ -14,7 +14,6 @@ use tokio::sync::{Mutex, RwLock};
 #[cfg(feature = "accumulation")]
 use pcd::evm_accumulation::{EVMAccumulator, generate_evm_proof, verify_evm_proof};
 use ark_bn254::Fr as Bn254Fr;
-use ark_std::rand::thread_rng;
 
 use crate::block_execution::{BatchResult};
 use crate::block_execution::batch_processor::TransactionResult;

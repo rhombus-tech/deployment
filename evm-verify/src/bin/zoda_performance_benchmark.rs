@@ -387,6 +387,7 @@ impl ZODABenchmarker {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)] // Used for benchmark metrics
 struct ProofResult {
     proof_bytes: Vec<u8>,
     memory_used: u64,

@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
-use tokio::time::{interval, sleep};
+use tokio::time::interval;
 use tracing::{debug, warn, error};
 use warp::{Filter, Rejection, Reply};
 use serde::{Deserialize, Serialize};

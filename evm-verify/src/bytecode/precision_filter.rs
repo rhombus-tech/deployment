@@ -1,5 +1,4 @@
 use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
-use crate::bytecode::analyzer::BytecodeAnalyzer;
 
 /// Filters vulnerabilities to reduce false positives and support smaller projects
 /// Focus on HIGH-CONFIDENCE vulnerabilities that are likely real

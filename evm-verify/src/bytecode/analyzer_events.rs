@@ -127,7 +127,7 @@ impl BytecodeAnalyzer {
                     if opcode == LOG1 {
                         // Check if there are enough items on the stack
                         // This is a heuristic since we don't have full stack simulation
-                        let mut has_incomplete_params = false;
+                        let _has_incomplete_params = false;
                         
                         // Count preceding PUSH operations to estimate stack size
                         let mut stack_items = 0;

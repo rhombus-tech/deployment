@@ -10,10 +10,10 @@ use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
 #[derive(Clone)]
 pub struct ProxyCircuit<F: PrimeField> {
     /// Deployment data
-    deployment: DeploymentData,
+    _deployment: DeploymentData,
 
     /// Runtime analysis
-    runtime: RuntimeAnalysis,
+    _runtime: RuntimeAnalysis,
 
     /// Uninitialized proxy warnings
     uninitialized_proxy_warnings: Vec<SecurityWarning>,
@@ -42,8 +42,8 @@ impl<F: PrimeField> ProxyCircuit<F> {
         let selfdestruct_proxy_warnings = Vec::new();
         
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             uninitialized_proxy_warnings,
             storage_collision_warnings,
             implementation_shadowing_warnings,
@@ -62,8 +62,8 @@ impl<F: PrimeField> ProxyCircuit<F> {
         selfdestruct_proxy_warnings: Vec<SecurityWarning>
     ) -> Self {
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             uninitialized_proxy_warnings,
             storage_collision_warnings,
             implementation_shadowing_warnings,

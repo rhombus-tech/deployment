@@ -2,18 +2,18 @@ use ark_bn254::Bn254;
 use ark_groth16::Groth16;
 use ark_snark::SNARK;
 use ark_ec::PairingEngine;
-use ark_ff::Zero;
+
 use tracing_subscriber;
 use rand::rngs::OsRng;
 
 // Conditional imports to avoid compilation errors
-#[cfg(feature = "circuits")]
+#[cfg(any(feature = "circuits", test))]
 use crate::circuits::access::AccessControlCircuit;
-#[cfg(feature = "common")]
+#[cfg(any(feature = "common", test))]
 use crate::common::DeploymentData;
-#[cfg(feature = "bytecode")]
+#[cfg(any(feature = "bytecode", test))]
 use crate::bytecode::types::RuntimeAnalysis;
-#[cfg(feature = "utils")]
+#[cfg(any(feature = "utils", test))]
 use crate::utils::address_to_field;
 
 type Fr = <Bn254 as PairingEngine>::Fr;
@@ -108,6 +108,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_std::Zero;
 
     #[test]
     fn test_generate_keys() {

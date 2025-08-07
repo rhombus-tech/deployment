@@ -60,9 +60,9 @@ use unchecked_calls::UncheckedCallsCircuit;
 use upgrade::UpgradeVerificationCircuit;
 
 // New EVM Circuit Imports
-use execution_trace::{EVMExecutionTrace, ExecutionTraceResult, ExecutionPerformance};
-use stack_memory_circuit::{StackMemoryVerifier, StackMemoryProof};
-use opcode_circuit::{OpcodeValidationCircuit, OpcodeValidationProof};
+use execution_trace::EVMExecutionTrace;
+use stack_memory_circuit::StackMemoryVerifier;
+use opcode_circuit::OpcodeValidationCircuit;
 pub use complete_evm_circuit::{CompleteEVMCircuit, CompleteEVMProof, EFComplianceAttestation};
 
 // Re-export circuits for public use

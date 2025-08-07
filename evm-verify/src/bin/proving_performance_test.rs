@@ -54,6 +54,8 @@ async fn benchmark_baseline_processing(transactions: &[Transaction]) -> Duration
     // Process transactions one by one (baseline approach - individual batches)
     for tx in transactions {
         let batch = ProcessingBatch {
+            batch_id: 0,
+            priority: 0,
             transactions: vec![tx.clone()],
             dependencies: HashMap::new(),
             execution_order: vec![],
@@ -79,6 +81,8 @@ async fn benchmark_optimized_processing(transactions: &[Transaction]) -> Duratio
     
     // Use our optimized batch processing - all transactions in one batch
     let batch = ProcessingBatch {
+        batch_id: 1,
+        priority: 0,
         transactions: transactions.to_vec(),
         dependencies: HashMap::new(),
         execution_order: vec![],

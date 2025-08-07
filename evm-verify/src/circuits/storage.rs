@@ -10,18 +10,18 @@ use ark_r1cs_std::{
 };
 use std::marker::PhantomData;
 
-use ethers::types::{H256, U256};
+use ethers::types::H256;
 
 use crate::common::DeploymentData;
 use crate::bytecode::types::{RuntimeAnalysis, StorageAccess};
-use crate::utils::{slot_to_field, value_to_field};
+use crate::utils::slot_to_field;
 
 /// Storage circuit
 pub struct StorageCircuit<F: PrimeField> {
     /// Deployment data
-    pub deployment: DeploymentData,
+    pub _deployment: DeploymentData,
     /// Runtime analysis
-    pub runtime: RuntimeAnalysis,
+    pub _runtime: RuntimeAnalysis,
     /// Phantom data
     _phantom: PhantomData<F>,
 }
@@ -33,8 +33,8 @@ impl<F: PrimeField> StorageCircuit<F> {
         runtime: RuntimeAnalysis,
     ) -> Self {
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             _phantom: PhantomData,
         }
     }
@@ -90,7 +90,7 @@ impl<F: PrimeField> StorageCircuit<F> {
 impl<F: PrimeField> ConstraintSynthesizer<F> for StorageCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // Get variables for each storage access
-        for access in &self.runtime.storage_accesses {
+        for access in &self._runtime.storage_accesses {
             // Get slot variable
             let slot_var = self.slot_var(cs.clone(), access.slot)?;
 

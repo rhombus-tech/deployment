@@ -4,7 +4,7 @@
 // for Ethereum state transitions using the Proof-Carrying Data approach.
 
 use anyhow::Result;
-use ethers::types::{Bytes, H256, U256};
+use ethers::types::Bytes;
 
 use crate::api::types::{Vulnerability, VulnerabilityType, VulnerabilitySeverity, VulnerabilityLocation};
 

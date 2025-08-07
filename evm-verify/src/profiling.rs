@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, instrument};
+use tracing::{debug, instrument};
 
 /// Comprehensive performance profiling system for ZODA
 #[derive(Debug, Clone)]
@@ -211,7 +211,7 @@ impl ZodaPerformanceProfiler {
         let memory_usage = self.analyze_memory_usage(&memory_snapshots);
         
         // Throughput metrics
-        let total_operations: usize = operation_counts.values().sum();
+        let _total_operations: usize = operation_counts.values().sum();
         let throughput_metrics = ThroughputMetrics {
             circuits_per_second: *operation_counts.get("circuit_processing")
                 .unwrap_or(&0) as f64 / total_runtime.as_secs_f64(),
@@ -446,7 +446,7 @@ impl Default for ZodaPerformanceProfiler {
 fn get_memory_usage() -> usize {
     // In a real implementation, this would use platform-specific APIs
     // For now, we'll simulate with a simple estimate
-    use std::alloc::{GlobalAlloc, Layout, System};
+    
     
     // This is a simplified estimation - in production you'd use:
     // - On Linux: /proc/self/status or mallinfo

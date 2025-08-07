@@ -1,7 +1,7 @@
 use ark_ff::PrimeField;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_r1cs_std::{prelude::*, boolean::Boolean};
-use ethers::types::{Bytes, H160 as Address};
+use ethers::types::{Bytes, Address};
 
 use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;

@@ -149,7 +149,7 @@ impl DeploymentGateway {
     
     /// Verify an AI agent action sequence for security vulnerabilities with a specific verification strategy
     /// This analyzes a sequence of actions as a single unit
-    pub fn verify_action_sequence_with_strategy(&self, actions: &[Vec<u8>], strategy: VerificationStrategy) -> Result<VerificationResult> {
+    pub fn verify_action_sequence_with_strategy(&self, actions: &[Vec<u8>], _strategy: VerificationStrategy) -> Result<VerificationResult> {
         if !self.settings.analyze_action_sequences {
             return Err(anyhow!("Action sequence analysis is disabled in settings"));
         }

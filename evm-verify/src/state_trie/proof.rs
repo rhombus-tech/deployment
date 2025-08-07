@@ -4,15 +4,14 @@
 // Implements state and storage proof generation/verification as required
 // for Ethereum Foundation compliance and light client support.
 
-use ethers::types::{H256, U256, Address, Bytes, Block, TransactionReceipt};
+use ethers::types::{H256, Address, Bytes};
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
 use super::{
-    mpt::MerklePatriciaTrie,
-    account_state::{AccountState, AccountProof, AccountTrie},
-    storage_trie::{StorageSlot, StorageValue, StorageProof, StorageTrie},
+    account_state::{AccountState, AccountTrie},
+    storage_trie::{StorageSlot, StorageValue, StorageTrie},
 };
 
 /// Complete state proof for a transaction

@@ -5,13 +5,11 @@
 //! for Prometheus scraping, health monitoring, and operational visibility.
 
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
-use tokio::time::sleep;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error, debug};
 use serde::{Deserialize, Serialize};
-use crate::error::{ZkEvmError as ZodaError, ErrorSeverity};
+use crate::error::ZkEvmError as ZodaError;
 use crate::metrics::{ZkEvmMetrics as ZodaMetrics, PerformanceSummary};
 use crate::config::{ZkEvmConfig as ZodaConfig};
 
@@ -92,7 +90,7 @@ impl ZodaMonitoring {
     }
 
     /// Create monitoring system from ZODA config
-    pub fn from_zoda_config(zoda_config: &ZodaConfig, metrics: Arc<ZodaMetrics>) -> Self {
+    pub fn from_zoda_config(_zoda_config: &ZodaConfig, metrics: Arc<ZodaMetrics>) -> Self {
         let monitoring_config = MonitoringConfig {
             enable_health_checks: true,
             health_check_interval: Duration::from_secs(30),

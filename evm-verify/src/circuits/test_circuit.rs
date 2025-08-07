@@ -3,7 +3,6 @@ use ark_relations::{
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
 use ark_bn254::Fr;
-use ark_ff::Field;
 
 /// A simple test circuit for demonstrating the ZODA+WARP hybrid system
 /// 

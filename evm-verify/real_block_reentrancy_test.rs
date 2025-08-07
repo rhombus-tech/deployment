@@ -1,6 +1,5 @@
 use evm_verify::bytecode::analyzer::BytecodeAnalyzer;
 use ethers::types::Bytes;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct VulnerabilityReport {

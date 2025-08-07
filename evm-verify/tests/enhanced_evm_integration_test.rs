@@ -12,7 +12,7 @@ use std::str::FromStr;
 use evm_verify::block_execution::{
     TransactionProcessor,
     BlockExecutionConfig,
-    transaction_processor::{TransactionResult, StateChange, ProcessingBatch}
+    transaction_processor::{TransactionResult, StateChange, ProcessingBatch, ProcessingMode}
 };
 use evm_verify::vm::evm_state_integration::{StateIntegratedEVM, EnhancedTransactionReceipt};
 use evm_verify::state_trie::{ProductionStateManager, StorageSlot, StorageValue, AccountState};
@@ -44,10 +44,12 @@ impl EnhancedEVMIntegrationTest {
         
         // Execute transaction
         let batch = ProcessingBatch {
-            transactions: vec![tx.clone()],
-            dependencies: Vec::new(),
             batch_id: 1,
             priority: 1,
+            transactions: vec![tx.clone()],
+            dependencies: HashMap::new(),
+            execution_order: Vec::new(),
+            mode: ProcessingMode::Sequential,
         };
         
         let start_time = Instant::now();
@@ -79,10 +81,12 @@ impl EnhancedEVMIntegrationTest {
         
         // Execute deployment
         let batch = ProcessingBatch {
-            transactions: vec![deploy_tx],
-            dependencies: Vec::new(),
             batch_id: 2,
             priority: 1,
+            transactions: vec![deploy_tx],
+            dependencies: HashMap::new(),
+            execution_order: Vec::new(),
+            mode: ProcessingMode::Sequential,
         };
         
         let results = self.processor.process_batch(batch).await?;
@@ -112,10 +116,12 @@ impl EnhancedEVMIntegrationTest {
         }
         
         let batch = ProcessingBatch {
-            transactions,
-            dependencies: Vec::new(),
             batch_id: 3,
             priority: 1,
+            transactions,
+            dependencies: HashMap::new(),
+            execution_order: Vec::new(),
+            mode: ProcessingMode::Sequential,
         };
         
         let start_time = Instant::now();
@@ -158,10 +164,12 @@ impl EnhancedEVMIntegrationTest {
         
         for (test_name, tx, expected_min_gas) in test_cases {
             let batch = ProcessingBatch {
-                transactions: vec![tx],
-                dependencies: Vec::new(),
                 batch_id: 4,
                 priority: 1,
+                transactions: vec![tx],
+                dependencies: HashMap::new(),
+                execution_order: Vec::new(),
+                mode: ProcessingMode::Sequential,
             };
             
             let results = self.processor.process_batch(batch).await?;
@@ -187,10 +195,12 @@ impl EnhancedEVMIntegrationTest {
         let tx = create_storage_write_transaction();
         
         let batch = ProcessingBatch {
-            transactions: vec![tx],
-            dependencies: Vec::new(),
             batch_id: 5,
             priority: 1,
+            transactions: vec![tx],
+            dependencies: HashMap::new(),
+            execution_order: Vec::new(),
+            mode: ProcessingMode::Sequential,
         };
         
         let results = self.processor.process_batch(batch).await?;
@@ -221,10 +231,12 @@ impl EnhancedEVMIntegrationTest {
         failed_tx.gas = U256::from(1000); // Too low for execution
         
         let batch = ProcessingBatch {
-            transactions: vec![failed_tx],
-            dependencies: Vec::new(),
             batch_id: 6,
             priority: 1,
+            transactions: vec![failed_tx],
+            dependencies: HashMap::new(),
+            execution_order: Vec::new(),
+            mode: ProcessingMode::Sequential,
         };
         
         let results = self.processor.process_batch(batch).await?;
@@ -257,10 +269,12 @@ impl EnhancedEVMIntegrationTest {
             }
             
             let batch = ProcessingBatch {
-                transactions,
-                dependencies: Vec::new(),
                 batch_id: 7,
                 priority: 1,
+                transactions,
+                dependencies: HashMap::new(),
+                execution_order: Vec::new(),
+                mode: ProcessingMode::Sequential,
             };
             
             let start_time = Instant::now();
@@ -284,7 +298,7 @@ impl EnhancedEVMIntegrationTest {
     /// Run the complete integration test suite
     pub async fn run_full_test_suite(&self) -> Result<()> {
         println!("🚀 Running Enhanced zkEVM Integration Test Suite");
-        println!("=" * 60);
+        println!("{}", "=".repeat(60));
         
         let start_time = Instant::now();
         
@@ -299,7 +313,7 @@ impl EnhancedEVMIntegrationTest {
         
         let total_time = start_time.elapsed();
         
-        println!("=" * 60);
+        println!("{}", "=".repeat(60));
         println!("🎉 All integration tests passed!");
         println!("   Total test suite time: {:?}", total_time);
         println!("   Enhanced zkEVM integration is working correctly!");
@@ -330,6 +344,8 @@ fn create_simple_transfer_transaction() -> Transaction {
         access_list: None,
         max_fee_per_gas: Some(U256::from(30000000000u64)),
         max_priority_fee_per_gas: Some(U256::from(2000000000u64)),
+        chain_id: Some(U256::from(1)), // Mainnet
+        other: Default::default(),
     }
 }
 

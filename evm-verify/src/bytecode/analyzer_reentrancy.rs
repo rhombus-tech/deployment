@@ -1,7 +1,5 @@
 use crate::bytecode::security::SecurityWarning;
 use crate::bytecode::analyzer::BytecodeAnalyzer;
-use anyhow::Result;
-use ethers::types::H256;
 
 /// Detects potential reentrancy vulnerabilities in EVM bytecode.
 /// 

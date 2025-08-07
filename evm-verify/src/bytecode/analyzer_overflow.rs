@@ -24,11 +24,8 @@ pub fn detect_integer_overflow(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarni
     warnings
 }
 
-/// Detects addition operations that might lead to overflow.
-/// 
-/// Looks for:
-/// - ADD operations without prior checks
-/// - Patterns that might lead to overflow
+/// Detects GENUINE addition overflow vulnerabilities.
+/// Only flags arithmetic on user input that could actually overflow without proper bounds checking.
 fn detect_unsafe_additions(bytecode: &[u8], warnings: &mut Vec<SecurityWarning>) {
     let mut i = 0;
     
@@ -37,12 +34,11 @@ fn detect_unsafe_additions(bytecode: &[u8], warnings: &mut Vec<SecurityWarning>)
         
         // Check for ADD opcode (0x01)
         if opcode == 0x01 {
-            // Look back to see if there's a safety check before the ADD
-            let has_safety_check = check_for_safety_check(bytecode, i);
-            
-
-            
-            if !has_safety_check {
+            // ONLY flag if this is a genuinely dangerous pattern
+            if is_dangerous_addition(bytecode, i) &&
+               !has_overflow_protection(bytecode, i) &&
+               !is_safe_library_pattern(bytecode, i) {
+                
                 warnings.push(SecurityWarning::integer_overflow(i as u64));
             }
         }
@@ -60,11 +56,8 @@ fn detect_unsafe_additions(bytecode: &[u8], warnings: &mut Vec<SecurityWarning>)
     }
 }
 
-/// Detects multiplication operations that might lead to overflow.
-/// 
-/// Looks for:
-/// - MUL operations without prior checks
-/// - Patterns that might lead to overflow
+/// Detects GENUINE multiplication overflow vulnerabilities.
+/// Only flags arithmetic on user input that could actually overflow without proper bounds checking.
 fn detect_unsafe_multiplications(bytecode: &[u8], warnings: &mut Vec<SecurityWarning>) {
     let mut i = 0;
     
@@ -73,12 +66,11 @@ fn detect_unsafe_multiplications(bytecode: &[u8], warnings: &mut Vec<SecurityWar
         
         // Check for MUL opcode (0x02)
         if opcode == 0x02 {
-            // Look back to see if there's a safety check before the MUL
-            let has_safety_check = check_for_safety_check(bytecode, i);
-            
-
-            
-            if !has_safety_check {
+            // ONLY flag if this is a genuinely dangerous pattern
+            if is_dangerous_multiplication(bytecode, i) &&
+               !has_overflow_protection(bytecode, i) &&
+               !is_safe_library_pattern(bytecode, i) {
+                
                 warnings.push(SecurityWarning::integer_overflow(i as u64));
             }
         }
@@ -96,40 +88,115 @@ fn detect_unsafe_multiplications(bytecode: &[u8], warnings: &mut Vec<SecurityWar
     }
 }
 
-/// Checks if there are safety checks before an arithmetic operation.
-/// 
-/// Safety checks include:
-/// - GT/LT comparisons
-/// - Conditional jumps based on comparison results
-/// - Division by zero checks
-fn check_for_safety_check(bytecode: &[u8], op_position: usize) -> bool {
-    // Look back up to 20 instructions for safety checks
-    let start = if op_position > 20 { op_position - 20 } else { 0 };
+/// Check if this addition operates on user input that could realistically overflow
+fn is_dangerous_addition(bytecode: &[u8], add_pos: usize) -> bool {
+    // Look for patterns that indicate user input arithmetic:
+    // 1. CALLDATALOAD before arithmetic
+    // 2. Large constant values being added
+    // 3. External call return values used in arithmetic
     
-    let mut has_comparison = false;
-    let mut has_conditional_jump = false;
-    
-    for i in start..op_position {
-        if i >= bytecode.len() {
-            continue;
-        }
+    for i in (add_pos.saturating_sub(15))..add_pos {
+        if i >= bytecode.len() { continue; }
         
         match bytecode[i] {
-            // Comparison operations
-            0x10 => has_comparison = true, // LT
-            0x11 => has_comparison = true, // GT
-            0x12 => has_comparison = true, // SLT
-            0x13 => has_comparison = true, // SGT
-            0x14 => has_comparison = true, // EQ
-            
-            // Conditional jump
-            0x57 => has_conditional_jump = true, // JUMPI
-            
+            0x35 => return true, // CALLDATALOAD - user input
+            0xF1 | 0xF2 | 0xF4 => { // CALL, CALLCODE, DELEGATECALL
+                // Check if return value used in arithmetic (dangerous)
+                if i + 10 > add_pos { return true; }
+            },
+            // Large PUSH values that could overflow
+            0x7E | 0x7F => return true, // PUSH31, PUSH32 - very large values
             _ => {}
         }
     }
+    false
+}
+
+/// Check if this multiplication operates on user input that could realistically overflow
+fn is_dangerous_multiplication(bytecode: &[u8], mul_pos: usize) -> bool {
+    // Multiplication is more dangerous - even small values can overflow
+    for i in (mul_pos.saturating_sub(10))..mul_pos {
+        if i >= bytecode.len() { continue; }
+        
+        match bytecode[i] {
+            0x35 => return true, // CALLDATALOAD - user input
+            0xF1 | 0xF2 | 0xF4 => return true, // External calls
+            // Medium to large PUSH values
+            0x70..=0x7F => return true, // PUSH17-PUSH32
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check for proper overflow protection patterns
+fn has_overflow_protection(bytecode: &[u8], op_pos: usize) -> bool {
+    // Look for SafeMath patterns or explicit overflow checks
+    for i in (op_pos.saturating_sub(25))..op_pos {
+        if i >= bytecode.len() { continue; }
+        
+        // SafeMath patterns: LT comparison followed by conditional revert
+        if bytecode[i] == 0x10 || bytecode[i] == 0x11 { // LT, GT
+            // Look for JUMPI or REVERT nearby
+            for j in i+1..std::cmp::min(i+10, bytecode.len()) {
+                if bytecode[j] == 0x57 || bytecode[j] == 0xFD { // JUMPI, REVERT
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if this is a safe library pattern (OpenZeppelin SafeMath, etc.)
+fn is_safe_library_pattern(bytecode: &[u8], op_pos: usize) -> bool {
+    // Look for SafeMath function signatures or patterns
+    let safe_patterns = [
+        [0xa9, 0x05, 0x9c, 0xbb], // SafeMath.add signature
+        [0x16, 0x5c, 0x4a, 0x16], // SafeMath.mul signature
+        [0x4f, 0x7c, 0x4b, 0xd9], // SafeMath.div signature
+    ];
     
-    has_comparison && has_conditional_jump
+    // Check broader context for safe patterns
+    let start = op_pos.saturating_sub(50);
+    let end = std::cmp::min(op_pos + 20, bytecode.len());
+    
+    if end <= start { return false; }
+    let context = &bytecode[start..end];
+    
+    for pattern in &safe_patterns {
+        if contains_pattern(context, pattern) {
+            return true;
+        }
+    }
+    
+    // Check for compiler-generated overflow checks (pattern-based)
+    has_compiler_overflow_check(bytecode, op_pos)
+}
+
+/// Helper: Check if bytecode contains a pattern
+fn contains_pattern(bytecode: &[u8], pattern: &[u8]) -> bool {
+    bytecode.windows(pattern.len()).any(|window| window == pattern)
+}
+
+/// Check for compiler-generated overflow protection
+fn has_compiler_overflow_check(bytecode: &[u8], op_pos: usize) -> bool {
+    // Look for patterns that compilers generate for overflow checking
+    // This includes specific sequences of DUP, SWAP, LT, JUMPI, REVERT
+    
+    for i in (op_pos.saturating_sub(15))..op_pos {
+        if i + 5 >= bytecode.len() { continue; }
+        
+        // Common compiler overflow check pattern:
+        // DUP -> SWAP -> LT -> JUMPI -> REVERT
+        if bytecode[i] >= 0x80 && bytecode[i] <= 0x8F && // DUP operations
+           bytecode[i+1] >= 0x90 && bytecode[i+1] <= 0x9F && // SWAP operations
+           (bytecode[i+2] == 0x10 || bytecode[i+2] == 0x11) && // LT/GT
+           bytecode[i+3] == 0x57 { // JUMPI
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]

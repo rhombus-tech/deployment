@@ -290,7 +290,7 @@ impl HybridPerformanceBenchmark {
         
         // Process circuits in batches (simulating real-world usage)
         for batch in self.test_circuits.chunks(5) {
-            let batch_start = Instant::now();
+            let _batch_start = Instant::now();
             
             // Generate proofs in parallel and accumulate
             let mut batch_results = Vec::new();

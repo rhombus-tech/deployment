@@ -491,11 +491,11 @@ impl<F: Field> CompleteEVMExecutionMatrix<F> {
     fn verify_state_transitions(&self) -> Result<bool, TensorZODAError> {
         // Verify that storage changes are monotonic and consistent
         for slot_index in 0..self.state_matrix.rows {
-            let mut last_value = F::zero();
+            let mut _last_value = F::zero();
             for step in 0..self.execution_step {
                 let current_value = self.state_matrix.data[slot_index][step];
                 // In full implementation, would verify transition validity
-                last_value = current_value;
+                _last_value = current_value;
             }
         }
         Ok(true)
@@ -505,7 +505,7 @@ impl<F: Field> CompleteEVMExecutionMatrix<F> {
     fn verify_gas_accounting(&self) -> Result<bool, TensorZODAError> {
         let mut total_gas = 0u64;
         for step in 0..self.execution_step {
-            if let Some(gas_cost_field) = self.gas_matrix.data.get(0).and_then(|row| row.get(step)) {
+            if let Some(_gas_cost_field) = self.gas_matrix.data.get(0).and_then(|row| row.get(step)) {
                 // Convert field back to u64 (simplified)
                 // In production, this would need proper field-to-integer conversion
                 total_gas += 3; // Simplified gas calculation

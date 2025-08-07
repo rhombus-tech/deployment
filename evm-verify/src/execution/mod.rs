@@ -4,6 +4,7 @@ use ethers::types::H256;
 
 /// StatelessVM for execution verification
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct StatelessVM {
     config: String,
 }

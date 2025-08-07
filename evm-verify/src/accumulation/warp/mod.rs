@@ -11,8 +11,6 @@
 
 pub mod field;
 pub mod polynomial;
-pub mod commitment; // Deprecated KZG - use fri_commitment instead
-pub mod fri_commitment; // EF-compliant transparent commitment scheme
 pub mod linear_code;
 pub mod multilinear;
 pub mod accumulation;
@@ -21,7 +19,6 @@ pub mod integration;
 
 pub use field::*;
 pub use polynomial::*;
-pub use commitment::*;
 pub use linear_code::*;
 pub use multilinear::*;
 pub use accumulation::*;

@@ -2,7 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// ZODA Prover for zkEVM proof generation
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct ZodaProver {
     optimization_level: u8,
 }

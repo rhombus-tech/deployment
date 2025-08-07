@@ -5,11 +5,12 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 // Ark imports
 use ark_ff::Field;
-use ark_bls12_381::Fr;
+use rand::RngCore;
+
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError, LinearCombination};
 
 // Standard library imports
-use std::time::Duration;
+
 use std::clone::Clone;
 use std::marker::PhantomData;
 use rand::{thread_rng, Rng};
@@ -23,9 +24,9 @@ pub enum TensorZODAError {
 }
 
 // Import local modules
-use crate::tensor_zoda::{Matrix, TensorZODA};
-use crate::reed_solomon::ReedSolomon;
-use crate::zoda_accumulation::{EVMZODAAccumulator as EVMAccumulator, ZODAAccumulationAdapter};
+use crate::tensor_zoda::Matrix;
+
+
 
 // Define a simple enum for circuit types
 #[derive(Clone, Debug)]
@@ -37,6 +38,7 @@ pub enum CircuitType {
 
 // Create a simple test circuit from a CircuitType
 #[derive(Clone)]
+#[allow(dead_code)]
 struct TestCircuit<F: Field> {
     circuit_type: CircuitType,
     _phantom: PhantomData<F>,
@@ -86,7 +88,8 @@ impl<F: Field> ConstraintSynthesizer<F> for TestCircuit<F> {
 }
 
 // Helper function to create a test circuit from a CircuitType
-fn create_test_circuit<F: Field>(circuit_type: CircuitType) -> TestCircuit<F> {
+#[allow(dead_code)]
+fn create_test_circuit<F: Field>(circuit_type: CircuitType, _n: usize) -> TestCircuit<F> {
     TestCircuit {
         circuit_type: circuit_type.clone(),
         _phantom: PhantomData,
@@ -94,18 +97,21 @@ fn create_test_circuit<F: Field>(circuit_type: CircuitType) -> TestCircuit<F> {
 }
 
 // Helper function to generate random test bytecode
+#[allow(dead_code)]
 fn generate_random_bytecode(size: usize) -> Vec<u8> {
     let mut rng = thread_rng();
     (0..size).map(|_| rng.gen::<u8>()).collect()
 }
 
 // Generate random points for testing
-fn generate_random_points<F: Field>(n: usize, rng: &mut impl Rng) -> Vec<F> {
+#[allow(dead_code)]
+fn generate_random_points<F: Field>(n: usize, rng: &mut impl RngCore) -> Vec<F> {
     (0..n).map(|_| F::rand(rng)).collect()
 }
 
 // Generate random matrix for testing
-fn generate_random_matrix<F: Field>(rows: usize, cols: usize) -> Matrix<F> {
+#[allow(dead_code)]
+fn generate_random_matrix<F: Field>(rows: usize, cols: usize, _rng: &mut impl RngCore) -> Matrix<F> {
     let mut rng = thread_rng();
     let data = (0..rows)
         .map(|_| (0..cols).map(|_| F::rand(&mut rng)).collect())

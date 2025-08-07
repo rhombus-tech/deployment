@@ -2,16 +2,14 @@
 // Production-grade integration with gas accounting, receipt generation, and event handling
 
 use anyhow::{Result, anyhow};
-use ethers::types::{U256, H256, Address, Transaction, Block, Log, Bytes, TransactionReceipt, U64};
+use ethers::types::{U256, H256, Address, Transaction, Block, Log, Bytes, U64};
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 use crate::state_trie::{
     ProductionStateManager, 
-    StorageTrie, 
     StorageSlot, 
-    StorageValue,
-    AccountState
+    StorageValue
 };
 use super::evm_interpreter::{EVMInterpreter, EVMExecutionState, LogEntry};
 
@@ -530,6 +528,7 @@ impl StateIntegratedEVM {
 
 /// Execution result with enhanced details
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ExecutionResult {
     success: bool,
     return_data: Bytes,

@@ -61,6 +61,8 @@ async fn main() -> Result<()> {
     use std::collections::HashMap;
     
     let batch = ProcessingBatch {
+        batch_id: 0,
+        priority: 0,
         transactions: vec![test_tx],
         dependencies: HashMap::new(),
         execution_order: vec![vec![H256::random()]], // Single execution group

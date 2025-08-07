@@ -28,9 +28,8 @@ pub use crate::api::pcd_adapter::PCDAdapter;
 #[cfg(feature = "accumulation")]
 pub use pcd::evm_accumulation::{EVMAccumulator, generate_evm_proof, verify_evm_proof};
 
-use ethers::types::{Block, Transaction, H256, U256, Bytes};
+use ethers::types::{Block, Transaction, U256};
 use anyhow::{Result, anyhow};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

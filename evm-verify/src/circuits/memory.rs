@@ -19,9 +19,9 @@ use crate::utils::value_to_field;
 /// Memory safety circuit
 pub struct MemorySafetyCircuit<F: PrimeField> {
     /// Deployment data
-    pub deployment: DeploymentData,
+    pub _deployment: DeploymentData,
     /// Runtime analysis
-    pub runtime: RuntimeAnalysis,
+    pub _runtime: RuntimeAnalysis,
     /// Phantom data
     _phantom: PhantomData<F>,
 }
@@ -33,8 +33,8 @@ impl<F: PrimeField> MemorySafetyCircuit<F> {
         runtime: RuntimeAnalysis,
     ) -> Self {
         Self {
-            deployment,
-            runtime,
+            _deployment: deployment,
+            _runtime: runtime,
             _phantom: PhantomData,
         }
     }
@@ -74,7 +74,7 @@ impl<F: PrimeField> MemorySafetyCircuit<F> {
 impl<F: PrimeField> ConstraintSynthesizer<F> for MemorySafetyCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // Check each memory access
-        for access in &self.runtime.memory_accesses {
+        for access in &self._runtime.memory_accesses {
             self.check_memory_access(cs.clone(), access.offset, access.size)?;
         }
 

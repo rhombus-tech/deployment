@@ -2,10 +2,9 @@
 // Shows how to integrate MPT with existing EVM
 
 use anyhow::{anyhow, Result};
-use ethers::types::{U256, H256, Address, Transaction, Block, U64};
-use std::collections::HashMap;
+use ethers::types::{U256, H256, Address, Transaction, Block};
 
-use super::evm_interpreter::{EVMInterpreter, TransactionContext, BlockContext, LogEntry};
+use super::evm_interpreter::{TransactionContext, BlockContext, LogEntry};
 use crate::state_trie::{ProductionStateManager, StorageSlot, StorageValue};
 
 /// Enhanced EVM Interpreter with full state trie integration

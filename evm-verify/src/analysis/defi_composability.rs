@@ -1,11 +1,9 @@
-use crate::bytecode::analyzer::BytecodeAnalyzer;
 use crate::analysis::cross_contract::{ContractProtocol, ProtocolFinding, ProtocolFindingKind};
 use crate::bytecode::security::SecuritySeverity;
-use ethers::types::{H160, Bytes, U256};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use anyhow::{Result, anyhow};
-use log::{info, warn};
+use ethers::types::H160;
+use std::collections::HashMap;
+use anyhow::Result;
+use log::info;
 use serde::{Serialize, Deserialize};
 
 /// DeFi protocol token role
@@ -154,6 +152,7 @@ pub struct ComposabilityRisk {
 }
 
 /// Analyzes DeFi protocol composability and security
+#[allow(dead_code)]
 pub struct DeFiComposabilityAnalyzer {
     /// Contract protocol
     protocol: ContractProtocol,
@@ -473,7 +472,7 @@ pub mod economic_models {
     
     /// Analyze protocol economic security
     pub fn analyze_economic_security(
-        model: &ProtocolEconomicModel
+        _model: &ProtocolEconomicModel
     ) -> Result<EconomicSecurityAnalysis> {
         // Real implementation would perform sophisticated economic analysis
         // For this placeholder, we'll just return a simplified result

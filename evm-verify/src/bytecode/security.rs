@@ -380,7 +380,7 @@ impl SecurityWarning {
     }
 
     /// Create a read-only reentrancy warning
-    pub fn read_only_reentrancy(pc: u64, slot: H256, target: H256) -> Self {
+    pub fn read_only_reentrancy(pc: u64, _slot: H256, target: H256) -> Self {
         Self::new(
             SecurityWarningKind::ReadOnlyReentrancy,
             SecuritySeverity::Medium,
@@ -760,7 +760,7 @@ impl SecurityWarning {
     }
 
     /// Create a cross-contract reentrancy warning
-    pub fn cross_contract_reentrancy(pc: u64, target: H256, contract_address: H256) -> Self {
+    pub fn cross_contract_reentrancy(pc: u64, target: H256, _contract_address: H256) -> Self {
         Self::new(
             SecurityWarningKind::CrossContractReentrancy,
             SecuritySeverity::Critical,

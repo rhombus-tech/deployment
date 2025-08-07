@@ -1,4 +1,4 @@
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use ethers::types::{H160, H256, U256};
 
 /// Convert bytes to field element

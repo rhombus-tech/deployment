@@ -3,7 +3,7 @@ use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
 };
 use ethers::types::U256;
-use std::cmp::min;
+
 
 /// Circuit for verifying memory safety properties
 #[derive(Clone)]

@@ -11,10 +11,9 @@ use crate::block_execution::BlockExecutionConfig;
 // Import enhanced EVM components for real execution  
 use crate::vm::evm_state_integration::StateIntegratedEVM;
 use crate::state_trie::ProductionStateManager;
-use crate::vm::evm_state_integration::EnhancedTransactionReceipt;
 use ethers::types::{Transaction, H256, U256, Bytes, Address, Block};
 use anyhow::{Result, anyhow};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
@@ -66,6 +65,8 @@ pub struct TransactionDependency {
 /// Transaction processing batch with parallel execution capability
 #[derive(Debug, Clone)]
 pub struct ProcessingBatch {
+    pub batch_id: u64,
+    pub priority: u32,
     pub transactions: Vec<Transaction>,
     pub dependencies: HashMap<H256, TransactionDependency>,
     pub execution_order: Vec<Vec<H256>>, // Parallel execution groups
@@ -454,7 +455,7 @@ impl TransactionProcessor {
         
         // Use optimized batch serialization for maximum performance
         let successful_count = results.iter().filter(|r| r.success).count();
-        let mut serialization_buffer = crate::api::pcd_adapter::SerializationBuffer::new(successful_count);
+        let serialization_buffer = crate::api::pcd_adapter::SerializationBuffer::new(successful_count);
         
         // Pre-allocate proof generation inputs for batch processing
         let mut proof_inputs = Vec::with_capacity(successful_count);
@@ -622,6 +623,8 @@ mod tests {
         ];
 
         let batch = ProcessingBatch {
+            batch_id: 1,
+            priority: 0,
             transactions,
             dependencies: HashMap::new(),
             execution_order: Vec::new(),
@@ -648,6 +651,8 @@ mod tests {
         ];
 
         let batch = ProcessingBatch {
+            batch_id: 2,
+            priority: 0,
             transactions,
             dependencies: HashMap::new(),
             execution_order: Vec::new(),
@@ -675,6 +680,8 @@ mod tests {
         ];
 
         let batch = ProcessingBatch {
+            batch_id: 3,
+            priority: 0,
             transactions,
             dependencies: HashMap::new(),
             execution_order: Vec::new(),
@@ -699,6 +706,8 @@ mod tests {
         ];
 
         let batch = ProcessingBatch {
+            batch_id: 4,
+            priority: 0,
             transactions,
             dependencies: HashMap::new(),
             execution_order: Vec::new(),
@@ -723,6 +732,8 @@ mod tests {
         ];
 
         let batch = ProcessingBatch {
+            batch_id: 5,
+            priority: 0,
             transactions,
             dependencies: HashMap::new(),
             execution_order: Vec::new(),

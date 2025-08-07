@@ -5,12 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{event, Level, Span};
-use tracing_subscriber::{fmt::layer, prelude::*, EnvFilter, Registry};
-use crate::error::{ZkEvmError, ErrorSeverity};
+use tracing::Span;
+use tracing_subscriber::{prelude::*, EnvFilter, Registry};
+use crate::error::ZkEvmError;
 
 /// Log output format configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,6 +124,7 @@ impl ZkEvmLogger {
     }
 
     /// Build environment filter from configuration
+    #[allow(dead_code)]
     fn build_env_filter(config: &LogConfig) -> Result<EnvFilter, ZkEvmError> {
         let mut filter = EnvFilter::new(&config.level);
         
@@ -143,6 +143,7 @@ impl ZkEvmLogger {
     }
 
     /// Build formatter layer based on configuration
+    #[allow(dead_code)]
     fn build_formatter(_config: &LogConfig) -> Result<impl tracing_subscriber::Layer<Registry> + Send + Sync, ZkEvmError> {
         // Use a simple consistent layer to avoid trait bound issues
         let layer = tracing_subscriber::fmt::layer()

@@ -8,6 +8,7 @@ use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
 
 /// Circuit for proving absence of signature replay vulnerabilities
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct SignatureReplayCircuit<F: PrimeField> {
     /// Deployment data
     deployment: DeploymentData,

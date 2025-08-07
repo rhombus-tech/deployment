@@ -100,7 +100,7 @@ impl Node {
     pub fn encode(&self) -> Vec<u8> {
         match self {
             Node::Empty => {
-                let mut stream = RlpStream::new_list(0);
+                let stream = RlpStream::new_list(0);
                 stream.out().to_vec()
             },
             Node::Leaf { key_end, value } => {

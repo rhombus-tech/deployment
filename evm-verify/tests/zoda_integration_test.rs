@@ -7,7 +7,7 @@ async fn test_zoda_batch_proof_integration() {
     // Simple integration test to verify ZODA batch proof generation works
     let config = BlockExecutionConfig::default();
     
-    let processor = TransactionProcessor::new(config).expect("Failed to create processor");
+    let processor = TransactionProcessor::new(config).await.expect("Failed to create processor");
     
     // Create a simple transaction result
     let transaction_results = vec![TransactionResult {

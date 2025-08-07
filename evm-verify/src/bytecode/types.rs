@@ -546,3 +546,33 @@ pub struct BlockNumberDependency {
     /// Severity of the dependency (high, medium, low)
     pub severity: String,
 }
+
+
+/// Types of state transitions for proof generation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum StateTransitionType {
+    /// Memory write operation
+    MemoryWrite,
+    /// Memory read operation
+    MemoryRead,
+    /// Storage write operation (SSTORE)
+    StorageWrite,
+    /// Storage read operation (SLOAD)
+    StorageRead,
+    /// Balance change
+    BalanceChange,
+    /// Code deployment
+    CodeDeployment,
+    /// Contract creation
+    ContractCreation,
+    /// Contract destruction (SELFDESTRUCT)
+    ContractDestruction,
+    /// Log emission
+    LogEmission,
+    /// Call operation
+    Call,
+    /// Return operation
+    Return,
+    /// Revert operation
+    Revert,
+}

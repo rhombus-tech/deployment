@@ -83,6 +83,9 @@ pub const SAR: u8 = 0x1D;
 /// SHA3 opcode
 pub const SHA3: u8 = 0x20;
 
+/// KECCAK256 opcode (alias for SHA3)
+pub const KECCAK256: u8 = 0x20;
+
 /// ADDRESS opcode
 pub const ADDRESS: u8 = 0x30;
 
@@ -196,6 +199,15 @@ pub const JUMPDEST: u8 = 0x5B;
 
 /// PUSH1 opcode
 pub const PUSH1: u8 = 0x60;
+
+/// PUSH2 opcode
+pub const PUSH2: u8 = 0x61;
+
+/// PUSH4 opcode
+pub const PUSH4: u8 = 0x63;
+
+/// PUSH20 opcode
+pub const PUSH20: u8 = 0x73;
 
 /// DUP1 opcode
 pub const DUP1: u8 = 0x80;

@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use crate::error::{ZkEvmError, ErrorCategory, ErrorSeverity};
+use crate::error::{ZkEvmError, ErrorSeverity};
 
 /// Metric types for different kinds of measurements
 #[derive(Debug, Clone, Serialize, Deserialize)]

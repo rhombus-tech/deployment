@@ -192,8 +192,8 @@ impl BytecodeAnalyzer {
                 0x56 | 0x57 => { // JUMP, JUMPI
                     // Check for valid jump destination
                     if let Some(dest) = self.stack.last() {
-                        let dest_usize = dest.as_usize();
-                        if !self.jumpdests.contains(&dest_usize) {
+                        let _dest_usize = dest.as_usize();
+                        if !self.jumpdests.contains(&_dest_usize) {
                             self.vulnerabilities.push(VulnerabilityData {
                                 vulnerability_type: VulnerabilityType::Other(255),
                                 offset: i,
@@ -489,7 +489,7 @@ impl BytecodeAnalyzer {
                 if pos2 > 0 {
                     let mut push_pos = pos2;
                     let mut found_mask = false;
-                    let mut mask_value = Vec::new();
+                    let mut _mask_value = Vec::new();
                     
                     while push_pos > 0 && push_pos > pos2.saturating_sub(10) && !found_mask {
                         push_pos -= 1;
@@ -498,7 +498,7 @@ impl BytecodeAnalyzer {
                             let push_size = (self.bytecode[push_pos] - 0x60 + 1) as usize;
                             if push_pos + push_size < self.bytecode.len() {
                                 // Extract the mask value
-                                mask_value = self.bytecode[push_pos+1..push_pos+1+push_size].to_vec();
+                                _mask_value = self.bytecode[push_pos+1..push_pos+1+push_size].to_vec();
                                 found_mask = true;
                             }
                         }
@@ -563,7 +563,7 @@ impl BytecodeAnalyzer {
         // Instead of just counting operations, look for specific problematic sequences
         for i in 0..bit_ops.len().saturating_sub(2) {
             let (pos1, op1) = bit_ops[i];
-            let (pos2, op2) = bit_ops[i + 1];
+            let (_pos2, op2) = bit_ops[i + 1];
             let (pos3, op3) = bit_ops[i + 2];
             
             // Check if the operations are close together (within 10 bytes)

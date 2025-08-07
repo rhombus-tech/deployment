@@ -4,8 +4,8 @@
 // Processes transactions in optimized batches for 3-7s block proving
 
 use anyhow::{Result, anyhow};
-use ethers::types::{Block, Transaction, H256, U256, Bytes, TransactionReceipt};
-use std::collections::{HashMap, VecDeque};
+use ethers::types::{Block, Transaction, H256, U256, Bytes};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use tokio::sync::{Mutex, Semaphore, RwLock};

@@ -1,7 +1,6 @@
 use crate::bytecode::BytecodeAnalyzer;
 use crate::bytecode::opcodes::*;
 use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
-use ethers::types::{H256, U256};
 
 /// Detects weak randomness vulnerabilities in EVM bytecode
 pub fn detect_randomness_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {

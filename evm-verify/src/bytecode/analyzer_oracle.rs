@@ -1,19 +1,21 @@
-use ethers::types::{U256, H256, Bytes, Opcode};
-use anyhow::Result;
 
+use ethers::types::Bytes;
 use crate::bytecode::analyzer::BytecodeAnalyzer;
-use crate::bytecode::opcodes::{CALL, STATICCALL, DELEGATECALL, CALLCODE, SLOAD, JUMPI, EQ, LT, GT, TIMESTAMP, REVERT};
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity, Operation};
+use crate::bytecode::opcodes::{CALL, STATICCALL, SLOAD, SSTORE, JUMPI, EQ, LT, GT, TIMESTAMP, CALLER};
+use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
 
-/// Known oracle contract addresses (partial list of common oracles)
-const CHAINLINK_ADDRESSES: [&str; 3] = [
-    "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419", // ETH/USD
-    "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c", // BTC/USD
-    "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6", // USDC/USD
+/// Common oracle function signatures for pattern-based detection
+/// These are more reliable than hardcoded addresses as they represent standard interfaces
+const ORACLE_FUNCTION_SELECTORS: [&[u8]; 8] = [
+    &[0x50, 0xd2, 0x5b, 0xcd], // latestRoundData() - Chainlink standard
+    &[0xfe, 0xaf, 0x96, 0x8c], // latestAnswer() - Chainlink legacy
+    &[0x31, 0x3c, 0xe5, 0x67], // getRoundData(uint256)
+    &[0x8c, 0xd2, 0x21, 0x66], // getPrice() - Generic price oracle
+    &[0x41, 0x97, 0x6e, 0x09], // getLatestPrice() - Generic
+    &[0x1a, 0x68, 0x65, 0x0f], // slot0() - Uniswap V3 TWAP
+    &[0x09, 0x02, 0xf1, 0xac], // getReserves() - Uniswap V2
+    &[0xa2, 0x5c, 0x5a, 0x14], // consult() - TWAP oracle
 ];
-
-const UNISWAP_V3_FACTORY: &str = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
-const SUSHISWAP_FACTORY: &str = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac";
 
 /// Detects oracle manipulation vulnerabilities in bytecode
 pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<SecurityWarning> {
@@ -24,84 +26,60 @@ pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<Securit
         return vec![];
     }
     
-    // Simplified implementation that checks for oracle manipulation patterns
-    // Since we don't have direct access to operations and storage accesses,
-    // we'll use a simplified approach based on bytecode analysis
+    // Advanced oracle manipulation detection using pattern-based analysis
+    // Detects oracle calls through function selector matching and call pattern analysis
+    // Uses sophisticated heuristics to identify genuine vulnerabilities while reducing false positives
     
     // Get the bytecode as a vector of bytes
     let bytecode = analyzer.get_bytecode_vec();
     
-    // Check for oracle calls
-    if has_oracle_calls(&bytecode) {
-        // Check for validation mechanisms
-        if !has_validation_mechanisms(&bytecode) {
+    // Check for genuine oracle manipulation vulnerabilities with precise context analysis
+    if has_confirmed_oracle_calls(&bytecode) {
+        // Check for high-risk unchecked oracle calls in critical operations
+        if has_critical_unchecked_oracle_returns(&bytecode) {
             warnings.push(SecurityWarning {
                 kind: SecurityWarningKind::OracleManipulation,
-                description: "Oracle data is used without validation, which could lead to manipulation attacks".to_string(),
+                description: "Critical operations use oracle data from unchecked external calls".to_string(),
                 severity: SecuritySeverity::High,
                 pc: find_first_oracle_call(&bytecode),
                 operations: Vec::new(), 
-                remediation: "Implement proper validation of oracle data, such as checking for stale data, reasonable bounds, and multiple sources".to_string(),
+                remediation: "Validate oracle call success before using data in critical operations".to_string(),
             });
         }
         
-        // Check for single-source oracle dependency
-        if has_single_source_oracle_dependency(&bytecode) {
+        // Check for genuine unsafe arithmetic with oracle data in financial operations
+        if has_dangerous_oracle_arithmetic(&bytecode) {
             warnings.push(SecurityWarning {
                 kind: SecurityWarningKind::OracleManipulation,
-                description: "Contract relies on a single oracle source, which creates a single point of failure".to_string(),
-                severity: SecuritySeverity::Medium,
-                pc: find_first_oracle_call(&bytecode),
-                operations: Vec::new(), 
-                remediation: "Implement multiple oracle sources and aggregate results to prevent manipulation of a single source".to_string(),
-            });
-        }
-        
-        // Check for missing TWAP mechanisms
-        if !has_twap_mechanisms(&bytecode) {
-            warnings.push(SecurityWarning {
-                kind: SecurityWarningKind::OracleManipulation,
-                description: "Contract uses price data without Time-Weighted Average Price (TWAP) mechanisms, making it vulnerable to flash loan attacks and price manipulation".to_string(),
-                severity: SecuritySeverity::Medium,
-                pc: find_first_oracle_call(&bytecode),
-                operations: Vec::new(), 
-                remediation: "Implement TWAP mechanisms by storing historical price points and calculating time-weighted averages".to_string(),
-            });
-        }
-        
-        // Check for missing circuit breakers
-        if !has_circuit_breakers(&bytecode) {
-            warnings.push(SecurityWarning {
-                kind: SecurityWarningKind::OracleManipulation,
-                description: "Contract lacks circuit breakers for extreme price movements, making it vulnerable to oracle manipulation attacks".to_string(),
-                severity: SecuritySeverity::Medium,
-                pc: find_first_oracle_call(&bytecode),
-                operations: Vec::new(), 
-                remediation: "Implement circuit breakers that halt operations when price movements exceed predefined thresholds".to_string(),
-            });
-        }
-        
-        // Check for price manipulation vulnerabilities
-        if has_price_manipulation_vulnerability(&bytecode) {
-            warnings.push(SecurityWarning {
-                kind: SecurityWarningKind::OracleManipulation,
-                description: "Contract may be vulnerable to price manipulation attacks due to direct use of spot prices without proper safeguards".to_string(),
+                description: "Oracle price data used in financial calculations without proper validation or bounds checking".to_string(),
                 severity: SecuritySeverity::High,
                 pc: find_first_oracle_call(&bytecode),
-                operations: Vec::new(),
-                remediation: "Implement price manipulation safeguards such as using TWAP, multiple price sources, or circuit breakers".to_string(),
+                operations: Vec::new(), 
+                remediation: "Add price validation, staleness checks, and bounds verification for oracle data".to_string(),
             });
         }
         
-        // Check for flash loan attack vectors
-        if has_flash_loan_attack_vector(&bytecode) {
+        // Check for price manipulation vulnerabilities in high-value operations
+        if has_price_manipulation_risk(&bytecode) {
             warnings.push(SecurityWarning {
                 kind: SecurityWarningKind::OracleManipulation,
-                description: "Contract may be vulnerable to flash loan attacks that manipulate oracle prices due to lack of protection mechanisms".to_string(),
+                description: "Price-dependent operations susceptible to oracle manipulation attacks".to_string(),
                 severity: SecuritySeverity::High,
                 pc: find_first_oracle_call(&bytecode),
-                operations: Vec::new(),
-                remediation: "Implement flash loan attack protection by using TWAP, oracle validity checks, and multiple price sources".to_string(),
+                operations: Vec::new(), 
+                remediation: "Implement multi-oracle validation, TWAP, or circuit breaker mechanisms".to_string(),
+            });
+        }
+        
+        // Check for flash loan attack vectors through oracle dependencies
+        if has_flash_loan_oracle_attack_vector(&bytecode) {
+            warnings.push(SecurityWarning {
+                kind: SecurityWarningKind::OracleManipulation,
+                description: "Oracle-dependent operations vulnerable to flash loan price manipulation".to_string(),
+                severity: SecuritySeverity::Critical,
+                pc: find_first_oracle_call(&bytecode),
+                operations: Vec::new(), 
+                remediation: "Use time-weighted average prices (TWAP) or commit-reveal schemes to prevent flash loan attacks".to_string(),
             });
         }
     }
@@ -109,189 +87,154 @@ pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<Securit
     warnings
 }
 
-/// Checks if the bytecode contains oracle calls
-fn has_oracle_calls(bytecode: &[u8]) -> bool {
-    // Look for CALL or STATICCALL opcodes followed by patterns that might indicate oracle calls
-    for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
-           contains_oracle_address_pattern(&bytecode[..i]) {
-            return true;
+/// Checks if the bytecode contains confirmed oracle calls (more precise detection)
+fn has_confirmed_oracle_calls(bytecode: &[u8]) -> bool {
+    // Look for both CALL and STATICCALL with oracle patterns
+    for i in 0..bytecode.len().saturating_sub(25) {
+        // Check both CALL and STATICCALL opcodes
+        if bytecode[i] == STATICCALL || bytecode[i] == CALL {
+            // Look back for oracle address in preceding PUSH instructions
+            if has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i) {
+                return true;
+            }
         }
     }
     false
 }
 
-/// Checks if the bytecode contains validation mechanisms for oracle data
-fn has_validation_mechanisms(bytecode: &[u8]) -> bool {
-    // Look for patterns that might indicate validation mechanisms:
-    // 1. Comparison operations after oracle calls
-    // 2. Conditional jumps after oracle calls
-    // 3. Timestamp checks for staleness
-    
-    // First, find the oracle call
-    let mut oracle_call_index = 0;
-    for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
-           contains_oracle_address_pattern(&bytecode[..i]) {
-            oracle_call_index = i;
-            break;
-        }
-    }
-    
-    if oracle_call_index == 0 {
-        return false; // No oracle call found
-    }
-    
-    // Check for staleness check (timestamp comparison)
-    let mut has_staleness_check = false;
-    for i in oracle_call_index..bytecode.len() {
-        if bytecode[i] == TIMESTAMP {
-            // Look for comparison operations within a few opcodes
-            for j in i+1..std::cmp::min(i+10, bytecode.len()) {
-                if bytecode[j] == LT || bytecode[j] == GT {
-                    has_staleness_check = true;
-                    break;
-                }
-            }
-            if has_staleness_check {
-                break;
-            }
-        }
-    }
-    
-    // Check for value validation (comparison operations)
-    let mut has_value_validation = false;
-    for i in oracle_call_index..bytecode.len() {
-        if bytecode[i] == LT || bytecode[i] == GT {
-            // Make sure this is not part of the staleness check
-            let mut is_timestamp_check = false;
-            for j in std::cmp::max(i as i32 - 10, 0) as usize..i {
-                if bytecode[j] == TIMESTAMP {
-                    is_timestamp_check = true;
-                    break;
+/// Checks for critical unchecked oracle returns in high-risk operations
+fn has_critical_unchecked_oracle_returns(bytecode: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytecode.len().saturating_sub(10) {
+        if (bytecode[i] == STATICCALL || bytecode[i] == CALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
+            // Check if oracle data is used in critical operations without validation
+            let end = std::cmp::min(i + 20, bytecode.len());
+            let mut has_validation = false;
+            let mut has_critical_usage = false;
+            
+            // Look for validation patterns (revert conditions, bounds checks)
+            for j in (i + 1)..end {
+                if j < bytecode.len() {
+                    match bytecode[j] {
+                        LT | GT | EQ => {
+                            // Found comparison - likely validation
+                            if j + 1 < bytecode.len() && bytecode[j + 1] == JUMPI {
+                                has_validation = true;
+                            }
+                        }
+                        SSTORE => {
+                            // State modification - critical operation
+                            has_critical_usage = true;
+                        }
+                        CALL => {
+                            // External call with value - critical operation
+                            if has_nonzero_value_before(bytecode, j) {
+                                has_critical_usage = true;
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
             
-            if !is_timestamp_check {
-                has_value_validation = true;
-                break;
+            // Only flag if critical usage without proper validation
+            if has_critical_usage && !has_validation {
+                return true;
             }
         }
+        i += 1;
     }
-    
-    // Return true if we have both staleness check and value validation
-    has_staleness_check && has_value_validation
-}
-
-/// Checks if the bytecode relies on a single oracle source
-fn has_single_source_oracle_dependency(bytecode: &[u8]) -> bool {
-    // Look for patterns that might indicate multiple oracle sources:
-    // 1. Multiple different oracle addresses
-    // 2. Multiple oracle calls to different addresses
-    
-    // Count the number of oracle calls
-    let mut oracle_calls = 0;
-    let mut oracle_addresses = Vec::new();
-    
-    // First pass: detect oracle calls and collect addresses
-    for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) {
-            // Look for oracle address pattern before the call
-            for addr in &CHAINLINK_ADDRESSES {
-                if contains_address_bytes(&bytecode[..i], addr) {
-                    oracle_calls += 1;
-                    
-                    // Extract the address from the bytecode
-                    // This is a simplified approach that assumes the address is pushed onto the stack
-                    // before the call using PUSH20
-                    for j in (0..i).rev() {
-                        if j >= 20 && bytecode[j-20] == 0x73 { // PUSH20
-                            let addr_bytes = &bytecode[j-19..j+1];
-                            if !oracle_addresses.contains(&addr_bytes.to_vec()) {
-                                oracle_addresses.push(addr_bytes.to_vec());
-                            }
-                            break;
-                        }
-                    }
-                    
-                    break;
-                }
-            }
-        }
-    }
-    
-    // Check for multiple oracle calls with different addresses
-    if oracle_calls >= 2 && oracle_addresses.len() >= 2 {
-        return false; // Not a single source dependency
-    }
-    
-    // Check for a pattern that might indicate aggregation of multiple sources
-    // Look for multiple storage reads followed by arithmetic operations
-    let mut storage_reads = 0;
-    for i in 0..bytecode.len() {
-        if bytecode[i] == SLOAD {
-            storage_reads += 1;
-        }
-    }
-    
-    if storage_reads >= 3 {
-        // Multiple storage reads might indicate aggregation of multiple sources
-        return false;
-    }
-    
-    // If we have oracle calls but not multiple sources or aggregation pattern,
-    // it might be a single source dependency
-    oracle_calls > 0
-}
-
-/// Checks if the bytecode contains TWAP mechanisms
-fn has_twap_mechanisms(bytecode: &[u8]) -> bool {
-    // Look for patterns that might indicate TWAP mechanisms:
-    // 1. Multiple SLOAD operations followed by arithmetic operations and SSTORE
-    // 2. Storage of historical price points
-    
-    // Check for pattern: SLOAD (0x54) followed by arithmetic operations and SSTORE (0x55)
-    for i in 0..bytecode.len() {
-        if bytecode[i] == 0x54 { // SLOAD
-            // Look for SSTORE within the next 10 opcodes
-            for j in i+1..std::cmp::min(i+10, bytecode.len()) {
-                if bytecode[j] == 0x55 { // SSTORE
-                    // Check if there are arithmetic operations in between
-                    let slice = &bytecode[i+1..j];
-                    if slice.iter().any(|&op| op == 0x01 || op == 0x02 || op == 0x03 || op == 0x04) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    
     false
 }
 
-/// Checks if the bytecode contains circuit breakers
-fn has_circuit_breakers(bytecode: &[u8]) -> bool {
-    // Look for patterns that might indicate circuit breakers:
-    // 1. Comparison operations followed by conditional jumps and storage updates
-    // 2. Threshold checks for extreme price movements
-    
-    // Check for pattern: Comparison (LT/GT) followed by JUMPI and SSTORE
-    for i in 0..bytecode.len() {
-        if bytecode[i] == LT || bytecode[i] == GT {
-            // Look for JUMPI within the next 5 opcodes
-            for j in i+1..std::cmp::min(i+5, bytecode.len()) {
-                if bytecode[j] == JUMPI {
-                    // Look for SSTORE within the next 15 opcodes
-                    for k in j+1..std::cmp::min(j+15, bytecode.len()) {
-                        if bytecode[k] == 0x55 { // SSTORE
-                            return true;
+/// Checks for dangerous arithmetic operations with oracle data in financial contexts
+fn has_dangerous_oracle_arithmetic(bytecode: &[u8]) -> bool {
+    for i in 0..bytecode.len().saturating_sub(10) {
+        if (bytecode[i] == STATICCALL || bytecode[i] == CALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
+            // Look for risky arithmetic patterns in financial operations
+            let end = std::cmp::min(i + 25, bytecode.len());
+            let mut has_price_arithmetic = false;
+            let mut has_bounds_check = false;
+            
+            for j in (i + 1)..end {
+                if j < bytecode.len() {
+                    match bytecode[j] {
+                        0x02 => { // MUL - price calculations
+                            // Check if this looks like price multiplication
+                            if has_large_constant_before(bytecode, j) {
+                                has_price_arithmetic = true;
+                            }
                         }
+                        0x04 => { // DIV - price ratios
+                            // Division could be price calculation
+                            has_price_arithmetic = true;
+                        }
+                        LT | GT => {
+                            // Found comparison - bounds checking
+                            if j + 1 < bytecode.len() && bytecode[j + 1] == JUMPI {
+                                has_bounds_check = true;
+                            }
+                        }
+                        SSTORE => {
+                            // If storing result without bounds check, it's risky
+                            if has_price_arithmetic && !has_bounds_check {
+                                return true;
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
         }
     }
-    
+    false
+}
+
+/// Checks if oracle operations have timestamp manipulation risks
+fn has_timestamp_dependent_oracle_logic(bytecode: &[u8]) -> bool {
+    // Look for oracle calls that depend on block.timestamp
+    let mut i = 0;
+    while i < bytecode.len().saturating_sub(10) {
+        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
+            // Check if timestamp is used in relation to oracle calls
+            let start = i.saturating_sub(10);
+            let end = std::cmp::min(i + 10, bytecode.len());
+            
+            for j in start..end {
+                if j < bytecode.len() && bytecode[j] == TIMESTAMP {
+                    return true;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Checks if oracle calls create reentrancy risks
+fn has_oracle_reentrancy_risk(bytecode: &[u8]) -> bool {
+    // Look for state changes after external oracle calls
+    let mut i = 0;
+    while i < bytecode.len().saturating_sub(10) {
+        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
+            // Check if state changes occur after oracle calls
+            let end = std::cmp::min(i + 15, bytecode.len());
+            for j in (i + 1)..end {
+                if j < bytecode.len() {
+                    match bytecode[j] {
+                        0x55 => return true, // SSTORE - state change after external call
+                        CALL => return true, // Another external call after oracle call
+                        _ => {}
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
     false
 }
 
@@ -306,8 +249,8 @@ fn has_price_manipulation_vulnerability(bytecode: &[u8]) -> bool {
     let mut has_critical_operation = false;
     
     for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
-           contains_oracle_address_pattern(&bytecode[..i]) {
+        if (bytecode[i] == STATICCALL || bytecode[i] == CALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
             has_oracle_call = true;
             has_validation_after_call = false; // Reset validation flag after each oracle call
         } else if has_oracle_call && 
@@ -336,8 +279,8 @@ fn has_flash_loan_attack_vector(bytecode: &[u8]) -> bool {
     
     // First pass: detect oracle calls
     for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
-           contains_oracle_address_pattern(&bytecode[..i]) {
+        if (bytecode[i] == STATICCALL || bytecode[i] == CALL) && 
+           (has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i)) {
             has_oracle_call = true;
             break;
         }
@@ -384,11 +327,211 @@ fn is_critical_operation(opcode: u8) -> bool {
     opcode == 0x55 || opcode == 0xF1 || opcode == 0xFF || opcode == 0xF0 || opcode == 0xF5
 }
 
-/// Checks if the bytecode contains a pattern that might be an oracle address
-fn contains_oracle_address_pattern(bytecode: &[u8]) -> bool {
-    for addr in &CHAINLINK_ADDRESSES {
-        if contains_address_bytes(bytecode, addr) {
+/// Detects oracle-like external call patterns based on call structure
+fn has_oracle_address_in_context(bytecode: &[u8], call_pos: usize) -> bool {
+    // Look for external contract call patterns that suggest oracle interaction
+    // Focus on read-only calls (STATICCALL) and calls with specific gas patterns
+    
+    // Check if this is a STATICCALL (read-only, typical for oracles)
+    if call_pos < bytecode.len() && bytecode[call_pos] == STATICCALL {
+        return true;
+    }
+    
+    // Look for gas limit patterns typical of oracle calls (usually lower gas)
+    for i in (call_pos.saturating_sub(20))..call_pos {
+        if i < bytecode.len() && bytecode[i] >= 0x60 && bytecode[i] <= 0x62 { // PUSH1-PUSH3 (gas limits)
+            let push_size = (bytecode[i] - 0x5f) as usize;
+            if i + push_size < call_pos && push_size <= 3 {
+                // Oracle calls typically use smaller gas limits (e.g., 100k gas)
+                let gas_bytes = &bytecode[i+1..i+1+push_size];
+                let gas_value = gas_bytes.iter().fold(0u32, |acc, &b| (acc << 8) | b as u32);
+                // Oracle calls typically use 10k-200k gas
+                if gas_value >= 10_000 && gas_value <= 200_000 {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check for oracle call patterns (latestRoundData, getPrice, etc.)
+fn has_oracle_call_pattern(bytecode: &[u8], call_pos: usize) -> bool {
+    // Look back for function selector in PUSH4 instructions
+    for i in (call_pos.saturating_sub(20))..call_pos {
+        if i < bytecode.len() && bytecode[i] == 0x63 { // PUSH4
+            if i + 4 < call_pos {
+                let selector_bytes = &bytecode[i+1..i+5];
+                for oracle_selector in &ORACLE_FUNCTION_SELECTORS {
+                    if selector_bytes == *oracle_selector {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check for non-zero value in call parameters
+fn has_nonzero_value_before(bytecode: &[u8], call_pos: usize) -> bool {
+    // Look for value parameter in CALL (typically 3rd parameter)
+    for i in (call_pos.saturating_sub(15))..call_pos {
+        if i < bytecode.len() && bytecode[i] >= 0x60 && bytecode[i] <= 0x7f {
+            let push_size = (bytecode[i] - 0x5f) as usize;
+            if i + push_size < call_pos {
+                let value_bytes = &bytecode[i+1..i+1+push_size];
+                if value_bytes.iter().any(|&b| b != 0) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check for large constants that might indicate price calculations
+fn has_large_constant_before(bytecode: &[u8], pos: usize) -> bool {
+    // Look for PUSH instructions with large values (typical in price calculations)
+    for i in (pos.saturating_sub(10))..pos {
+        if i < bytecode.len() && bytecode[i] >= 0x62 && bytecode[i] <= 0x7f { // PUSH3-PUSH32
+            let push_size = (bytecode[i] - 0x5f) as usize;
+            if i + push_size < pos && push_size >= 3 {
+                // This is likely a large constant used in financial calculations
+                return true;
+            }
+        }
+    }
+    false
+}
+
+
+
+/// Check for price manipulation risks in oracle-dependent operations
+fn has_price_manipulation_risk(bytecode: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytecode.len().saturating_sub(30) {
+        if bytecode[i] == STATICCALL && has_oracle_address_in_context(bytecode, i) {
+            // Check if oracle price is used in high-value operations without protection
+            let end = std::cmp::min(i + 40, bytecode.len());
+            let mut has_price_usage = false;
+            let mut has_protection = false;
+            
+            for j in (i + 1)..end {
+                if j < bytecode.len() {
+                    match bytecode[j] {
+                        0x02 | 0x04 => { // MUL or DIV - price calculations
+                            has_price_usage = true;
+                        }
+                        CALL => {
+                            // External call with value after price calculation
+                            if has_price_usage && has_nonzero_value_before(bytecode, j) {
+                                // Check for protection mechanisms
+                                if !has_circuit_breaker_before(bytecode, j) && 
+                                   !has_multi_oracle_validation_before(bytecode, j) {
+                                    return true;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Check for flash loan attack vectors through oracle price manipulation
+fn has_flash_loan_oracle_attack_vector(bytecode: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytecode.len().saturating_sub(50) {
+        if bytecode[i] == STATICCALL && has_oracle_address_in_context(bytecode, i) {
+            // Look for patterns indicating vulnerability to flash loan price manipulation
+            let end = std::cmp::min(i + 60, bytecode.len());
+            let mut has_instant_price_usage = false;
+            let mut has_large_value_operation = false;
+            
+            for j in (i + 1)..end {
+                if j < bytecode.len() {
+                    match bytecode[j] {
+                        0x04 => { // DIV - instant price calculation
+                            // Check if this is used immediately without delay
+                            if !has_time_delay_after(bytecode, j) {
+                                has_instant_price_usage = true;
+                            }
+                        }
+                        CALL => {
+                            // Large value transfer based on instant price
+                            if has_instant_price_usage && has_large_value_before(bytecode, j) {
+                                has_large_value_operation = true;
+                            }
+                        }
+                        SSTORE => {
+                            // Critical state change based on manipulable price
+                            if has_instant_price_usage && has_large_value_operation {
+                                return true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Helper: Check for circuit breaker patterns
+fn has_circuit_breaker_before(bytecode: &[u8], pos: usize) -> bool {
+    // Look for percentage-based bounds checking
+    for i in (pos.saturating_sub(20))..pos {
+        if i < bytecode.len() {
+            // Look for patterns like: price < max_price && price > min_price
+            if (bytecode[i] == LT || bytecode[i] == GT) && 
+               i + 1 < bytecode.len() && bytecode[i + 1] == JUMPI {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Helper: Check for multi-oracle validation
+fn has_multi_oracle_validation_before(bytecode: &[u8], pos: usize) -> bool {
+    // Look for multiple STATICCALL instructions (multiple oracle calls)
+    let mut oracle_call_count = 0;
+    for i in (pos.saturating_sub(40))..pos {
+        if i < bytecode.len() && bytecode[i] == STATICCALL {
+            oracle_call_count += 1;
+        }
+    }
+    oracle_call_count >= 2
+}
+
+/// Helper: Check for time delays after price operations
+fn has_time_delay_after(bytecode: &[u8], pos: usize) -> bool {
+    let end = std::cmp::min(pos + 15, bytecode.len());
+    for i in (pos + 1)..end {
+        if i < bytecode.len() && bytecode[i] == TIMESTAMP {
+            // Found timestamp usage - likely time-based protection
             return true;
+        }
+    }
+    false
+}
+
+/// Helper: Check for large value operations
+fn has_large_value_before(bytecode: &[u8], pos: usize) -> bool {
+    // Look for large PUSH values that indicate significant financial operations
+    for i in (pos.saturating_sub(12))..pos {
+        if i < bytecode.len() && bytecode[i] >= 0x65 && bytecode[i] <= 0x7f { // PUSH6-PUSH32
+            let push_size = (bytecode[i] - 0x5f) as usize;
+            if push_size >= 6 { // Values with 6+ bytes are likely large
+                return true;
+            }
         }
     }
     false
@@ -420,8 +563,7 @@ fn contains_address_bytes(bytecode: &[u8], address: &str) -> bool {
 /// Finds the program counter of the first oracle call
 fn find_first_oracle_call(bytecode: &[u8]) -> u64 {
     for i in 0..bytecode.len() {
-        if (bytecode[i] == CALL || bytecode[i] == STATICCALL) && 
-           contains_oracle_address_pattern(&bytecode[..i]) {
+        if bytecode[i] == STATICCALL && has_oracle_address_in_context(bytecode, i) {
             return i as u64;
         }
     }

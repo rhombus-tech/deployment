@@ -1,4 +1,4 @@
-use ethers::types::{H256, U256};
+use ethers::types::H256;
 use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 
@@ -13,6 +13,8 @@ pub struct AccessControlAnalyzer {
     access_patterns: HashMap<H256, ExtendedAccessPattern>,
     /// Potential access control vulnerabilities
     vulnerabilities: Vec<String>,
+    /// Contract bytecode for pattern analysis
+    bytecode: Vec<u8>,
 }
 
 /// Extended access pattern with additional analysis fields
@@ -32,11 +34,12 @@ struct ExtendedAccessPattern {
 
 impl AccessControlAnalyzer {
     /// Create a new access control analyzer
-    pub fn new() -> Self {
+    pub fn new(bytecode: Vec<u8>) -> Self {
         Self {
             privileged_slots: HashSet::new(),
             access_patterns: HashMap::new(),
             vulnerabilities: Vec::new(),
+            bytecode,
         }
     }
 
@@ -124,7 +127,7 @@ impl AccessControlAnalyzer {
         }
     }
 
-    /// Check for inconsistent access patterns
+    /// Check for inconsistent access patterns using sophisticated bytecode analysis
     fn check_inconsistent_access(&self, accesses: &[&StorageAccess]) -> bool {
         // Look for cases where a slot is sometimes checked before privileged operations
         // and sometimes not checked
@@ -133,12 +136,10 @@ impl AccessControlAnalyzer {
         
         for access in accesses {
             if access.write {
-                // In a real implementation, we would have more sophisticated detection
-                // of whether an access check was performed
+                // Analyze bytecode leading up to this write operation
+                let has_access_check = self.analyze_access_check_pattern(access.pc as usize);
                 
-                // For now, we'll just use a simple heuristic based on PC values
-                // as a placeholder for the actual detection logic
-                if access.pc > 0 {
+                if has_access_check {
                     privileged_ops_with_check += 1;
                 } else {
                     privileged_ops_without_check += 1;
@@ -149,6 +150,137 @@ impl AccessControlAnalyzer {
         // If we have both checked and unchecked privileged operations,
         // that's an inconsistency
         privileged_ops_with_check > 0 && privileged_ops_without_check > 0
+    }
+
+    /// Analyze bytecode patterns to detect access control checks before privileged operations
+    fn analyze_access_check_pattern(&self, write_pc: usize) -> bool {
+        // Analyze preceding bytecode for access control patterns
+        let lookback_range = 50; // Look back up to 50 instructions
+        let start_pc = if write_pc >= lookback_range { write_pc - lookback_range } else { 0 };
+        
+        // Look for common access control patterns in the bytecode leading to this write
+        self.has_owner_check_pattern(start_pc, write_pc) ||
+        self.has_role_check_pattern(start_pc, write_pc) ||
+        self.has_caller_validation_pattern(start_pc, write_pc) ||
+        self.has_modifier_pattern(start_pc, write_pc)
+    }
+
+    /// Detect owner check patterns (msg.sender == owner)
+    fn has_owner_check_pattern(&self, start_pc: usize, end_pc: usize) -> bool {
+        // Look for: CALLER, SLOAD(owner_slot), EQ, conditional jump pattern
+        for pc in start_pc..end_pc {
+            if pc + 4 < self.bytecode.len() {
+                // Pattern: CALLER (0x33) followed by owner storage access and comparison
+                if self.bytecode[pc] == 0x33 { // CALLER
+                    // Look for SLOAD in the next few instructions
+                    for next_pc in (pc + 1)..std::cmp::min(pc + 10, self.bytecode.len()) {
+                        if self.bytecode[next_pc] == 0x54 { // SLOAD
+                            // Look for EQ comparison after SLOAD
+                            for comp_pc in (next_pc + 1)..std::cmp::min(next_pc + 8, self.bytecode.len()) {
+                                if self.bytecode[comp_pc] == 0x14 { // EQ
+                                    // Look for conditional jump (JUMPI)
+                                    for jump_pc in (comp_pc + 1)..std::cmp::min(comp_pc + 5, self.bytecode.len()) {
+                                        if self.bytecode[jump_pc] == 0x57 { // JUMPI
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Detect role-based access control patterns
+    fn has_role_check_pattern(&self, start_pc: usize, end_pc: usize) -> bool {
+        // Look for patterns involving role storage reads and bitwise operations
+        for pc in start_pc..end_pc {
+            if pc + 8 < self.bytecode.len() {
+                // Pattern: Hash-based role checking (KECCAK256 + SLOAD + AND/OR operations)
+                if self.bytecode[pc] == 0x20 { // KECCAK256 (hash for role keys)
+                    for next_pc in (pc + 1)..std::cmp::min(pc + 15, self.bytecode.len()) {
+                        if self.bytecode[next_pc] == 0x54 { // SLOAD (role storage access)
+                            // Look for bitwise operations (AND/OR) used in role checking
+                            for bit_pc in (next_pc + 1)..std::cmp::min(next_pc + 8, self.bytecode.len()) {
+                                if self.bytecode[bit_pc] == 0x16 || // AND
+                                   self.bytecode[bit_pc] == 0x17 { // OR
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Detect caller validation patterns (address whitelist, etc.)
+    fn has_caller_validation_pattern(&self, start_pc: usize, end_pc: usize) -> bool {
+        // Look for CALLER followed by storage lookup and validation
+        for pc in start_pc..end_pc {
+            if pc + 6 < self.bytecode.len() {
+                if self.bytecode[pc] == 0x33 { // CALLER
+                    // Look for mapping-style access: CALLER + key operations + SLOAD
+                    let mut found_key_ops = false;
+                    for next_pc in (pc + 1)..std::cmp::min(pc + 12, self.bytecode.len()) {
+                        // Look for hash operations (mapping key generation)
+                        if self.bytecode[next_pc] == 0x20 { // KECCAK256
+                            found_key_ops = true;
+                        }
+                        // If we find SLOAD after key operations, it's likely a mapping lookup
+                        if found_key_ops && self.bytecode[next_pc] == 0x54 { // SLOAD
+                            // Look for comparison or conditional logic
+                            for check_pc in (next_pc + 1)..std::cmp::min(next_pc + 6, self.bytecode.len()) {
+                                if self.bytecode[check_pc] == 0x15 || // ISZERO (checking false/true)
+                                   self.bytecode[check_pc] == 0x14 { // EQ
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Detect function modifier patterns (require statements, custom modifiers)
+    fn has_modifier_pattern(&self, start_pc: usize, end_pc: usize) -> bool {
+        // Look for REVERT patterns that indicate failed access control checks
+        for pc in start_pc..end_pc {
+            if pc + 3 < self.bytecode.len() {
+                // Pattern: Condition + REVERT (failed access check reverts transaction)
+                if self.bytecode[pc] == 0x15 { // ISZERO (condition check)
+                    for next_pc in (pc + 1)..std::cmp::min(pc + 8, self.bytecode.len()) {
+                        if self.bytecode[next_pc] == 0x57 { // JUMPI (conditional jump)
+                            // Look for REVERT in the jump target area
+                            for revert_pc in (next_pc + 1)..std::cmp::min(next_pc + 10, self.bytecode.len()) {
+                                if self.bytecode[revert_pc] == 0xfd { // REVERT
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Pattern: Direct REVERT after failed condition
+                if self.bytecode[pc] == 0xfd { // REVERT
+                    // Check if preceded by conditional logic
+                    if pc > 0 && (
+                        self.bytecode[pc - 1] == 0x14 || // EQ
+                        self.bytecode[pc - 1] == 0x15 || // ISZERO
+                        self.bytecode[pc - 1] == 0x10    // LT
+                    ) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Detect potential vulnerabilities based on access patterns
@@ -198,7 +330,7 @@ impl AccessControlAnalyzer {
     }
 
     /// Record a privileged operation with its associated authorization check
-    pub fn record_privileged_operation(&mut self, slot: H256, auth_slot: Option<H256>) {
+    pub fn record_privileged_operation(&mut self, _slot: H256, auth_slot: Option<H256>) {
         if let Some(auth) = auth_slot {
             self.privileged_slots.insert(auth);
         }
@@ -219,7 +351,15 @@ mod tests {
 
     #[test]
     fn test_access_control_detection() -> Result<()> {
-        let mut analyzer = AccessControlAnalyzer::new();
+        // Example bytecode with access control patterns
+        let bytecode = vec![
+            0x33, // CALLER
+            0x54, // SLOAD 
+            0x14, // EQ
+            0x57, // JUMPI
+            0xfd, // REVERT
+        ];
+        let mut analyzer = AccessControlAnalyzer::new(bytecode);
         
         // Create a mock protected slot
         let protected_slot = H256::random();

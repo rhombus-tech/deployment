@@ -1,34 +1,18 @@
 use std::collections::{HashMap, HashSet};
-use std::cmp::{min, max};
+use std::cmp::min;
 
-use anyhow::{anyhow, Result};
-use ethers::types::{Address, Bytes, H160, H256, U256};
+use anyhow::Result;
+use ethers::types::{Bytes, H160, H256, U256};
 
 use crate::bytecode::security::Operation;
 // Re-export security types for public use
 pub use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
 use crate::bytecode::types::*;
-use crate::bytecode::control_flow::{ControlFlowGraph, FormalVerificationProof};
 use crate::bytecode::smart_filter::SmartFilter;
 use crate::circuits::evm_state::EVMState;
-use crate::bytecode::analyzer_access_control;
-use crate::bytecode::analyzer_dos;
-use crate::bytecode::analyzer_signature_replay;
-use crate::bytecode::analyzer_proxy;
 use crate::bytecode::analyzer_randomness;
-use crate::bytecode::analyzer_externalcalls;
-use crate::bytecode::analyzer_reentrancy;
-use crate::bytecode::analyzer_front_running;
-use crate::bytecode::analyzer_timestamp;
-use crate::bytecode::analyzer_events;
-use crate::bytecode::analyzer_gas_limit;
-use crate::bytecode::analyzer_overflow;
-use crate::bytecode::analyzer_oracle;
-use crate::bytecode::analyzer_mev;
-use crate::bytecode::analyzer_upgradability;
 use crate::bytecode::access_control::AccessControlAnalyzer;
 use crate::bytecode::memory::MemoryAnalyzer;
-use log::{info, warn, debug};
 
 /// Stack operation trace for formal verification
 pub struct StackOperation {
@@ -137,11 +121,12 @@ struct AnalysisState {
 impl BytecodeAnalyzer {
     /// Create new bytecode analyzer
     pub fn new(bytecode: Bytes) -> Self {
+        let bytecode_vec = bytecode.iter().copied().collect();
         Self {
             bytecode,
             state: EVMState::default(),
             memory_analyzer: MemoryAnalyzer::new(),
-            access_control_analyzer: AccessControlAnalyzer::new(),
+            access_control_analyzer: AccessControlAnalyzer::new(bytecode_vec),
             security_warnings: Vec::new(),
             test_mode: false,
             contract_address: None,
@@ -151,11 +136,12 @@ impl BytecodeAnalyzer {
     
     /// Create new bytecode analyzer with contract address for context-aware filtering
     pub fn with_address(bytecode: Bytes, address: H160) -> Self {
+        let bytecode_vec = bytecode.iter().copied().collect();
         Self {
             bytecode,
             state: EVMState::default(),
             memory_analyzer: MemoryAnalyzer::new(),
-            access_control_analyzer: AccessControlAnalyzer::new(),
+            access_control_analyzer: AccessControlAnalyzer::new(bytecode_vec),
             security_warnings: Vec::new(),
             test_mode: false,
             contract_address: Some(address),
@@ -246,25 +232,59 @@ impl BytecodeAnalyzer {
             warnings.append(&mut access_control_warnings);
         }
         
-        // Smart arithmetic overflow/underflow detection
-        if let Ok(mut overflow_warnings) = self.detect_integer_overflow() {
-            warnings.append(&mut overflow_warnings);
+        // Smart arithmetic overflow/underflow detection (with panic protection)
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.detect_integer_overflow()
+        })) {
+            Ok(Ok(mut overflow_warnings)) => warnings.append(&mut overflow_warnings),
+            Ok(Err(_)) => {},  // Analysis error - skip
+            Err(_) => eprintln!("Warning: Integer overflow analysis panicked, skipping"),
         }
-        if let Ok(mut underflow_warnings) = self.detect_integer_underflow() {
-            warnings.append(&mut underflow_warnings);
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.detect_integer_underflow()
+        })) {
+            Ok(Ok(mut underflow_warnings)) => warnings.append(&mut underflow_warnings),
+            Ok(Err(_)) => {},  // Analysis error - skip
+            Err(_) => eprintln!("Warning: Integer underflow analysis panicked, skipping"),
         }
-        if let Ok(mut arithmetic_warnings) = self.detect_arithmetic_vulnerabilities() {
-            warnings.append(&mut arithmetic_warnings);
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.detect_arithmetic_vulnerabilities()
+        })) {
+            Ok(Ok(mut arithmetic_warnings)) => warnings.append(&mut arithmetic_warnings),
+            Ok(Err(_)) => {},  // Analysis error - skip
+            Err(_) => eprintln!("Warning: Arithmetic vulnerabilities analysis panicked, skipping"),
         }
         
-        // Smart unchecked calls analysis - high severity only
-        if let Ok(mut unchecked_warnings) = self.detect_unchecked_calls() {
-            warnings.append(&mut unchecked_warnings);
+        // Smart unchecked calls analysis - high severity only (with panic protection)
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.detect_unchecked_calls()
+        })) {
+            Ok(Ok(mut unchecked_warnings)) => {
+                warnings.append(&mut unchecked_warnings);
+            }
+            Ok(Err(_)) => {
+                // Analysis error - skip unchecked calls detection
+            }
+            Err(_) => {
+                // Panic occurred - skip unchecked calls detection
+                eprintln!("Warning: Unchecked calls analysis panicked, skipping");
+            }
         }
         
-        // Smart MEV analysis - context-aware for DeFi contracts
-        if let Ok(mut mev_warnings) = self.detect_mev_vulnerabilities() {
-            warnings.append(&mut mev_warnings);
+        // Smart MEV analysis - context-aware for DeFi contracts (with panic protection)
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.detect_mev_vulnerabilities()
+        })) {
+            Ok(Ok(mut mev_warnings)) => {
+                warnings.append(&mut mev_warnings);
+            }
+            Ok(Err(_)) => {
+                // Analysis error - skip MEV detection
+            }
+            Err(_) => {
+                // Panic occurred - skip MEV detection
+                eprintln!("Warning: MEV analysis panicked, skipping");
+            }
         }
         
         // Smart signature replay analysis
@@ -1259,7 +1279,7 @@ impl BytecodeAnalyzer {
     /// - The simulated stack at the target PC
     /// - A HashMap mapping PCs to their respective stack states for jump destination analysis
     /// - A vector of operation traces for formal verification
-    fn simulate_stack_to_pc(&self, bytecode: &[u8], target_pc: usize) -> (Vec<U256>, HashMap<usize, Vec<U256>>, Vec<StackOperation>) {
+    pub fn simulate_stack_to_pc(&self, bytecode: &[u8], target_pc: usize) -> (Vec<U256>, HashMap<usize, Vec<U256>>, Vec<StackOperation>) {
         let mut stack = Vec::new();
         let mut pc = 0;
         let mut pc_to_stack = HashMap::new(); // Track stack state at each PC
@@ -1300,8 +1320,14 @@ impl BytecodeAnalyzer {
                     if end <= bytecode.len() {
                         let mut value = U256::zero();
                         
-                        // Convert bytes to U256
+                        // Convert bytes to U256 with overflow protection
                         for i in start..end {
+                            // Safe bit shifting with overflow protection
+                            if value > (U256::MAX >> 8) {
+                                // Overflow would occur, use maximum value as fallback
+                                value = U256::MAX;
+                                break;
+                            }
                             value = (value << 8) | U256::from(bytecode[i]);
                         }
                         
@@ -1317,8 +1343,10 @@ impl BytecodeAnalyzer {
                     let pos = (opcode - 0x80 + 1) as usize; // 0x80 -> 1st item, 0x8f -> 16th item
                     
                     if stack.len() >= pos {
-                        let value = stack[stack.len() - pos];
-                        stack.push(value);
+                        if let Some(index) = stack.len().checked_sub(pos) {
+                            let value = stack[index];
+                            stack.push(value);
+                        }
                     }
                 },
                 
@@ -1328,7 +1356,9 @@ impl BytecodeAnalyzer {
                     
                     if stack.len() > pos {
                         let stack_len = stack.len();
-                        stack.swap(stack_len - 1, stack_len - pos - 1);
+                        if let (Some(idx1), Some(idx2)) = (stack_len.checked_sub(1), stack_len.checked_sub(pos + 1)) {
+                            stack.swap(idx1, idx2);
+                        }
                     }
                 },
                 
@@ -1700,7 +1730,7 @@ impl BytecodeAnalyzer {
     fn track_delegate_calls(&self) -> Result<Vec<DelegateCall>> {
         let mut delegate_calls = Vec::new();
         let bytecode = self.get_bytecode_vec();
-        let mut call_id = 0;
+        let mut _call_id = 0;
         
         for (i, &opcode) in bytecode.iter().enumerate() {
             if opcode == 0xF4 { // DELEGATECALL opcode
@@ -1725,7 +1755,7 @@ impl BytecodeAnalyzer {
                 };
                 
                 delegate_calls.push(delegate_call);
-                call_id += 1;
+                _call_id += 1;
             }
         }
         

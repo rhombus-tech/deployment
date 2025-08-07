@@ -1,7 +1,6 @@
 // ZODA zkEVM Opcode Validity and Gas Metering Circuit
 // Cryptographic proofs for complete EVM opcode execution correctness
 
-use crate::bytecode::types::*;
 use crate::circuits::execution_trace::*;
 use ethers::types::{U256, H256, Address};
 use serde::{Deserialize, Serialize};
@@ -10,10 +9,10 @@ use anyhow::Result;
 
 // ZODA tensor compression imports
 use sha2::{Digest};
-use ark_serialize::CanonicalSerialize;
 
 /// Complete EVM opcode validation circuit
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct OpcodeValidationCircuit {
     /// Valid EVM opcodes mapping
     valid_opcodes: HashMap<u8, OpcodeSpec>,
@@ -567,6 +566,11 @@ impl OpcodeValidationCircuit {
         })
     }
     
+    /// Initialize gas meter with transaction gas limit to prevent overflow
+    pub fn initialize_gas_meter(&mut self, gas_limit: U256) {
+        self.gas_meter.set_initial_gas(gas_limit);
+    }
+    
     /// Serialize execution history
     fn serialize_execution_history(&self) -> Result<Vec<u8>> {
         bincode::serialize(&self.execution_history)
@@ -577,9 +581,9 @@ impl OpcodeValidationCircuit {
     fn compress_with_zoda_tensors(&self, data: &[u8]) -> Result<Vec<u8>> {
         use pcd::tensor_zoda::{Matrix, TensorZODA};
         use ark_bn254::Fr;
-        use ark_ff::{UniformRand, Field, Zero};
+        use ark_ff::{UniformRand, Zero};
         use rand::{thread_rng, SeedableRng};
-        use rand::rngs::StdRng;
+        
         
         // Convert raw vulnerability data to field elements for tensor encoding
         let mut field_data = Vec::new();
@@ -737,6 +741,14 @@ impl GasMeter {
         }
     }
     
+    pub fn set_initial_gas(&mut self, initial_gas: U256) {
+        self.initial_gas = initial_gas;
+        // If this is the first call, set gas_remaining too
+        if self.gas_remaining == U256::zero() {
+            self.gas_remaining = initial_gas;
+        }
+    }
+    
     pub fn record_consumption(&mut self, step: usize, opcode: u8, gas_cost: U256, gas_remaining: U256) -> Result<()> {
         let consumption = GasConsumption {
             step, opcode,
@@ -753,7 +765,13 @@ impl GasMeter {
     }
     
     pub fn total_gas_consumed(&self) -> U256 {
-        self.initial_gas - self.gas_remaining
+        // Prevent arithmetic overflow by checking if gas_remaining > initial_gas
+        if self.gas_remaining > self.initial_gas {
+            // This shouldn't happen in normal operation, but handle gracefully
+            U256::zero()
+        } else {
+            self.initial_gas - self.gas_remaining
+        }
     }
     
     pub fn get_memory_size(&self) -> usize {

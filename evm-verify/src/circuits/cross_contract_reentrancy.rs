@@ -1,9 +1,9 @@
 use ark_ff::{Field, PrimeField};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, LinearCombination, Variable};
 use std::marker::PhantomData;
-use ethers::types::{H256, Bytes};
+use ethers::types::Bytes;
 
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind};
+use crate::bytecode::security::SecurityWarning;
 use crate::common::DeploymentData;
 use crate::bytecode::types::RuntimeAnalysis;
 use crate::bytecode::BytecodeAnalyzer;
