@@ -223,3 +223,9 @@ fn is_high_risk_pattern(bytecode: &str) -> bool {
     // GPU would do this in parallel across all patterns simultaneously
     risky_patterns.iter().any(|pattern| bytecode_lower.contains(pattern))
 }
+
+fn main() {
+    println!("GPU Security Analysis Tool");
+    println!("This binary provides GPU-accelerated vulnerability detection.");
+    println!("Run with appropriate command line arguments for analysis.");
+}

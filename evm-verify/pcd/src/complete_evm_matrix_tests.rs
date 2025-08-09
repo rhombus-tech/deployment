@@ -7,7 +7,14 @@
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::complete_evm_matrix::{
+        CompleteEVMExecutionMatrix, EVMExecutionState, EVMOpcode, TransactionData
+    };
+    use crate::tensor_zoda::TensorZODAError;
+    use ark_bn254::Fr as TestField;
+    use ark_ff::Zero;
+    use ethers::types::{Address, U256, H256};
+    use std::str::FromStr;
 
     /// Test creating a new CompleteEVMExecutionMatrix
     #[test]

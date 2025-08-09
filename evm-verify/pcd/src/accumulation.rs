@@ -123,6 +123,7 @@ pub mod dummy {
 mod tests {
     use super::*;
     use ark_bn254::Fr;
+    use ark_ff::Zero;
     
     
     /// A simple test circuit that checks if a value is equal to 1

@@ -22,13 +22,13 @@ pub fn is_warp_strategy(strategy_id: u8) -> bool {
 }
 
 /// Create a WARP verification context with default parameters
-pub fn create_warp_context() -> Arc<WarpVerificationStrategy> {
-    Arc::new(create_warp_verification_strategy())
+pub fn create_warp_context() -> Result<Arc<WarpVerificationStrategy>, String> {
+    Ok(Arc::new(create_warp_verification_strategy()?))
 }
 
 /// Create a WARP verification context with custom security parameters
-pub fn create_warp_context_with_params(security_param: usize) -> Arc<WarpVerificationStrategy> {
-    Arc::new(WarpVerificationStrategy::new(security_param))
+pub fn create_warp_context_with_params(security_param: usize) -> Result<Arc<WarpVerificationStrategy>, String> {
+    Ok(Arc::new(WarpVerificationStrategy::new(security_param)?))
 }
 
 /// WARP verification wrapper with metrics and logging

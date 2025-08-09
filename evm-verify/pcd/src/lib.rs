@@ -14,7 +14,7 @@ pub mod complete_evm_matrix_tests;
 pub mod performance_test;
 
 #[cfg(test)]
-mod complete_evm_matrix_tests;
+mod zk_tests;
 
 // Export the main circuit types
 #[cfg(feature = "accumulation")]

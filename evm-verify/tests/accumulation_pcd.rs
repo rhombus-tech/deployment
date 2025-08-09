@@ -8,8 +8,8 @@ mod tests {
     use evm_verify::api::unified::UnifiedVerifier;
     use evm_verify::api::PCDAdapter;
     
-    #[test]
-    fn test_accumulation_pcd() -> Result<()> {
+    #[tokio::test]
+    async fn test_accumulation_pcd() -> Result<()> {
         // Create a unified verifier
         let verifier = UnifiedVerifier::new();
         
@@ -17,7 +17,7 @@ mod tests {
         let bytecode = Bytes::from(vec![0x60, 0x01, 0x60, 0x00, 0x55]); // PUSH1 1 PUSH1 0 SSTORE
         
         // Analyze the bytecode
-        let report_result = verifier.analyze_bytecode(&bytecode.to_vec());
+        let report_result = verifier.analyze_bytecode(&bytecode.to_vec()).await;
         
         // For now, we're just checking that the function runs without panicking
         println!("Bytecode analysis result: {:?}", report_result);

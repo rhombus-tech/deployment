@@ -74,10 +74,10 @@ impl FieldElement for WarpField {
     fn inverse(&self) -> Option<Self> {
         // Constant-time inverse using Fermat's little theorem: a^(p-2) = a^(-1) mod p
         // This is actually faster than the conditional approach for BLS12-381
-        let is_zero = self.0.is_zero();
+        let is_zero = <BlsScalar as Zero>::is_zero(&self.0);
         
         // Use constant-time conditional select
-        let inv = self.0.inverse().unwrap_or_else(|| BlsScalar::zero());
+        let inv = <BlsScalar as Field>::inverse(&self.0).unwrap_or_else(|| <BlsScalar as Zero>::zero());
         
         // Return None if input was zero, Some(inverse) otherwise - all in constant time
         if is_zero.into() {
@@ -88,11 +88,11 @@ impl FieldElement for WarpField {
     }
     
     fn zero() -> Self {
-        WarpField(BlsScalar::zero())
+        WarpField(<BlsScalar as Zero>::zero())
     }
     
     fn one() -> Self {
-        WarpField(BlsScalar::one())
+        WarpField(<BlsScalar as One>::one())
     }
     
     fn random() -> Self {
@@ -103,14 +103,14 @@ impl FieldElement for WarpField {
         // Use Montgomery ladder for constant-time, cache-efficient exponentiation
         // This is actually faster than naive exponentiation for large exponents
         if exp == 0 {
-            return WarpField::one();
+            return <WarpField as FieldElement>::one();
         }
         if exp == 1 {
             return *self;
         }
         
         // Montgomery ladder algorithm - constant time and cache efficient
-        let mut r0 = WarpField::one();
+        let mut r0 = <WarpField as FieldElement>::one();
         let mut r1 = *self;
         
         // Process bits from most significant to least significant
@@ -128,11 +128,11 @@ impl FieldElement for WarpField {
             
             // Constant-time conditional operations
             if bit {
-                r0 = r0.mul(&r1);
-                r1 = r1.mul(&r1);
+                r0 = r0.mul(r1);
+                r1 = r1.mul(r1);
             } else {
-                r1 = r0.mul(&r1);
-                r0 = r0.mul(&r0);
+                r1 = r0.mul(r1);
+                r0 = r0.mul(r0);
             }
             
             bit_mask >>= 1;
@@ -163,7 +163,7 @@ impl FieldElement for WarpField {
     }
     
     fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        <BlsScalar as Zero>::is_zero(&self.0)
     }
 }
 
@@ -238,15 +238,72 @@ impl LinearCodeFieldElement for WarpField {
     }
     
     fn zero() -> Self {
-        WarpField(BlsScalar::zero())
+        WarpField(<BlsScalar as Zero>::zero())
     }
     
     fn one() -> Self {
-        WarpField(BlsScalar::one())
+        WarpField(<BlsScalar as One>::one())
     }
     
     fn random() -> Self {
         WarpField(BlsScalar::rand(&mut thread_rng()))
+    }
+}
+
+// Blanket implementation for arkworks PrimeField types
+impl<F: PrimeField> FieldElement for F {
+    fn add(&self, other: &Self) -> Self {
+        *self + *other
+    }
+    
+    fn mul(&self, other: &Self) -> Self {
+        *self * *other
+    }
+    
+    fn sub(&self, other: &Self) -> Self {
+        *self - *other
+    }
+    
+    fn neg(&self) -> Self {
+        -*self
+    }
+    
+    fn inverse(&self) -> Option<Self> {
+        self.inverse()
+    }
+    
+    fn zero() -> Self {
+        Self::zero()
+    }
+    
+    fn one() -> Self {
+        Self::one()
+    }
+    
+    fn random() -> Self {
+        use ark_std::rand::Rng;
+        let mut rng = ark_std::rand::thread_rng();
+        Self::rand(&mut rng)
+    }
+    
+    fn pow(&self, exp: u64) -> Self {
+        use ark_ff::Field;
+        Field::pow(self, &[exp])
+    }
+    
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        self.serialize_uncompressed(&mut bytes).unwrap();
+        bytes
+    }
+    
+    fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::deserialize_uncompressed(&bytes[..]).ok()
+    }
+    
+    fn is_zero(&self) -> bool {
+        use ark_ff::Zero;
+        Zero::is_zero(self)
     }
 }
 

@@ -5,9 +5,10 @@
 //! This module implements the WARP accumulation scheme, which provides:
 //! - Linear-time proving complexity
 //! - Logarithmic-time verification
-//! - Support for arbitrary linear codes
-//! - Plausible post-quantum security via hash-based commitments
-//! - Unbounded accumulation depth
+//! WARP (Weighted ARithmetic Proof) accumulation strategy
+//!
+//! Linear-time proof accumulation for zkEVM using tensor mathematics
+//! and FRI cryptographic commitments for efficient batch verification.
 
 pub mod field;
 pub mod polynomial;
@@ -16,6 +17,7 @@ pub mod multilinear;
 pub mod accumulation;
 pub mod verification;
 pub mod integration;
+pub mod fri_commitment;
 
 pub use field::*;
 pub use polynomial::*;

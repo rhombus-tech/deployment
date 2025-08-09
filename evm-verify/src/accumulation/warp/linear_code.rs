@@ -25,7 +25,7 @@ pub trait FieldElement: Clone + Copy + Eq + std::fmt::Debug {
 }
 
 /// Core trait for linear codes used in WARP
-pub trait LinearCode<F: FieldElement> {
+pub trait LinearCode<F: FieldElement>: Send + Sync {
     /// Encodes a message into a codeword
     fn encode(&self, message: &[F]) -> Vec<F>;
     
@@ -89,7 +89,7 @@ impl<F: FieldElement> ExpanderCode<F> {
     }
 }
 
-impl<F: FieldElement> LinearCode<F> for ExpanderCode<F> {
+impl<F: FieldElement + Send + Sync> LinearCode<F> for ExpanderCode<F> {
     fn encode(&self, message: &[F]) -> Vec<F> {
         assert_eq!(message.len(), self.k, "Message length must match code dimension");
         
@@ -130,4 +130,32 @@ pub fn create_default_linear_code<F: FieldElement + Send + Sync + 'static>(secur
     let expansion_factor = 3;       // Example expansion
     
     Arc::new(ExpanderCode::new(k, expansion_factor))
+}
+
+// Blanket implementation for arkworks PrimeField types
+use ark_ff::{PrimeField, Zero, One, Field};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::rand::Rng;
+
+impl<F: PrimeField> FieldElement for F {
+    fn add(&self, other: &Self) -> Self {
+        *self + *other
+    }
+    
+    fn mul(&self, other: &Self) -> Self {
+        *self * *other
+    }
+    
+    fn zero() -> Self {
+        Self::zero()
+    }
+    
+    fn one() -> Self {
+        Self::one()
+    }
+    
+    fn random() -> Self {
+        let mut rng = ark_std::rand::thread_rng();
+        Self::rand(&mut rng)
+    }
 }

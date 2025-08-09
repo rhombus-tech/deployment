@@ -21,8 +21,9 @@ use crate::accumulation::warp::verification::{
     WarpVerificationStrategy, create_warp_verification_strategy,
     SecurityReport, SecurityWarning
 };
+// SecureFRIError functionality integrated into verification module
 #[cfg(feature = "accumulation")]
-use crate::accumulation::warp::fri_commitment::SecureFRIError;
+use crate::accumulation::warp::verification::WarpVerificationError;
 
 use crate::api::pcd_adapter::PCDAdapter;
 #[cfg(feature = "accumulation")]
@@ -369,6 +370,7 @@ impl BlockExecutor {
         // Verify using WARP with FRI commitments
         let security_report = warp_verifier
             .verify_transaction(&block_data, 128) // 128-bit security for EF compliance
+            .await
             .map_err(|e| anyhow!("WARP FRI verification failed: {}", e))?;
         
         // Update verification metrics

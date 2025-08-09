@@ -62,7 +62,7 @@ mod warp_tests {
         let verifier = UnifiedVerifier::with_warp();
         
         // Test with clean bytecode
-        match verifier.analyze_bytecode(TEST_BYTECODE) {
+        match verifier.analyze_bytecode(TEST_BYTECODE).await {
             Ok(report) => {
                 println!("✓ WARP analysis completed");
                 let is_valid = report.vulnerabilities.is_empty();
@@ -88,7 +88,7 @@ mod warp_tests {
         let verifier = UnifiedVerifier::with_warp();
         
         // Test with potentially vulnerable bytecode
-        match verifier.analyze_bytecode(VULNERABLE_BYTECODE) {
+        match verifier.analyze_bytecode(VULNERABLE_BYTECODE).await {
             Ok(report) => {
                 println!("✓ WARP vulnerability detection completed");
                 let is_valid = report.vulnerabilities.is_empty();
@@ -106,14 +106,14 @@ mod warp_tests {
         }
     }
     
-    #[test]
-    fn test_warp_strategy_initialization() {
+    #[tokio::test]
+    async fn test_warp_strategy_initialization() {
         println!("Testing WARP strategy initialization...");
         
         let mut strategy = AccumulationStrategy::new_warp();
         
         // Test initialization with sample bytecode
-        match strategy.initialize(TEST_BYTECODE.to_vec()) {
+        match strategy.initialize(TEST_BYTECODE.to_vec()).await {
             Ok(_) => {
                 println!("✓ WARP strategy initialized successfully");
                 
@@ -130,14 +130,14 @@ mod warp_tests {
         }
     }
     
-    #[test]
-    fn test_warp_circuit_accumulation() {
+    #[tokio::test]
+    async fn test_warp_circuit_accumulation() {
         println!("Testing WARP circuit accumulation...");
         
         let mut strategy = AccumulationStrategy::new_warp();
         
         // Initialize first
-        if let Ok(_) = strategy.initialize(TEST_BYTECODE.to_vec()) {
+        if let Ok(_) = strategy.initialize(TEST_BYTECODE.to_vec()).await {
             println!("✓ WARP strategy initialized successfully");
             
             // Check initial metrics
@@ -152,10 +152,10 @@ mod warp_tests {
         
         let mut strategy = AccumulationStrategy::new_warp();
         
-        if let Ok(_) = strategy.initialize(TEST_BYTECODE.to_vec()) {
+        if let Ok(_) = strategy.initialize(TEST_BYTECODE.to_vec()).await {
             // Test verification timing (no accumulate_circuit calls for simplicity)
             let start = std::time::Instant::now();
-            match strategy.verify() {
+            match strategy.verify().await {
                 Ok(result) => {
                     let verification_duration = start.elapsed();
                     println!("✓ WARP verification completed in {:?}", verification_duration);
@@ -179,13 +179,13 @@ mod warp_tests {
         }
     }
     
-    #[test]
-    fn test_warp_vulnerability_checking() {
+    #[tokio::test]
+    async fn test_warp_vulnerability_checking() {
         println!("Testing WARP vulnerability checking...");
         
         let mut strategy = AccumulationStrategy::new_warp();
         
-        if let Ok(_) = strategy.initialize(VULNERABLE_BYTECODE.to_vec()) {
+        if let Ok(_) = strategy.initialize(VULNERABLE_BYTECODE.to_vec()).await {
             match strategy.has_vulnerability("reentrancy") {
                 Ok(has_vuln) => {
                     println!("✓ WARP vulnerability check completed");
