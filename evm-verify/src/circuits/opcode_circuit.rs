@@ -425,7 +425,322 @@ impl OpcodeValidationCircuit {
             ],
         });
         
-        // Add more opcodes...
+        
+        // === CRITICAL ARITHMETIC & COMPARISON OPCODES ===
+        
+        opcodes.insert(0x00, OpcodeSpec {
+            opcode: 0x00, name: "STOP".to_string(), pops: 0, pushes: 0,
+            gas_cost: U256::from(0), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        opcodes.insert(0x03, OpcodeSpec {
+            opcode: 0x03, name: "SUB".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x04, OpcodeSpec {
+            opcode: 0x04, name: "DIV".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(5), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x06, OpcodeSpec {
+            opcode: 0x06, name: "MOD".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(5), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x10, OpcodeSpec {
+            opcode: 0x10, name: "LT".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x11, OpcodeSpec {
+            opcode: 0x11, name: "GT".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x14, OpcodeSpec {
+            opcode: 0x14, name: "EQ".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x15, OpcodeSpec {
+            opcode: 0x15, name: "ISZERO".to_string(), pops: 1, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 1 }],
+        });
+        
+        opcodes.insert(0x16, OpcodeSpec {
+            opcode: 0x16, name: "AND".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0x17, OpcodeSpec {
+            opcode: 0x17, name: "OR".to_string(), pops: 2, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        // === ENVIRONMENTAL & BLOCK INFO OPCODES ===
+        
+        opcodes.insert(0x33, OpcodeSpec {
+            opcode: 0x33, name: "CALLER".to_string(), pops: 0, pushes: 1,
+            gas_cost: U256::from(2), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        opcodes.insert(0x34, OpcodeSpec {
+            opcode: 0x34, name: "CALLVALUE".to_string(), pops: 0, pushes: 1,
+            gas_cost: U256::from(2), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        opcodes.insert(0x35, OpcodeSpec {
+            opcode: 0x35, name: "CALLDATALOAD".to_string(), pops: 1, pushes: 1,
+            gas_cost: U256::from(3), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 1 }],
+        });
+        
+        opcodes.insert(0x36, OpcodeSpec {
+            opcode: 0x36, name: "CALLDATASIZE".to_string(), pops: 0, pushes: 1,
+            gas_cost: U256::from(2), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        opcodes.insert(0x3a, OpcodeSpec {
+            opcode: 0x3a, name: "GASPRICE".to_string(), pops: 0, pushes: 1,
+            gas_cost: U256::from(2), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        // === STACK & FLOW CONTROL OPCODES ===
+        
+        opcodes.insert(0x50, OpcodeSpec {
+            opcode: 0x50, name: "POP".to_string(), pops: 1, pushes: 0,
+            gas_cost: U256::from(2), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 1 }],
+        });
+        
+        opcodes.insert(0x56, OpcodeSpec {
+            opcode: 0x56, name: "JUMP".to_string(), pops: 1, pushes: 0,
+            gas_cost: U256::from(8), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 1 },
+                ExceptionCondition::InvalidJumpDestination,
+            ],
+        });
+        
+        opcodes.insert(0x57, OpcodeSpec {
+            opcode: 0x57, name: "JUMPI".to_string(), pops: 2, pushes: 0,
+            gas_cost: U256::from(10), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 2 },
+                ExceptionCondition::InvalidJumpDestination,
+            ],
+        });
+        
+        opcodes.insert(0x5b, OpcodeSpec {
+            opcode: 0x5b, name: "JUMPDEST".to_string(), pops: 0, pushes: 0,
+            gas_cost: U256::from(1), dynamic_gas: false,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![],
+        });
+        
+        // === PUSH OPCODES (Critical for real bytecode) ===
+        
+        for i in 1..=32 {
+            opcodes.insert(0x60 + i - 1, OpcodeSpec {
+                opcode: 0x60 + i - 1,
+                name: format!("PUSH{}", i),
+                pops: 0,
+                pushes: 1,
+                gas_cost: U256::from(3),
+                dynamic_gas: false,
+                memory_access: MemoryAccessPattern::None,
+                storage_access: StorageAccessPattern::None,
+                call_properties: None,
+                exception_conditions: vec![],
+            });
+        }
+        
+        // === DUP OPCODES (Critical for stack manipulation) ===
+        
+        for i in 1..=16 {
+            opcodes.insert(0x80 + i - 1, OpcodeSpec {
+                opcode: 0x80 + i - 1,
+                name: format!("DUP{}", i),
+                pops: 0,
+                pushes: 1,
+                gas_cost: U256::from(3),
+                dynamic_gas: false,
+                memory_access: MemoryAccessPattern::None,
+                storage_access: StorageAccessPattern::None,
+                call_properties: None,
+                exception_conditions: vec![ExceptionCondition::StackUnderflow { required: i as usize }],
+            });
+        }
+        
+        // === SWAP OPCODES (Critical for stack manipulation) ===
+        
+        for i in 1..=16 {
+            opcodes.insert(0x90 + i - 1, OpcodeSpec {
+                opcode: 0x90 + i - 1,
+                name: format!("SWAP{}", i),
+                pops: 0,
+                pushes: 0,
+                gas_cost: U256::from(3),
+                dynamic_gas: false,
+                memory_access: MemoryAccessPattern::None,
+                storage_access: StorageAccessPattern::None,
+                call_properties: None,
+                exception_conditions: vec![ExceptionCondition::StackUnderflow { required: (i + 1) as usize }],
+            });
+        }
+        
+        // === CALL OPCODES ===
+        
+        opcodes.insert(0xF1, OpcodeSpec {
+            opcode: 0xF1, name: "CALL".to_string(), pops: 7, pushes: 1,
+            gas_cost: U256::from(700), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::ReadWrite { offset_stack: 3, size_stack: 4 },
+            storage_access: StorageAccessPattern::None,
+            call_properties: Some(CallProperties {
+                gas_stack: 0, address_stack: 1, value_stack: Some(2),
+                input_offset_stack: 3, input_size_stack: 4,
+                output_offset_stack: 5, output_size_stack: 6,
+            }),
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 7 },
+                ExceptionCondition::CallDepthExceeded,
+                ExceptionCondition::InsufficientBalance,
+            ],
+        });
+        
+        opcodes.insert(0xF3, OpcodeSpec {
+            opcode: 0xF3, name: "RETURN".to_string(), pops: 2, pushes: 0,
+            gas_cost: U256::from(0), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::Read { offset_stack: 0, size_stack: 1 },
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0xF4, OpcodeSpec {
+            opcode: 0xF4, name: "DELEGATECALL".to_string(), pops: 6, pushes: 1,
+            gas_cost: U256::from(700), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::ReadWrite { offset_stack: 2, size_stack: 3 },
+            storage_access: StorageAccessPattern::None,
+            call_properties: Some(CallProperties {
+                gas_stack: 0, address_stack: 1, value_stack: None,
+                input_offset_stack: 2, input_size_stack: 3,
+                output_offset_stack: 4, output_size_stack: 5,
+            }),
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 6 },
+                ExceptionCondition::CallDepthExceeded,
+            ],
+        });
+        
+        opcodes.insert(0xFA, OpcodeSpec {
+            opcode: 0xFA, name: "STATICCALL".to_string(), pops: 6, pushes: 1,
+            gas_cost: U256::from(700), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::ReadWrite { offset_stack: 2, size_stack: 3 },
+            storage_access: StorageAccessPattern::None,
+            call_properties: Some(CallProperties {
+                gas_stack: 0, address_stack: 1, value_stack: None,
+                input_offset_stack: 2, input_size_stack: 3,
+                output_offset_stack: 4, output_size_stack: 5,
+            }),
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 6 },
+                ExceptionCondition::CallDepthExceeded,
+                ExceptionCondition::StaticModeViolation,
+            ],
+        });
+        
+        opcodes.insert(0xFD, OpcodeSpec {
+            opcode: 0xFD, name: "REVERT".to_string(), pops: 2, pushes: 0,
+            gas_cost: U256::from(0), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::Read { offset_stack: 0, size_stack: 1 },
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![ExceptionCondition::StackUnderflow { required: 2 }],
+        });
+        
+        opcodes.insert(0xFF, OpcodeSpec {
+            opcode: 0xFF, name: "SELFDESTRUCT".to_string(), pops: 1, pushes: 0,
+            gas_cost: U256::from(5000), dynamic_gas: true,
+            memory_access: MemoryAccessPattern::None,
+            storage_access: StorageAccessPattern::None,
+            call_properties: None,
+            exception_conditions: vec![
+                ExceptionCondition::StackUnderflow { required: 1 },
+                ExceptionCondition::StaticModeViolation,
+            ],
+        });
         opcodes
     }
     

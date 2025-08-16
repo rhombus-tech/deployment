@@ -1,8 +1,8 @@
-use crate::prelude::*;
+// use crate::prelude::*; // Removed - prelude module doesn't exist
 use crate::transaction::{TransactionSequence, Transaction, TransactionStatus, MarketState, FallbackPlan};
 use crate::core::StatelessVM;
 use crate::errors::VMError;
-use crate::realtime::{RealTimeProcessor, RealTimeConfig, RealTimeStatusResponse, ProcessingMode};
+// use crate::realtime::{RealTimeProcessor, RealTimeConfig, RealTimeStatusResponse, ProcessingMode}; // Removed - realtime module doesn't exist
 
 // Re-export these explicitly to avoid proc-macro resolution issues
 use serde::{Serialize, Deserialize};
@@ -56,7 +56,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, ApiError>;
+pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
 // API Context - holds StatelessVM instance
 pub struct ApiContext {
@@ -224,7 +224,7 @@ async fn health_check() -> &'static str {
 async fn generate_witnesses(
     State(ctx): State<Arc<ApiContext>>,
     Json(request): Json<WitnessGenerationRequest>,
-) -> Result<Json<WitnessGenerationResponse>> {
+) -> std::result::Result<Json<WitnessGenerationResponse>, ApiError> {
     // Simplified implementation - in a real-world scenario, this would
     // convert the request to proper Transaction objects and use the VM
     
@@ -272,7 +272,7 @@ async fn generate_witnesses(
 async fn simulate_execution(
     State(ctx): State<Arc<ApiContext>>,
     Json(request): Json<SimulationRequest>,
-) -> Result<Json<SimulationResponse>> {
+) -> std::result::Result<Json<SimulationResponse>, ApiError> {
     // Simplified implementation - in a real-world scenario, this would
     // convert the request to proper Transaction objects and use the VM
     
@@ -319,7 +319,7 @@ async fn simulate_execution(
 async fn execute_sequence(
     State(ctx): State<Arc<ApiContext>>,
     Json(request): Json<SequenceExecutionRequest>,
-) -> Result<Json<SequenceExecutionResponse>> {
+) -> std::result::Result<Json<SequenceExecutionResponse>, ApiError> {
     let execution_start = std::time::Instant::now();
     
     // Convert request transactions to Transaction objects
@@ -513,145 +513,17 @@ async fn execute_sequence(
     }))
 }
 
-// Real-time processing endpoints
-use serde_json::json;
+// Real-time processing completely removed - focus on core StatelessVM functionality
 
-#[derive(Serialize, Deserialize)]
-pub struct RealTimeStartRequest {
-    pub eth_ws_url: Option<String>,
-    pub processing_mode: ProcessingMode,
-    pub realtime_timeout_secs: Option<u64>,
-    pub max_workers: Option<usize>,
-}
+// Real-time processing functions removed
 
-static mut REALTIME_PROCESSOR: Option<Arc<RealTimeProcessor>> = None;
-
-// Start real-time processing
-pub async fn start_realtime_processing(
-    State(ctx): State<Arc<ApiContext>>,
-    Json(request): Json<RealTimeStartRequest>,
-) -> Result<Json<serde_json::Value>, axum::response::Response<axum::body::Body>> {
-    println!("Starting real-time processing with mode: {:?}", request.processing_mode);
-    
-    let config = RealTimeConfig {
-        eth_ws_url: request.eth_ws_url.unwrap_or_else(|| "ws://localhost:8546".to_string()),
-        max_workers: request.max_workers.unwrap_or(4),
-        realtime_timeout_secs: request.realtime_timeout_secs.unwrap_or(60),
-        max_queue_size: 1000,
-        target_lag_secs: 5,
-        max_retries: 3,
-    };
-    
-    let processor = RealTimeProcessor::new(ctx.vm.clone(), config.clone());
-    processor.start().await
-        .map_err(|e| {
-            let error_response = json!({
-                "error": format!("Failed to start real-time processor: {}", e),
-                "success": false
-            });
-            axum::response::Response::builder()
-                .status(500)
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(serde_json::to_string(&error_response).unwrap()))
-                .unwrap()
-        })?;
-    
-    unsafe {
-        REALTIME_PROCESSOR = Some(Arc::new(processor));
-    }
-    
-    let response = json!({
-        "success": true,
-        "message": "Real-time processing started successfully",
-        "config": {
-            "eth_ws_url": config.eth_ws_url,
-            "realtime_timeout_secs": config.realtime_timeout_secs,
-            "max_workers": config.max_workers
-        }
-    });
-    
-    Ok(Json(response))
-}
-
-// Get real-time processing status
-pub async fn get_realtime_status() -> Result<Json<RealTimeStatusResponse>, axum::response::Response<axum::body::Body>> {
-    unsafe {
-        if let Some(processor) = &REALTIME_PROCESSOR {
-            let stats = processor.get_stats().await;
-            let status = RealTimeStatusResponse {
-                stats,
-                is_realtime: true,
-                current_head: Some(0), // TODO: Get actual current head
-                processing_lag_seconds: 0, // TODO: Calculate actual lag
-                queue_breakdown: HashMap::new(), // TODO: Get actual queue breakdown
-            };
-            Ok(Json(status))
-        } else {
-            let default_stats = RealTimeStats {
-                total_blocks_processed: 0,
-                realtime_blocks_processed: 0,
-                recent_blocks_processed: 0,
-                historical_blocks_processed: 0,
-                average_processing_time_ms: 0.0,
-                blocks_per_second: 0.0,
-                current_lag_seconds: 0,
-                queue_size: 0,
-                failed_blocks: 0,
-            };
-            let error_response = RealTimeStatusResponse {
-                stats: default_stats,
-                is_realtime: false,
-                current_head: None,
-                processing_lag_seconds: 0,
-                queue_breakdown: HashMap::new(),
-            };
-            Ok(Json(error_response))
-        }
-    }
-}
-
-// Stop real-time processing
-pub async fn stop_realtime_processing() -> Result<Json<serde_json::Value>, axum::response::Response<axum::body::Body>> {
-    unsafe {
-        if let Some(processor) = REALTIME_PROCESSOR.take() {
-            processor.stop().await
-                .map_err(|e| {
-                    let error_response = json!({
-                        "error": format!("Failed to stop real-time processor: {}", e),
-                        "success": false
-                    });
-                    axum::response::Response::builder()
-                        .status(500)
-                        .header("content-type", "application/json")
-                        .body(axum::body::Body::from(serde_json::to_string(&error_response).unwrap()))
-                        .unwrap()
-                })?;
-            
-            let response = json!({
-                "success": true,
-                "message": "Real-time processing stopped successfully"
-            });
-            Ok(Json(response))
-        } else {
-            let response = json!({
-                "success": false,
-                "message": "Real-time processor was not running"
-            });
-            Ok(Json(response))
-        }
-    }
-}
-
-// Configure API routes
+// Configure API routes - core StatelessVM democratization functionality only
 pub fn create_api_router(ctx: Arc<ApiContext>) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/witnesses/generate", post(generate_witnesses))
         .route("/api/v1/simulate", post(simulate_execution))
         .route("/api/v1/sequence/execute", post(execute_sequence))
-        .route("/api/v1/realtime/start", post(start_realtime_processing))
-        .route("/api/v1/realtime/status", get(get_realtime_status))
-        .route("/api/v1/realtime/stop", post(stop_realtime_processing))
         .with_state(ctx)
 }
 

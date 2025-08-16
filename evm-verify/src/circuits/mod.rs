@@ -34,6 +34,7 @@ pub mod execution_trace;
 pub mod stack_memory_circuit;
 pub mod opcode_circuit;
 pub mod complete_evm_circuit;
+pub mod cross_contract_security;
 
 // Import for internal use
 use access::AccessControlCircuit;

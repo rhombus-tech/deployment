@@ -14,6 +14,3 @@
   },
   "DeregistrationDelay": 30
 }
-
-// AWS CLI command to apply this config:
-// aws elbv2 modify-target-group --target-group-arn YOUR_TARGET_GROUP_ARN --health-check-interval-seconds 30 --health-check-timeout-seconds 10 --unhealthy-threshold-count 3

@@ -112,7 +112,7 @@ pub enum ComposabilityRiskKind {
     /// Governance attack vector
     GovernanceAttack,
     /// MEV vulnerability
-    MevVulnerability,
+    MevAttackVulnerability,
     /// Other risk
     Other,
 }

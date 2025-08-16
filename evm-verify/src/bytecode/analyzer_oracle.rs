@@ -33,8 +33,25 @@ pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<Securit
     // Get the bytecode as a vector of bytes
     let bytecode = analyzer.get_bytecode_vec();
     
+    // Debug output for tests
+    #[cfg(test)]
+    {
+        println!("DEBUG: Bytecode length: {}", bytecode.len());
+        println!("DEBUG: Bytecode: {:02x?}", &bytecode[..std::cmp::min(50, bytecode.len())]);
+        println!("DEBUG: Has confirmed oracle calls: {}", has_confirmed_oracle_calls(&bytecode));
+    }
+    
     // Check for genuine oracle manipulation vulnerabilities with precise context analysis
     if has_confirmed_oracle_calls(&bytecode) {
+        // Debug output for tests
+        #[cfg(test)]
+        {
+            println!("DEBUG: has_critical_unchecked_oracle_returns: {}", has_critical_unchecked_oracle_returns(&bytecode));
+            println!("DEBUG: has_dangerous_oracle_arithmetic: {}", has_dangerous_oracle_arithmetic(&bytecode));
+            println!("DEBUG: has_price_manipulation_risk: {}", has_price_manipulation_risk(&bytecode));
+            println!("DEBUG: has_flash_loan_oracle_attack_vector: {}", has_flash_loan_oracle_attack_vector(&bytecode));
+        }
+        
         // Check for high-risk unchecked oracle calls in critical operations
         if has_critical_unchecked_oracle_returns(&bytecode) {
             warnings.push(SecurityWarning {
@@ -75,7 +92,7 @@ pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<Securit
         if has_flash_loan_oracle_attack_vector(&bytecode) {
             warnings.push(SecurityWarning {
                 kind: SecurityWarningKind::OracleManipulation,
-                description: "Oracle-dependent operations vulnerable to flash loan price manipulation".to_string(),
+                description: "Oracle-dependent operations vulnerable to flash loan attacks".to_string(),
                 severity: SecuritySeverity::Critical,
                 pc: find_first_oracle_call(&bytecode),
                 operations: Vec::new(), 
@@ -89,11 +106,22 @@ pub fn detect_oracle_vulnerabilities(analyzer: &BytecodeAnalyzer) -> Vec<Securit
 
 /// Checks if the bytecode contains confirmed oracle calls (more precise detection)
 fn has_confirmed_oracle_calls(bytecode: &[u8]) -> bool {
+    #[cfg(test)]
+    {
+        println!("DEBUG: Checking for oracle calls in {} bytes", bytecode.len());
+        for i in 0..bytecode.len() {
+            if bytecode[i] == STATICCALL {
+                println!("DEBUG: Found STATICCALL at position {}", i);
+                println!("DEBUG: has_oracle_address_in_context: {}", has_oracle_address_in_context(bytecode, i));
+                println!("DEBUG: has_oracle_call_pattern: {}", has_oracle_call_pattern(bytecode, i));
+            }
+        }
+    }
+    
     // Look for both CALL and STATICCALL with oracle patterns
-    for i in 0..bytecode.len().saturating_sub(25) {
-        // Check both CALL and STATICCALL opcodes
+    for i in 0..bytecode.len() {
         if bytecode[i] == STATICCALL || bytecode[i] == CALL {
-            // Look back for oracle address in preceding PUSH instructions
+            // Check for oracle patterns around call
             if has_oracle_address_in_context(bytecode, i) || has_oracle_call_pattern(bytecode, i) {
                 return true;
             }
@@ -443,38 +471,38 @@ fn has_price_manipulation_risk(bytecode: &[u8]) -> bool {
     false
 }
 
-/// Check for flash loan attack vectors through oracle price manipulation
+/// Detects flash loan oracle attack vectors
 fn has_flash_loan_oracle_attack_vector(bytecode: &[u8]) -> bool {
     let mut i = 0;
-    while i < bytecode.len().saturating_sub(50) {
-        if bytecode[i] == STATICCALL && has_oracle_address_in_context(bytecode, i) {
-            // Look for patterns indicating vulnerability to flash loan price manipulation
-            let end = std::cmp::min(i + 60, bytecode.len());
-            let mut has_instant_price_usage = false;
-            let mut has_large_value_operation = false;
-            
-            for j in (i + 1)..end {
-                if j < bytecode.len() {
-                    match bytecode[j] {
-                        0x04 => { // DIV - instant price calculation
-                            // Check if this is used immediately without delay
-                            if !has_time_delay_after(bytecode, j) {
-                                has_instant_price_usage = true;
+    while i < bytecode.len().saturating_sub(10) {
+        if bytecode[i] == STATICCALL {
+            if has_oracle_address_in_context(bytecode, i) {
+                
+                // Look for patterns indicating vulnerability to flash loan price manipulation
+                let end = std::cmp::min(i + 60, bytecode.len());
+                let mut has_instant_price_usage = false;
+                let mut has_large_value_operation = false;
+                
+                for j in (i + 1)..end {
+                    if j < bytecode.len() {
+                        match bytecode[j] {
+                            0x04 => { // DIV - instant price calculation
+                                if !has_time_delay_after(bytecode, j) {
+                                    has_instant_price_usage = true;
+                                }
                             }
-                        }
-                        CALL => {
-                            // Large value transfer based on instant price
-                            if has_instant_price_usage && has_large_value_before(bytecode, j) {
-                                has_large_value_operation = true;
+                            CALL => {
+                                if has_instant_price_usage && has_large_value_before(bytecode, j) {
+                                    has_large_value_operation = true;
+                                }
                             }
-                        }
-                        SSTORE => {
-                            // Critical state change based on manipulable price
-                            if has_instant_price_usage && has_large_value_operation {
-                                return true;
+                            SSTORE => {
+                                if has_instant_price_usage && has_large_value_operation {
+                                    return true;
+                                }
                             }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
             }
@@ -483,7 +511,6 @@ fn has_flash_loan_oracle_attack_vector(bytecode: &[u8]) -> bool {
     }
     false
 }
-
 /// Helper: Check for circuit breaker patterns
 fn has_circuit_breaker_before(bytecode: &[u8], pos: usize) -> bool {
     // Look for percentage-based bounds checking
@@ -616,17 +643,24 @@ mod tests {
         // Create a BytecodeAnalyzer with test bytecode
         let mut bytecode = Vec::new();
         
-        // Add oracle address pattern
+        // Add oracle call pattern with flash loan vulnerability
         bytecode.extend_from_slice(&[
+            // PUSH3 for oracle gas limit (50k gas = 0x00C350)
+            0x62, 0x00, 0xC3, 0x50,
             // PUSH20 <oracle address pattern>
-            0x73, 0x5f, 0x4e, 0xC3, 0xDf, 0x9c, 0xbd, 0x43, 0x71, 0x4F, 0xE2, 0x74, 0x0f, 0x5E, 0x36, 0x16, 0x15, 0x5c, 0x5b, 0x84, 0x19,
-            // PUSH4 <function selector>
-            0x63, 0x31, 0x32, 0x33, 0x34,
-            // Some parameters
-            0x60, 0x00, 0x60, 0x00, 0x60, 0x00, 0x60, 0x00,
-            // CALL
+            0x73, 0x5f, 0x4e, 0xC3, 0xDf, 0x9c, 0xbd, 0x43, 0x71, 0x4F, 0xe2, 0x74, 0x0f, 0x5E, 0x36, 0x16, 0x15, 0x5c, 0x5b, 0x84, 0x19,
+            // PUSH4 <function selector for getLatestPrice>
+            0x63, 0x50, 0xd2, 0x5c, 0xcd, // latestRoundData() selector
+            // STATICCALL (oracle read call)
+            0xfa,
+            // DIV - immediate price calculation without delay
+            0x04,
+            // PUSH8 large value (closer to CALL for detection)
+            0x67, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // CALL - large value operation based on price
             0xf1,
-            // No staleness check or deviation check
+            // SSTORE - critical state change
+            0x55,
         ]);
         
         let bytecode_clone = bytecode.clone(); // Clone before moving

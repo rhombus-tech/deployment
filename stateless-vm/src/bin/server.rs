@@ -18,16 +18,16 @@ async fn main() {
     // Initialize tracing for logs
     tracing_subscriber::fmt::init();
     
-    // Initialize the required components for StatelessVM with Avalanche C-Chain integration
-    // Default Avalanche C-Chain RPC URL
-    let avalanche_rpc_url = std::env::var("AVALANCHE_RPC_URL").unwrap_or_else(|_| "https://api.avax.network/ext/bc/C/rpc".to_string());
+    // Initialize the required components for StatelessVM with Ethereum mainnet integration
+    // Default Ethereum mainnet RPC URL
+    let ethereum_rpc_url = std::env::var("ETHEREUM_RPC_URL").unwrap_or_else(|_| "https://eth-mainnet.g.alchemy.com/v2/demo".to_string());
     
     // Get the port from environment variable or use default 7547
     let port = std::env::var("PORT")
         .map(|p| p.parse::<u16>().unwrap_or(7547))
         .unwrap_or(7547);
     
-    println!("Connecting to Avalanche C-Chain at: {}", avalanche_rpc_url);
+    println!("Connecting to Ethereum mainnet at: {}", ethereum_rpc_url);
     
     // For now, create an empty provider list - in a real implementation, this would use the EvmJsonRpcProvider
     // Simplified implementation to make the service work without the full provider implementation
@@ -41,14 +41,14 @@ async fn main() {
     let evm_verify_url = std::env::var("EVM_VERIFY_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let security_verifier = Arc::new(DeploymentGatewayVerifier::new(&evm_verify_url));
     
-    // Initialize with Avalanche C-Chain parameters
+    // Initialize with Ethereum mainnet parameters
     let initial_state_root = avalanche_stateless_vm::types::StateRoot(ethereum_types::H256::zero());
     let initial_block_height = 0;
     
-    // Set Avalanche C-Chain ID (43114)
-    let chain_id = 43114;
+    // Set Ethereum mainnet chain ID (1)
+    let chain_id = 1;
     
-    // Initialize the StatelessVM instance with Avalanche C-Chain configuration
+    // Initialize the StatelessVM instance with Ethereum mainnet configuration
     let mut vm = StatelessVM::new(
         state_bundler,
         security_verifier,
@@ -56,7 +56,7 @@ async fn main() {
         initial_block_height,
     );
     
-    // Set Avalanche C-Chain specific parameters
+    // Set Ethereum mainnet specific parameters
     vm.set_chain_id(chain_id);
     
     let stateless_vm = Arc::new(RwLock::new(vm));
@@ -378,8 +378,8 @@ async fn main() {
     println!("Starting StatelessVM server on 127.0.0.1:{}", port);
     
     // Start the warp server
-    println!("StatelessVM server started on http://localhost:{} - Connected to Avalanche C-Chain", port);
-    println!("Chain ID: {}, Provider: {}", chain_id, avalanche_rpc_url);
+    println!("StatelessVM server started on http://localhost:{} - Connected to Ethereum mainnet", port);
+    println!("Chain ID: {}, Provider: {}", chain_id, ethereum_rpc_url);
     
     // Create a future that will never resolve
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
