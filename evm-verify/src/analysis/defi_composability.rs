@@ -1,5 +1,5 @@
 use crate::analysis::cross_contract::{ContractProtocol, ProtocolFinding, ProtocolFindingKind};
-use crate::bytecode::security::SecuritySeverity;
+use crate::bytecode::SecuritySeverity;
 use ethers::types::H160;
 use std::collections::HashMap;
 use anyhow::Result;

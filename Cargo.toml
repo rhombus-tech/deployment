@@ -1,0 +1,111 @@
+[package]
+name = "tee-mesh-blockchain"
+version = "0.1.0"
+edition = "2021"
+authors = ["TEE Mesh Blockchain Team"]
+description = "Integrated TEE Mesh Blockchain with zkEVM and StatelessVM"
+
+[workspace]
+members = [
+    "stateless-vm",
+    "verify/pcc",
+    "verify/example", 
+    "verify/common",
+    "avalanche-bundle-relayer",
+    "statelessvm-test",
+    "tee_analyzer",
+    "evm-verify"
+]
+
+[workspace.dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+sha3 = "0.10"
+web3 = "0.19"
+reqwest = { version = "0.11", features = ["json"] }
+hex = "0.4"
+tracing-subscriber = "0.3"
+uuid = { version = "1.0", features = ["v4"] }
+toml = "0.8"
+thiserror = "1.0"
+tracing = "0.1"
+
+# Ethereum integration
+ethereum-types = "0.14"
+ethers = "2.0"
+
+# Cryptography
+ring = "0.17"
+ed25519-dalek = "2.0"
+
+# Async and concurrency
+futures = "0.3"
+async-trait = "0.1"
+
+# Networking
+hyper = { version = "1.0", features = ["full"] }
+tower = "0.4"
+
+# Database/Storage
+sled = "0.34"
+
+# Monitoring and metrics
+prometheus = "0.13"
+
+[dev-dependencies]
+tempfile = "3.0"
+criterion = "0.5"
+
+[[bin]]
+name = "integration_validator"
+path = "validate_integration.rs"
+
+[[bin]]
+name = "real_integration_layer"
+path = "real_integration_layer.rs"
+
+[[bin]]
+name = "working_integration_test"
+path = "working_integration_test.rs"
+
+[[test]]
+name = "cross_chain_integration_test"
+path = "cross_chain_integration_test.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+# Platform-specific optimizations
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+# Intel-specific optimizations can go here
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]  
+# ARM-specific optimizations can go here
+
+# Features for different deployment modes
+[features]
+default = ["full"]
+full = ["tee-mesh", "zkevm", "bridges"]
+tee-mesh = []
+zkevm = []
+bridges = []
+debug-mode = []
+production = []

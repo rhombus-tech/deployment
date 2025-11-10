@@ -258,6 +258,18 @@ pub enum SecurityWarningKind {
     InsufficientSlippageProtection,
     /// Flash loan attack vector vulnerability
     FlashLoanAttackVector,
+    /// Cross-contract composability vulnerability
+    ComposabilityVulnerability,
+    /// Protocol integration vulnerability
+    ProtocolIntegrationVulnerability,
+    /// Gas economic attack vulnerability
+    GasEconomicVulnerability,
+    /// Data integrity vulnerability
+    DataIntegrityVulnerability,
+    /// Cross-contract vulnerability
+    CrossContractVulnerability,
+    /// Gas-related vulnerability
+    GasVulnerability,
     /// Other security issue
     Other(String),
 }

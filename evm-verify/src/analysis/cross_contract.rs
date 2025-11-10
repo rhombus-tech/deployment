@@ -1,11 +1,10 @@
-use crate::bytecode::analyzer::BytecodeAnalyzer;
+use crate::bytecode::{BytecodeAnalyzer, SecuritySeverity};
 use ethers::types::{H160, H256, Bytes};
 use std::collections::HashMap;
 use std::sync::Arc;
 use anyhow::Result;
 use log::info;
 use serde::{Serialize, Deserialize};
-use crate::bytecode::security::SecuritySeverity;
 
 /// Represents the type of relationship between contracts
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,16 +132,58 @@ impl ContractProtocol {
     }
 
     /// Build the call graph by analyzing all contracts and their interactions
-    pub fn build_call_graph(&mut self) -> Result<()> {
-        // In this simplified implementation, we'll just log some information
-        // about the contracts without building an actual graph structure
+    pub fn build_call_graph(&mut self) -> Result<HashMap<H160, Vec<(H160, CallInfo)>>> {
+        use crate::analysis::call_graph::{CallGraph, CallType as GraphCallType, ContractType};
         
+        let mut call_graph = CallGraph::new();
+        let mut all_calls: HashMap<H160, Vec<(H160, CallInfo)>> = HashMap::new();
+        
+        // Add all contracts as nodes
         for (address, _analyzer) in &self.analyzers {
-            // Just log that we're processing this contract
+            call_graph.add_node(*address, ContractType::Unknown);
             info!("Processing contract at address: {:?}", address);
         }
         
-        Ok(())
+        // Extract calls from each contract
+        for (source_address, source_analyzer) in &self.analyzers {
+            let external_calls = self.extract_external_calls(source_analyzer, *source_address)?;
+            
+            // Add calls to graph
+            for (target_address, call_info) in &external_calls {
+                let call_type = match call_info.call_type {
+                    0xF1 => GraphCallType::Call,
+                    0xF2 => GraphCallType::CallCode,
+                    0xF4 => GraphCallType::DelegateCall,
+                    0xFA => GraphCallType::StaticCall,
+                    _ => GraphCallType::Call,
+                };
+                
+                let has_value = call_info.value.is_some() && 
+                    call_info.value.unwrap() != ethers::types::H256::zero();
+                
+                call_graph.add_call(*source_address, *target_address, call_type, has_value);
+            }
+            
+            all_calls.insert(*source_address, external_calls);
+        }
+        
+        // Analyze the graph
+        call_graph.identify_critical_contracts();
+        call_graph.identify_entry_points();
+        
+        // Find attack paths
+        let attack_paths = call_graph.find_all_attack_paths();
+        for attack_path in attack_paths {
+            info!("Found attack path: {:?}", attack_path);
+        }
+        
+        // Find cycles
+        let cycles = call_graph.find_cycles();
+        if !cycles.is_empty() {
+            info!("Found {} circular dependencies", cycles.len());
+        }
+        
+        Ok(all_calls)
     }
 
     /// Extract external calls from a contract with advanced stack simulation

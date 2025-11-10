@@ -1,0 +1,85 @@
+CONTRACT: BasicToken
+DESCRIPTION: A simple fungible token with basic transfer functionality
+
+CONFIGURATION:
+- Token Name: "MyToken"
+- Token Symbol: "MTK"
+- Total Supply: 1,000,000 tokens
+- Decimals: 18
+- Owner: The address that deploys this contract
+
+STATE VARIABLES:
+- balances: A mapping from address to token balance
+- allowances: A mapping from owner address to spender address to allowed amount
+- total_supply: The total number of tokens (1,000,000)
+- owner: The address that deployed the contract
+
+FUNCTIONS:
+
+1. FUNCTION: initialize
+   WHEN: Contract is first deployed
+   DO:
+   - Set the deployer as the owner
+   - Give the owner the entire total supply (1,000,000 tokens)
+   - Set total_supply to 1,000,000
+
+2. FUNCTION: transfer
+   PARAMETERS:
+   - recipient: The address to send tokens to
+   - amount: The number of tokens to send
+   REQUIREMENTS:
+   - The sender must have at least {amount} tokens in their balance
+   - The recipient address cannot be zero
+   - The amount must be greater than zero
+   DO:
+   - Subtract {amount} from sender's balance
+   - Add {amount} to recipient's balance
+   - Return success
+
+3. FUNCTION: balance_of
+   PARAMETERS:
+   - account: The address to check
+   RETURNS:
+   - The token balance of {account}
+
+4. FUNCTION: approve
+   PARAMETERS:
+   - spender: The address allowed to spend tokens
+   - amount: The maximum amount they can spend
+   REQUIREMENTS:
+   - The spender address cannot be zero
+   DO:
+   - Set the allowance for {spender} to {amount}
+   - Return success
+
+5. FUNCTION: transfer_from
+   PARAMETERS:
+   - from: The address to transfer tokens from
+   - to: The address to transfer tokens to
+   - amount: The number of tokens to transfer
+   REQUIREMENTS:
+   - {from} must have at least {amount} tokens
+   - The sender must have an allowance of at least {amount} from {from}
+   - {to} address cannot be zero
+   DO:
+   - Subtract {amount} from {from}'s balance
+   - Add {amount} to {to}'s balance
+   - Decrease sender's allowance from {from} by {amount}
+   - Return success
+
+6. FUNCTION: mint
+   PARAMETERS:
+   - recipient: The address to receive new tokens
+   - amount: The number of tokens to create
+   REQUIREMENTS:
+   - Only the owner can call this function
+   - {amount} must be greater than zero
+   DO:
+   - Add {amount} to {recipient}'s balance
+   - Add {amount} to total_supply
+   - Return success
+
+EVENTS:
+- Transfer: Emitted when tokens are transferred (from, to, amount)
+- Approval: Emitted when allowance is set (owner, spender, amount)
+- Mint: Emitted when tokens are minted (recipient, amount)

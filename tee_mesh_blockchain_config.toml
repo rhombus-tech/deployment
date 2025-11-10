@@ -1,0 +1,91 @@
+# TEE Mesh Blockchain Configuration
+# Complete integration configuration for zkEVM + StatelessVM + TEE mesh + bridges
+
+[blockchain]
+name = "TEE Mesh Blockchain"
+chain_id = 2024
+version = "1.0.0"
+
+[tee_mesh]
+# TEE mesh configuration (connects to your Aristo system)
+coordinator_url = "http://localhost:8080"
+region_id = "us-east-1"
+tee_type = "SGX_SEV_PAIR"
+execution_mode = "mesh"  # single, paired, mesh, auto
+max_execution_time_ms = 5000
+enable_cross_verification = true
+
+[zkevm]
+# zkEVM configuration
+enable_proof_generation = true
+verification_level = "enhanced"  # basic, full, enhanced
+evm_compatibility_mode = "full"
+max_transaction_size = 1048576  # 1MB
+execution_timeout_ms = 10000
+
+[stateless_vm]
+# StatelessVM configuration  
+verification_mode = "dual"  # zk_only, tee_only, dual, enhanced
+enable_caching = true
+cache_size = 10000
+parallel_verification = true
+max_verification_time_ms = 1000
+
+[bridges]
+# Bridge settlement configuration
+enable_dual_submission = true
+max_batch_size = 10000
+batch_timeout_ms = 300000  # 5 minutes
+retry_attempts = 3
+
+[bridges.ethereum]
+# Ethereum L1 bridge
+rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+contract_address = "0x..." # Your UltimateHybridSettlement contract
+private_key_path = "/secure/eth_private_key"
+gas_price_strategy = "adaptive"
+max_gas_price_gwei = 100
+confirmation_blocks = 12
+
+[bridges.avalanche]
+# Avalanche C-Chain bridge
+rpc_url = "https://api.avax.network/ext/bc/C/rpc"
+region_id = "us-east-1"
+enable_rlnc = true
+rlnc_redundancy_factor = 1.5
+max_fee_avax = 0.01
+
+[performance]
+# Performance optimization
+enable_phi_optimization = true
+batch_processing_threads = 4
+verification_cache_ttl_seconds = 3600
+metrics_collection_interval_ms = 1000
+
+[security]
+# Security configuration
+enable_quantum_resistance = true
+phi_field_validation = true
+attestation_chain_verification = true
+max_timestamp_drift_seconds = 300
+
+[logging]
+level = "info"
+format = "json"
+output_path = "/var/log/tee_mesh_blockchain.log"
+max_file_size_mb = 100
+max_files = 10
+
+[monitoring]
+# Monitoring and metrics
+enable_prometheus = true
+prometheus_port = 9090
+health_check_port = 8081
+enable_detailed_metrics = true
+
+[development]
+# Development/testing configuration
+enable_local_testing = true
+mock_tee_execution = false
+enable_trace_logging = false
+test_transaction_delay_ms = 0

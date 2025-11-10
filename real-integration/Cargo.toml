@@ -1,0 +1,24 @@
+[package]
+name = "real-integration"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+sha3 = "0.10"
+hex = "0.4"
+web3 = "0.19"
+
+[lib]
+name = "real_integration"
+path = "src/lib.rs"
+
+[[bin]]
+name = "integration_example"
+path = "src/main.rs"

@@ -6,9 +6,6 @@ edition = "2021"
 [workspace]
 members = [
     "common",
-    "pcc",
-    "pcd",
-    "example", 
     "test-wasm",
     "test-alkanes",
 ]
@@ -44,13 +41,23 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Workspace dependencies
 common = { path = "./common" }
-pcc = { path = "./pcc" }
-pcd = { path = "./pcd" }
 clap = { version = "4.5", features = ["derive"] }
 num-traits = "0.2.19"
 hex = "0.4.3"
 wast = "230.0.0"
 wasmer = "3.1.0"
+
+# Williams compression dependencies
+rand = "0.8.5"
+flate2 = "1.0.28"
+
+# English contract translation dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+tempfile = "3.8"
+dotenv = "0.15"
 
 [dev-dependencies]
 wat = "1.0"  # For parsing WAT in tests
@@ -65,3 +72,15 @@ criterion = "0.4.0"
 [[bin]]
 name = "test_alkanes_verification"
 path = "test_alkanes_verification.rs"
+
+[[bin]]
+name = "williams_demo"
+path = "examples/simple_williams_demo.rs"
+
+[[bin]]
+name = "english_contract_demo"
+path = "examples/english_contract_demo.rs"
+
+[[bin]]
+name = "english-contract"
+path = "src/bin/english_contract.rs"

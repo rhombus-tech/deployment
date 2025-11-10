@@ -1,5 +1,4 @@
-use crate::bytecode::analyzer::BytecodeAnalyzer;
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
+use crate::bytecode::{BytecodeAnalyzer, SecurityWarning, SecurityWarningKind, SecuritySeverity};
 use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
 

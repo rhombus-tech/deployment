@@ -18,6 +18,13 @@ use crate::analysis::{
     multi_vector_attack_simulator::{MultiVectorAttackSimulator, MultiVectorVulnerability},
     ai_adaptive_attack_detector::{AIAdaptiveAttackDetector, AIDetectedVulnerability},
     infrastructure_risk_analyzer::{InfrastructureRiskAnalyzer, InfrastructureVulnerability},
+    // Latest detection modules
+    atomic_composability_detector::{AtomicComposabilityDetector, ComposabilityVulnerability},
+    protocol_integration_detector::{ProtocolIntegrationDetector, IntegrationVulnerability},
+    advanced_mev_detector::{AdvancedMEVDetector, AdvancedMEVVulnerability},
+    gas_economic_detector::{GasEconomicDetector, GasEconomicVulnerability},
+    multi_protocol_flashloan_detector::{MultiProtocolFlashLoanDetector, FlashLoanVulnerability},
+    data_integrity_detector::{DataIntegrityDetector, DataIntegrityVulnerability},
 };
 use serde::{Serialize, Deserialize};
 use crate::circuits::execution_trace::*;
@@ -49,6 +56,13 @@ pub struct ComprehensiveAnalysisResult {
     pub multi_vector_vulnerabilities: Vec<MultiVectorVulnerability>,
     pub ai_detected_vulnerabilities: Vec<AIDetectedVulnerability>,
     pub infrastructure_vulnerabilities: Vec<InfrastructureVulnerability>,
+    // Latest detection modules results
+    pub atomic_composability_vulnerabilities: Vec<ComposabilityVulnerability>,
+    pub protocol_integration_vulnerabilities: Vec<IntegrationVulnerability>,
+    pub advanced_mev_vulnerabilities: Vec<AdvancedMEVVulnerability>,
+    pub gas_economic_vulnerabilities: Vec<GasEconomicVulnerability>,
+    pub flash_loan_vulnerabilities: Vec<FlashLoanVulnerability>,
+    pub data_integrity_vulnerabilities: Vec<DataIntegrityVulnerability>,
     pub security_summary: SecuritySummary,
     pub analysis_confidence: f32, // Overall detection confidence 0.0-1.0
     pub coverage_metrics: CoverageMetrics,
@@ -103,6 +117,13 @@ pub struct ComprehensiveSecurityAnalyzer {
     enable_multi_vector_analysis: bool,
     enable_ai_adaptive_analysis: bool,
     enable_infrastructure_analysis: bool,
+    // Latest detection module flags
+    enable_atomic_composability_analysis: bool,
+    enable_protocol_integration_analysis: bool,
+    enable_advanced_mev_analysis: bool,
+    enable_gas_economic_analysis: bool,
+    enable_flash_loan_analysis: bool,
+    enable_data_integrity_analysis: bool,
 }
 
 impl ComprehensiveSecurityAnalyzer {
@@ -131,6 +152,13 @@ impl ComprehensiveSecurityAnalyzer {
             enable_multi_vector_analysis: true,
             enable_ai_adaptive_analysis: true,
             enable_infrastructure_analysis: true,
+            // Initialize latest detection module flags
+            enable_atomic_composability_analysis: true,
+            enable_protocol_integration_analysis: true,
+            enable_advanced_mev_analysis: true,
+            enable_gas_economic_analysis: true,
+            enable_flash_loan_analysis: true,
+            enable_data_integrity_analysis: true,
         }
     }
 
@@ -175,6 +203,13 @@ impl ComprehensiveSecurityAnalyzer {
         // Advanced cross-contract attack detection results
         let mut state_manipulation_vulnerabilities = Vec::new();
         let mut mev_attack_vulnerabilities = Vec::new();
+        // Latest detection modules results
+        let mut atomic_composability_vulnerabilities = Vec::new();
+        let mut protocol_integration_vulnerabilities = Vec::new();
+        let mut advanced_mev_vulnerabilities = Vec::new();
+        let mut gas_economic_vulnerabilities = Vec::new();
+        let mut flash_loan_vulnerabilities = Vec::new();
+        let mut data_integrity_vulnerabilities = Vec::new();
         
         let mut modules_run = 0;
         let mut total_confidence = 0.0;
@@ -294,6 +329,49 @@ impl ComprehensiveSecurityAnalyzer {
             total_confidence += self.calculate_mev_attack_confidence(&mev_attack_vulnerabilities);
         }
 
+        // Run latest detection modules
+        if self.enable_atomic_composability_analysis {
+            let mut composability_detector = AtomicComposabilityDetector::new();
+            atomic_composability_vulnerabilities = composability_detector.analyze_composability(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_composability_confidence(&atomic_composability_vulnerabilities);
+        }
+
+        if self.enable_protocol_integration_analysis {
+            let mut integration_detector = ProtocolIntegrationDetector::new();
+            protocol_integration_vulnerabilities = integration_detector.analyze_protocol_integration(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_protocol_integration_confidence(&protocol_integration_vulnerabilities);
+        }
+
+        if self.enable_advanced_mev_analysis {
+            let mut advanced_mev_detector = AdvancedMEVDetector::new();
+            advanced_mev_vulnerabilities = advanced_mev_detector.analyze_advanced_mev(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_advanced_mev_confidence(&advanced_mev_vulnerabilities);
+        }
+
+        if self.enable_gas_economic_analysis {
+            let mut gas_detector = GasEconomicDetector::new();
+            gas_economic_vulnerabilities = gas_detector.analyze_gas_economics(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_gas_economic_confidence(&gas_economic_vulnerabilities);
+        }
+
+        if self.enable_flash_loan_analysis {
+            let mut flashloan_detector = MultiProtocolFlashLoanDetector::new();
+            flash_loan_vulnerabilities = flashloan_detector.analyze_flash_loan_exploits(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_flash_loan_confidence(&flash_loan_vulnerabilities);
+        }
+
+        if self.enable_data_integrity_analysis {
+            let mut integrity_detector = DataIntegrityDetector::new();
+            data_integrity_vulnerabilities = integrity_detector.analyze_data_integrity(execution_trace.clone());
+            modules_run += 1;
+            total_confidence += self.calculate_data_integrity_confidence(&data_integrity_vulnerabilities);
+        }
+
         let analysis_duration = start_time.elapsed().as_millis() as u64;
         
         // Calculate comprehensive metrics
@@ -308,7 +386,13 @@ impl ComprehensiveSecurityAnalyzer {
                                          protocol_dependency_vulnerabilities.len() as u32 +
                                          defi_primitive_vulnerabilities.len() as u32 +
                                          state_manipulation_vulnerabilities.len() as u32 +
-                                         mev_attack_vulnerabilities.len() as u32;
+                                         mev_attack_vulnerabilities.len() as u32 +
+                                         atomic_composability_vulnerabilities.len() as u32 +
+                                         protocol_integration_vulnerabilities.len() as u32 +
+                                         advanced_mev_vulnerabilities.len() as u32 +
+                                         gas_economic_vulnerabilities.len() as u32 +
+                                         flash_loan_vulnerabilities.len() as u32 +
+                                         data_integrity_vulnerabilities.len() as u32;
 
         let overall_confidence = if modules_run > 0 {
             total_confidence / modules_run as f32
@@ -446,6 +530,12 @@ impl ComprehensiveSecurityAnalyzer {
             multi_vector_vulnerabilities,
             ai_detected_vulnerabilities,
             infrastructure_vulnerabilities,
+            atomic_composability_vulnerabilities,
+            protocol_integration_vulnerabilities,
+            advanced_mev_vulnerabilities,
+            gas_economic_vulnerabilities,
+            flash_loan_vulnerabilities,
+            data_integrity_vulnerabilities,
             security_summary,
             analysis_confidence: overall_confidence,
             coverage_metrics,
@@ -671,6 +761,84 @@ impl ComprehensiveSecurityAnalyzer {
         }
     }
 
+    /// Calculate confidence for atomic composability vulnerabilities
+    fn calculate_composability_confidence(&self, vulnerabilities: &[ComposabilityVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
+    /// Calculate confidence for protocol integration vulnerabilities
+    fn calculate_protocol_integration_confidence(&self, vulnerabilities: &[IntegrationVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
+    /// Calculate confidence for advanced MEV vulnerabilities
+    fn calculate_advanced_mev_confidence(&self, vulnerabilities: &[AdvancedMEVVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
+    /// Calculate confidence for gas economic vulnerabilities
+    fn calculate_gas_economic_confidence(&self, vulnerabilities: &[GasEconomicVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
+    /// Calculate confidence for flash loan vulnerabilities
+    fn calculate_flash_loan_confidence(&self, vulnerabilities: &[FlashLoanVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
+    /// Calculate confidence for data integrity vulnerabilities
+    fn calculate_data_integrity_confidence(&self, vulnerabilities: &[DataIntegrityVulnerability]) -> f32 {
+        if vulnerabilities.is_empty() {
+            0.95
+        } else {
+            let total_confidence: f32 = vulnerabilities
+                .iter()
+                .map(|v| v.confidence)
+                .sum();
+            total_confidence / vulnerabilities.len() as f32
+        }
+    }
+
     /// Calculate security summary with objective counts only
     fn calculate_security_summary(
         &self,
@@ -791,6 +959,83 @@ impl ComprehensiveSecurityAnalyzer {
 
         // Count MEV attack vulnerabilities by severity
         for vuln in mev_attack {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count governance vulnerabilities by severity
+        for vuln in governance {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count oracle infrastructure vulnerabilities by severity
+        for vuln in oracle_infrastructure {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count LP economic vulnerabilities by severity
+        for vuln in lp_economic {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count black swan vulnerabilities by severity
+        for vuln in black_swan {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count multi-vector vulnerabilities by severity
+        for vuln in multi_vector {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count AI detected vulnerabilities by severity
+        for vuln in ai_detected {
+            match vuln.severity {
+                SecuritySeverity::Critical => critical_count += 1,
+                SecuritySeverity::High => high_count += 1,
+                SecuritySeverity::Medium => medium_count += 1,
+                SecuritySeverity::Low => low_count += 1,
+                _ => {}
+            }
+        }
+
+        // Count infrastructure vulnerabilities by severity
+        for vuln in infrastructure {
             match vuln.severity {
                 SecuritySeverity::Critical => critical_count += 1,
                 SecuritySeverity::High => high_count += 1,
@@ -962,7 +1207,6 @@ impl ComprehensiveAnalyzerBuilder {
             enable_defi_primitive_analysis: true,
             enable_state_manipulation_analysis: self.modules.state_manipulation_analysis,
             enable_mev_attack_analysis: self.modules.mev_attack_analysis,
-            // Initialize advanced security analysis flags
             enable_governance_analysis: true,
             enable_oracle_infrastructure_analysis: true,
             enable_lp_economic_analysis: true,
@@ -970,6 +1214,12 @@ impl ComprehensiveAnalyzerBuilder {
             enable_multi_vector_analysis: true,
             enable_ai_adaptive_analysis: true,
             enable_infrastructure_analysis: true,
+            enable_atomic_composability_analysis: true,
+            enable_protocol_integration_analysis: true,
+            enable_advanced_mev_analysis: true,
+            enable_gas_economic_analysis: true,
+            enable_flash_loan_analysis: true,
+            enable_data_integrity_analysis: true,
         }
     }
 }

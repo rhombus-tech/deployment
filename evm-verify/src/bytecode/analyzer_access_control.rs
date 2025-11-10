@@ -811,4 +811,328 @@ mod tests {
         assert!(warnings.iter().any(|w| w.kind == SecurityWarningKind::InconsistentAccessControl), 
                 "Should detect inconsistent access control");
     }
+
+    // ============================================================================
+    // REAL-WORLD EXPLOIT TEST SUITE
+    // Tests based on actual multi-million dollar hacks
+    // ============================================================================
+
+    #[test]
+    fn test_balancer_style_privileged_function_without_check() {
+        // Balancer $9M Exploit: managerUserBalance function without access control
+        // 
+        // Vulnerability: Function that modifies user balances (privileged operation)
+        // without checking if caller has MANAGER_ROLE
+        //
+        // Pattern:
+        // function managerUserBalance(address user, address asset) external {
+        //     // MISSING: require(hasRole(MANAGER_ROLE, msg.sender));
+        //     userBalance[user][asset] = 0;  // Direct balance manipulation
+        // }
+        
+        let bytecode = vec![
+            // Function entry (no access control)
+            0x5B,                   // JUMPDEST (function entry point)
+            
+            // Load parameters from calldata
+            0x60, 0x04,             // PUSH1 4 (calldata offset)
+            0x35,                   // CALLDATALOAD (user address)
+            0x60, 0x24,             // PUSH1 36 (next parameter)
+            0x35,                   // CALLDATALOAD (asset address)
+            
+            // Directly modify storage WITHOUT any caller check
+            0x60, 0x00,             // PUSH1 0 (new balance value)
+            0x60, 0x00,             // PUSH1 0 (storage slot base)
+            SSTORE,                 // SSTORE - Write to storage WITHOUT PROTECTION!
+            
+            // Return
+            0x00,                   // STOP
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        assert!(!warnings.is_empty(), 
+                "Should detect privileged function without access control (Balancer-style)");
+        assert!(warnings.iter().any(|w| matches!(w.kind, SecurityWarningKind::AccessControlVulnerability)),
+                "Should specifically flag as access control vulnerability");
+    }
+
+    #[test]
+    fn test_openzeppelin_role_based_access_missing() {
+        // Pattern: OpenZeppelin AccessControl - function without hasRole check
+        //
+        // Should detect:
+        // function privilegedOperation() external {
+        //     // MISSING: require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        //     criticalOperation();
+        // }
+        //
+        // OpenZeppelin hasRole check pattern:
+        // - CALLER (get msg.sender)
+        // - PUSH32 (role hash)
+        // - PUSH4 0x91d14854 (hasRole function selector)
+        // - CALL to AccessControl contract
+        // - ISZERO + JUMPI (revert if false)
+        
+        let bytecode = vec![
+            // Function that performs privileged operation
+            0x5B,                   // JUMPDEST
+            
+            // NO hasRole check here! Should have:
+            // CALLER, PUSH32 (role), hasRole call, ISZERO, JUMPI, REVERT
+            
+            // Directly performs privileged operation
+            0x60, 0xFF,             // PUSH1 0xFF (some value)
+            0x60, 0x00,             // PUSH1 0 (storage slot)
+            SSTORE,                 // SSTORE - Critical state change
+            
+            // Another privileged operation
+            SELFDESTRUCT,           // SELFDESTRUCT - Extremely sensitive!
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        assert!(!warnings.is_empty(),
+                "Should detect missing OpenZeppelin role check");
+        
+        // Should detect both SSTORE and SELFDESTRUCT without protection
+        let sstore_unprotected = warnings.iter().any(|w| {
+            matches!(w.kind, SecurityWarningKind::AccessControlVulnerability)
+        });
+        
+        assert!(sstore_unprotected,
+                "Should flag unprotected critical operations");
+    }
+
+    #[test]
+    fn test_privileged_function_with_proper_role_check() {
+        // Correct pattern: Function WITH proper OpenZeppelin role check
+        //
+        // function managerOperation() external {
+        //     require(hasRole(MANAGER_ROLE, msg.sender), "Not manager");
+        //     privilegedOperation();
+        // }
+        
+        let bytecode = vec![
+            0x5B,                   // JUMPDEST (function entry)
+            
+            // Proper access control check
+            CALLER,                 // Get msg.sender
+            
+            // Push role hash (MANAGER_ROLE)
+            0x7F,                   // PUSH32
+            0x24, 0x1e, 0xc4, 0x14, 0x6f, 0x9f, 0x4d, 0x3e,
+            0x8a, 0x83, 0x94, 0xb8, 0x84, 0x7a, 0x52, 0x6e,
+            0xd4, 0xd9, 0x57, 0x5c, 0x91, 0xf2, 0x3e, 0x59,
+            0x4f, 0x80, 0xe9, 0x33, 0x18, 0xbd, 0x20, 0x41,
+            
+            // Load role mapping from storage (simplified)
+            0x60, 0x00,             // PUSH1 0 (role mapping slot)
+            SLOAD,                  // SLOAD (load role status)
+            
+            // Check if caller has role
+            ISZERO,                 // ISZERO (negate - check if false)
+            0x60, 0x50,             // PUSH1 80 (revert destination)
+            JUMPI,                  // JUMPI (jump to revert if no role)
+            
+            // Protected operation
+            0x60, 0x01,             // PUSH1 1
+            0x60, 0x00,             // PUSH1 0
+            SSTORE,                 // SSTORE (now protected!)
+            
+            0x00,                   // STOP
+            
+            // Revert path
+            0x5B,                   // JUMPDEST (revert destination)
+            0x60, 0x00,             // PUSH1 0
+            0x80,                   // DUP1
+            0xFD,                   // REVERT
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        // Should NOT flag this as vulnerable since it has proper access control
+        assert!(warnings.is_empty() || 
+                !warnings.iter().any(|w| matches!(w.kind, SecurityWarningKind::AccessControlVulnerability)),
+                "Should NOT flag properly protected function");
+    }
+
+    #[test]
+    fn test_delegatecall_without_access_control() {
+        // DELEGATECALL is extremely sensitive - allows arbitrary code execution
+        // Should ALWAYS have access control
+        //
+        // Vulnerable pattern:
+        // function executeCall(address target, bytes calldata data) external {
+        //     // MISSING: onlyOwner or similar
+        //     target.delegatecall(data);
+        // }
+        
+        let bytecode = vec![
+            0x5B,                   // JUMPDEST
+            
+            // No access control check!
+            
+            // Setup DELEGATECALL
+            0x60, 0x00,             // PUSH1 0 (retSize)
+            0x60, 0x00,             // PUSH1 0 (retOffset)
+            0x60, 0x00,             // PUSH1 0 (argsSize)
+            0x60, 0x00,             // PUSH1 0 (argsOffset)
+            0x60, 0x00,             // PUSH1 0 (value)
+            0x73, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+            0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11,
+            0x22, 0x33, 0x44,       // PUSH20 (target address)
+            0x5A,                   // GAS
+            DELEGATECALL,           // DELEGATECALL - CRITICAL!
+            
+            0x00,                   // STOP
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        assert!(!warnings.is_empty(),
+                "Should detect unprotected DELEGATECALL");
+    }
+
+    #[test]
+    fn test_withdrawal_function_without_owner_check() {
+        // Common vulnerability: withdrawal functions without owner check
+        //
+        // function withdraw(uint256 amount) external {
+        //     // MISSING: require(msg.sender == owner);
+        //     payable(msg.sender).transfer(amount);
+        // }
+        
+        let bytecode = vec![
+            0x5B,                   // JUMPDEST
+            
+            // No owner check!
+            
+            // Load amount from calldata
+            0x60, 0x04,             // PUSH1 4
+            0x35,                   // CALLDATALOAD
+            
+            // Transfer to caller
+            CALLER,                 // Get msg.sender (recipient)
+            
+            // CALL with value (transfer)
+            0x60, 0x00,             // PUSH1 0 (retSize)
+            0x60, 0x00,             // PUSH1 0 (retOffset)
+            0x60, 0x00,             // PUSH1 0 (argsSize)
+            0x60, 0x00,             // PUSH1 0 (argsOffset)
+            0x80,                   // DUP1 (value - amount from stack)
+            0x80,                   // DUP1 (address - caller from stack)
+            0x5A,                   // GAS
+            CALL,                   // CALL (transfer funds) - SENSITIVE!
+            
+            0x00,                   // STOP
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        assert!(!warnings.is_empty(),
+                "Should detect withdrawal function without owner check");
+    }
+
+    #[test]
+    fn test_multiple_functions_inconsistent_protection() {
+        // Real-world issue: Contract has multiple similar functions
+        // Some are protected, some are not
+        //
+        // This inconsistency often indicates a mistake
+        
+        let bytecode = vec![
+            // Function 1: Protected
+            0x5B,                   // JUMPDEST (function 1 entry)
+            CALLER,                 // Access control check
+            SLOAD,
+            EQ,
+            0x60, 0x20,             // PUSH1 32
+            JUMPI,
+            0xFD,                   // REVERT
+            0x5B,                   // JUMPDEST
+            SSTORE,                 // Protected SSTORE
+            
+            // Function 2: UNPROTECTED (similar operation!)
+            0x5B,                   // JUMPDEST (function 2 entry)
+            // NO ACCESS CONTROL!
+            SSTORE,                 // Unprotected SSTORE
+            
+            // Function 3: Protected
+            0x5B,                   // JUMPDEST (function 3 entry)
+            CALLER,                 // Access control check
+            SLOAD,
+            EQ,
+            0x60, 0x50,             // PUSH1 80
+            JUMPI,
+            0xFD,                   // REVERT
+            0x5B,                   // JUMPDEST
+            SSTORE,                 // Protected SSTORE
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        assert!(!warnings.is_empty(),
+                "Should detect inconsistent access control across functions");
+        
+        // Should specifically flag inconsistency
+        let has_inconsistency = warnings.iter().any(|w| {
+            matches!(w.kind, SecurityWarningKind::InconsistentAccessControl) ||
+            matches!(w.kind, SecurityWarningKind::AccessControlVulnerability)
+        });
+        
+        assert!(has_inconsistency,
+                "Should flag inconsistent protection pattern");
+    }
+
+    #[test]
+    fn test_modifier_pattern_detection() {
+        // Solidity modifiers compile to specific bytecode patterns
+        // Test that we recognize the modifier pattern as access control
+        //
+        // modifier onlyOwner() {
+        //     require(msg.sender == owner);
+        //     _;
+        // }
+        
+        let bytecode = vec![
+            // Modifier check (compiled pattern)
+            0x5B,                   // JUMPDEST (modifier entry)
+            CALLER,                 // Get msg.sender
+            0x60, 0x00,             // PUSH1 0 (owner storage slot)
+            SLOAD,                  // SLOAD (load owner)
+            EQ,                     // EQ (compare)
+            0x60, 0x15,             // PUSH1 21 (continue destination)
+            JUMPI,                  // JUMPI (jump if authorized)
+            
+            // Revert if not authorized
+            0x60, 0x00,             // PUSH1 0
+            0x80,                   // DUP1
+            0xFD,                   // REVERT
+            
+            // Continue to function body
+            0x5B,                   // JUMPDEST (authorized path)
+            
+            // Function body (sensitive operation)
+            0x60, 0x01,             // PUSH1 1
+            0x60, 0x00,             // PUSH1 0
+            SSTORE,                 // SSTORE (now protected by modifier)
+            
+            0x00,                   // STOP
+        ];
+        
+        let analyzer = BytecodeAnalyzer::new(Bytes::from(bytecode));
+        let warnings = detect_access_control_vulnerabilities(&analyzer);
+        
+        // Should recognize modifier pattern and NOT flag as vulnerable
+        assert!(warnings.is_empty() ||
+                !warnings.iter().any(|w| matches!(w.kind, SecurityWarningKind::AccessControlVulnerability)),
+                "Should recognize modifier pattern as proper access control");
+    }
 }

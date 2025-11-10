@@ -1,26 +1,31 @@
-use avalanche_stateless_vm::prelude::*;
+use avalanche_stateless_vm::{
+    StatelessVM, VMError, Transaction, TransactionSequence, StateBundler, PCDVerifierFactory
+};
+use avalanche_stateless_vm::types::{VerificationLevel, Address, StateRoot};
+use avalanche_stateless_vm::state::{StateProvider, StateRequirement};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use ethereum_types::{U256, H256, Address as EthAddress};
-use serde_json::json;
+use ethereum_types::{U256, H256};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Stateless VM with PCD Verification Example ===");
     
     // Create components for the VM
-    let state_provider = Arc::new(SimpleStateProvider);
-    let state_bundler = Arc::new(RwLock::new(StateBundler::new(state_provider)));
+    let state_provider: Arc<dyn StateProvider> = Arc::new(SimpleStateProvider);
+    let providers = vec![state_provider];
+    let state_bundler = Arc::new(RwLock::new(StateBundler::new(providers)));
     
-    // Create the PCD-based security verifier
-    // This will use the deployment gateway from the EVM-Verify project
+    // Create the PCD-based security verifier (with action sequence analysis enabled in core)
+    let factory = PCDVerifierFactory::default();
     let security_verifier = PCDVerifierFactory::create(
+        &factory,
         None, // Use default path
         true, // Generate proofs
     )?;
     
-    // Initial state
-    let initial_state_root = H256::from_slice(&[0xFF; 32]);
+    // Create an initial state root for testing
+    let initial_state_root = StateRoot(H256::from_slice(&[0x01; 32]));
     let initial_block_height = 12345;
     
     // Create the VM
@@ -94,7 +99,7 @@ fn create_sample_transactions() -> Vec<Transaction> {
         U256::zero(),
         Vec::new(), // No data for contract creation
         100000.into(), // Gas limit
-        20000000000.into(), // Gas price
+        20_000_000u64.into(), // Gas price
         0, // Nonce
     )
     .with_code(contract_bytecode) // Contract bytecode
@@ -113,7 +118,7 @@ fn create_sample_transactions() -> Vec<Transaction> {
         U256::zero(),
         function_call,
         50000.into(), // Gas limit
-        20000000000.into(), // Gas price
+        20_000_000u64.into(), // Gas price
         1, // Nonce
     )
     .with_block_height(12345);
@@ -130,7 +135,7 @@ fn create_sample_transactions() -> Vec<Transaction> {
         U256::zero(),
         function_call_with_params,
         50000.into(), // Gas limit
-        20000000000.into(), // Gas price
+        20_000_000u64.into(), // Gas price
         2, // Nonce
     )
     .with_block_height(12345);
@@ -145,9 +150,18 @@ struct SimpleStateProvider;
 
 #[async_trait::async_trait]
 impl StateProvider for SimpleStateProvider {
-    async fn fetch_state(&self, requirement: &StateRequirement) -> Result<Vec<u8>, VMError> {
-        // For this example, we'll return dummy state data
-        println!("Fetching state for address: {:?}, key: {:?}", requirement.address, requirement.key);
-        Ok(vec![0; 32])
+    async fn fetch_state(&self, _requirement: &StateRequirement) -> Result<Vec<u8>, VMError> {
+        // For this example, return dummy state data
+        Ok(vec![0x42; 32])
+    }
+    
+    async fn has_state(&self, _requirement: &StateRequirement) -> bool {
+        // For this example, assume we always have the state
+        true
+    }
+    
+    async fn state_root_at_height(&self, _height: u64) -> Result<StateRoot, VMError> {
+        // For this example, return a dummy state root
+        Ok(StateRoot(H256::from_slice(&[0x01; 32])))
     }
 }

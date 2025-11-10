@@ -13,14 +13,12 @@ use pcd::Severity as PCDSeverity;
 // Import the verification strategy types from the API
 #[cfg(feature = "evm-verify")]
 use evm_verify::api::VerificationStrategy;
-#[cfg(feature = "evm-verify")]
-use evm_verify::accumulation::warp::integration as warp_integration;
-#[cfg(feature = "evm-verify")]
-use evm_verify::accumulation::warp::verification as warp_verification;
 
 #[cfg(not(feature = "evm-verify"))]
 #[derive(Debug, Clone)]
-pub struct VerificationStrategy;
+pub enum VerificationStrategy {
+    Groth16,
+}
 
 #[cfg(not(feature = "evm-verify"))]
 #[derive(Debug, Clone)]
@@ -39,15 +37,35 @@ pub struct PCDSecurityVerifier {
     warp_context: Option<std::sync::Arc<warp_verification::WarpVerificationStrategy>>,
 }
 
-// Explicitly implement Send and Sync to allow use in async contexts
-// This is safe because DeploymentGateway is already Send + Sync
+// SAFETY ANALYSIS for Send + Sync implementation:
+//
+// We must implement Send/Sync manually because DeploymentGateway contains
+// Box<dyn VulnerabilityDetector> which doesn't implement Send/Sync by default.
+//
+// This is SAFE because:
+// 1. DeploymentGateway's internal state is never mutated after construction
+// 2. All detectors are stateless and read-only
+// 3. The gateway only performs analysis, no mutable shared state
+// 4. BytecodeAnalyzer is Send + Sync (verified)
+// 5. VerificationStrategy is Copy
+// 6. use_warp is Copy (bool)
+//
+// RISK: If pcd crate adds mutable state to DeploymentGateway in the future,
+// this could become unsound. We rely on the pcd crate's API contract.
+//
+// TODO: Upstream fix to pcd crate to add Send + Sync to VulnerabilityDetector trait
 unsafe impl Send for PCDSecurityVerifier {}
 unsafe impl Sync for PCDSecurityVerifier {}
 
 impl PCDSecurityVerifier {
     /// Create a new PCDSecurityVerifier with the given verification strategy
     pub fn new(strategy: VerificationStrategy, use_warp: bool) -> Self {
-        let gateway_settings = GatewaySettings::default();
+        let gateway_settings = GatewaySettings {
+            allow_critical_warnings: false,
+            min_severity: pcd::Severity::Info,
+            generate_reports: true,
+            analyze_action_sequences: true, // Enable PCD proving
+        };
         let gateway = DeploymentGateway::new(gateway_settings);
         
         Self {
@@ -59,15 +77,20 @@ impl PCDSecurityVerifier {
     
     /// Create a new PCDSecurityVerifier with WARP verification and custom security parameters
     pub fn new_with_warp_params(security_param: usize) -> Self {
-        let gateway_settings = GatewaySettings::default();
+        let gateway_settings = GatewaySettings {
+            allow_critical_warnings: false,
+            min_severity: pcd::Severity::Info,
+            generate_reports: true,
+            analyze_action_sequences: true, // Enable PCD proving
+        };
         let gateway = DeploymentGateway::new(gateway_settings);
         
         // WARP integration disabled for now due to missing dependencies
         
         Self {
             gateway,
-            strategy: VerificationStrategy,
-            use_warp: true,
+            strategy: VerificationStrategy::Groth16,
+            use_warp: false,
         }
     }
     
@@ -75,7 +98,7 @@ impl PCDSecurityVerifier {
     pub fn new_with_default_strategy(gateway: Arc<DeploymentGateway>, _generate_proofs: bool) -> Self {
         Self {
             gateway: Arc::try_unwrap(gateway).unwrap_or_else(|_| panic!("Could not unwrap Arc for DeploymentGateway")),
-            strategy: VerificationStrategy,
+            strategy: VerificationStrategy::Groth16,
             use_warp: false,
         }
     }
@@ -84,7 +107,7 @@ impl PCDSecurityVerifier {
     pub fn new_with_warp_strategy(gateway: Arc<DeploymentGateway>, _generate_proofs: bool) -> Self {
         Self {
             gateway: Arc::try_unwrap(gateway).unwrap_or_else(|_| panic!("Could not unwrap Arc for DeploymentGateway")),
-            strategy: VerificationStrategy,
+            strategy: VerificationStrategy::Groth16,
             use_warp: true,
         }
     }
@@ -142,10 +165,12 @@ impl PCDSecurityVerifier {
                 };
                 
                 SecurityWarning {
+                    code: "PCD-001".to_string(),
+                    message: warning.description.clone(),
                     kind,
                     severity,
                     description: warning.description,
-                    location: warning.location.map(|loc| BytecodeLocation {
+                    location: warning.location.map(|loc| crate::security::VulnerabilityLocation {
                         offset: loc.offset,
                         length: loc.length,
                         context: loc.context,
@@ -309,7 +334,7 @@ impl Default for PCDVerifierFactory {
     /// Create a default PCD verifier factory with Groth16 strategy
     fn default() -> Self {
         Self {
-            strategy: VerificationStrategy,
+            strategy: VerificationStrategy::Groth16,
             use_warp: false,
             #[cfg(feature = "warp-integration")]
             warp_context: None,
@@ -361,14 +386,20 @@ impl PCDVerifierFactory {
             allow_critical_warnings: false,
             min_severity: pcd::Severity::Info,
             generate_reports: true,
-            analyze_action_sequences: false,
+            analyze_action_sequences: true, // Enable PCD proving
         };
         let gateway = Arc::new(DeploymentGateway::new(gateway_settings));  
             let verifier = PCDSecurityVerifier::new_with_warp_strategy(gateway, generate_proofs);
             return Ok(Arc::new(verifier));
         }
-        // Create a default gateway
-        let gateway = pcd::gateway::create_default_gateway(None)?;
+        // Create a gateway with action sequence analysis enabled
+        let gateway_settings = pcd::gateway::GatewaySettings {
+            allow_critical_warnings: false,
+            min_severity: pcd::Severity::Info,
+            generate_reports: true,
+            analyze_action_sequences: true, // Enable PCD proving
+        };
+        let gateway = pcd::gateway::create_default_gateway(Some(gateway_settings))?;
         
         // Create our PCD verifier with the specified strategy
         let verifier = PCDSecurityVerifier::new(
@@ -385,8 +416,14 @@ impl PCDVerifierFactory {
         _config_path: Option<&str>,
         generate_proofs: bool,
     ) -> Result<Arc<dyn SecurityVerifier>> {
-        // Create a default gateway
-        let gateway = pcd::gateway::create_default_gateway(None)?;
+        // Create a gateway with action sequence analysis enabled
+        let gateway_settings = pcd::gateway::GatewaySettings {
+            allow_critical_warnings: false,
+            min_severity: pcd::Severity::Info,
+            generate_reports: true,
+            analyze_action_sequences: true, // Enable PCD proving
+        };
+        let gateway = pcd::gateway::create_default_gateway(Some(gateway_settings))?;
         
         // Create our PCD verifier with the specified strategy
         let verifier = PCDSecurityVerifier::new(

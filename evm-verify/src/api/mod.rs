@@ -10,11 +10,13 @@ mod report;
 pub mod unified;
 pub mod pcd_adapter;
 pub mod pcd;
+pub mod pcc;
 pub mod accumulation_strategy;
 pub mod hybrid_zoda_warp_strategy;
 pub mod realtime;
 pub mod realtime_endpoints;
 pub mod external_client;
+pub mod cross_contract_pcc;
 
 #[cfg(test)]
 mod integration_tests;
@@ -33,20 +35,11 @@ use anyhow::{Result, Context};
 use ethers::types::Bytes;
 use crate::bytecode::{BytecodeAnalyzer, AnalysisResults};
 use crate::bytecode::security::SecurityWarning;
-use crate::bytecode::analyzer_access_control;
-use crate::bytecode::analyzer_reentrancy;
-use crate::bytecode::analyzer_cross_contract_reentrancy;
-use crate::bytecode::analyzer_self_destruct;
-use crate::bytecode::analyzer_unchecked_calls;
-use crate::bytecode::analyzer_gas_limit;
-use crate::bytecode::analyzer_overflow;
-use crate::bytecode::analyzer_timestamp;
-use crate::bytecode::analyzer_signature_replay;
-use crate::bytecode::analyzer_proxy;
-use crate::bytecode::analyzer_governance;
-use crate::bytecode::analyzer_gas_griefing;
-use crate::bytecode::analyzer_precision;
-use crate::bytecode::analyzer_front_running;
+use crate::bytecode::{analyzer_access_control, analyzer_reentrancy, analyzer_cross_contract_reentrancy};
+use crate::bytecode::{analyzer_self_destruct, analyzer_unchecked_calls, analyzer_gas_limit};
+use crate::bytecode::{analyzer_overflow, analyzer_timestamp, analyzer_signature_replay};
+use crate::bytecode::{analyzer_proxy, analyzer_governance, analyzer_gas_griefing};
+use crate::bytecode::{analyzer_precision, analyzer_front_running};
 
 /// Main API for EVM Verify
 /// 
@@ -1046,6 +1039,10 @@ impl EVMVerify {
                         "Add minimum/maximum bounds checks, implement commit-reveal schemes, or use private transactions".to_string(),
                     VulnerabilityType::SandwichAttackVulnerability => 
                         "Implement slippage protection with minimum/maximum bounds and transaction deadlines".to_string(),
+                    VulnerabilityType::MevVulnerability => 
+                        "Implement MEV protection mechanisms such as private transactions, fair ordering, or time-weighted prices".to_string(),
+                    VulnerabilityType::PriceManipulation => 
+                        "Use time-weighted average prices (TWAP), multiple oracle sources, and implement price bounds checks".to_string(),
                 };
                 
                 Vulnerability {

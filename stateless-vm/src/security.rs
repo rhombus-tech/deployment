@@ -6,16 +6,16 @@ use serde::{Serialize, Deserialize};
 use std::fmt;
 
 /// Result of a security verification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VerificationResult {
     /// Whether the verification passed
-    valid: bool,
+    pub valid: bool,
     /// Reason for failure, if any
-    failure_reason: Option<String>,
+    pub failure_reason: Option<String>,
     /// Warnings that don't prevent execution
-    warnings: Vec<SecurityWarning>,
+    pub warnings: Vec<SecurityWarning>,
     /// Detailed report for the user
-    detailed_report: Option<String>,
+    pub detailed_report: Option<String>,
 }
 
 impl VerificationResult {
@@ -189,7 +189,7 @@ impl fmt::Display for Severity {
 }
 
 /// Location in bytecode where a vulnerability was detected
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BytecodeLocation {
     /// Offset in bytecode (in bytes)
     pub offset: usize,
@@ -200,18 +200,100 @@ pub struct BytecodeLocation {
 }
 
 /// Detailed security warning with context and remediation hints
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SecurityWarning {
-    /// Type of vulnerability detected
-    pub kind: SecurityWarningKind,
-    /// Severity level
+    pub code: String,
+    pub message: String,
     pub severity: Severity,
-    /// Human-readable description of the issue
+    pub kind: SecurityWarningKind,
     pub description: String,
-    /// Location in bytecode where the vulnerability was found
-    pub location: Option<BytecodeLocation>,
-    /// Suggestion for how to fix the issue
+    pub location: Option<VulnerabilityLocation>,
     pub remediation_hint: String,
+}
+
+/// Location information for vulnerabilities
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VulnerabilityLocation {
+    /// Starting byte offset in the bytecode
+    pub offset: usize,
+    /// Length of the vulnerable section (in bytes)
+    pub length: usize,
+    /// Context description (e.g., function name if known)
+    pub context: Option<String>,
+}
+
+/// State consistency check result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateConsistencyResult {
+    pub is_consistent: bool,
+    pub discrepancies: Vec<String>,
+    pub confidence: f64,
+    pub state_root_valid: bool,
+    pub transition_valid: bool,
+    pub rollback_detected: bool,
+    pub consistency_score: f64,
+}
+
+impl Default for StateConsistencyResult {
+    fn default() -> Self {
+        Self {
+            is_consistent: true,
+            discrepancies: vec![],
+            confidence: 1.0,
+            state_root_valid: true,
+            transition_valid: true,
+            rollback_detected: false,
+            consistency_score: 1.0,
+        }
+    }
+}
+
+/// Cryptographic validation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CryptographicValidationResult {
+    pub signature_valid: bool,
+    pub hash_valid: bool,
+    pub proof_valid: bool,
+    pub confidence: f64,
+    pub merkle_proof_valid: bool,
+    pub zk_proof_valid: bool,
+    pub hash_consistency: bool,
+    pub cryptographic_score: f64,
+}
+
+impl Default for CryptographicValidationResult {
+    fn default() -> Self {
+        Self {
+            signature_valid: true,
+            hash_valid: true,
+            proof_valid: true,
+            confidence: 1.0,
+            merkle_proof_valid: true,
+            zk_proof_valid: true,
+            hash_consistency: true,
+            cryptographic_score: 1.0,
+        }
+    }
+}
+
+/// Performance impact assessment
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceImpact {
+    pub validation_overhead_ms: f64,
+    pub memory_usage_kb: u64,
+    pub cache_pressure: f64,
+    pub network_overhead_bytes: u64,
+}
+
+impl Default for PerformanceImpact {
+    fn default() -> Self {
+        Self {
+            validation_overhead_ms: 0.0,
+            memory_usage_kb: 0,
+            cache_pressure: 0.0,
+            network_overhead_bytes: 0,
+        }
+    }
 }
 
 /// Trait for security verifiers
@@ -257,10 +339,12 @@ impl DeploymentGatewayVerifier {
         // Check for reentrancy (CALL followed by SSTORE without checks)
         if self.contains_pattern(bytecode, &[0xF1, 0x55]) {
             warnings.push(SecurityWarning {
+                code: "SEC-001".into(),
+                message: "Reentrancy vulnerability detected".into(),
                 kind: SecurityWarningKind::Reentrancy,
                 severity: Severity::Critical,
                 description: "Potential reentrancy vulnerability detected".into(),
-                location: Some(BytecodeLocation {
+                location: Some(VulnerabilityLocation {
                     offset: 0,
                     length: 2,
                     context: None,
@@ -272,6 +356,8 @@ impl DeploymentGatewayVerifier {
         // Check for unchecked calls (CALL without ISZERO check)
         if bytecode.contains(&0xF1) && !self.contains_pattern(bytecode, &[0xF1, 0x15]) {
             warnings.push(SecurityWarning {
+                code: "SEC-002".into(),
+                message: "Unchecked external call detected".into(),
                 kind: SecurityWarningKind::UncheckedCall,
                 severity: Severity::High,
                 description: "Unchecked external call detected".into(),
@@ -391,6 +477,8 @@ impl DeploymentGatewayVerifier {
         // Check for long sequences (potential DOS vector)
         if sequence.transactions().len() > 10 {
             warnings.push(SecurityWarning {
+                code: "SEC-003".into(),
+                message: "Long transaction sequence detected".into(),
                 kind: SecurityWarningKind::Other("LongSequence".into()),
                 severity: Severity::Medium,
                 description: "Long transaction sequence may cause gas issues".into(),

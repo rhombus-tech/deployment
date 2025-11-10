@@ -128,7 +128,7 @@ impl Default for VerificationStrategy {
 }
 
 /// Type of vulnerability
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VulnerabilityType {
     /// Reentrancy vulnerability
     Reentrancy,
@@ -201,6 +201,12 @@ pub enum VulnerabilityType {
     
     /// Unbounded loop vulnerability
     UnboundedLoop,
+    
+    /// MEV (Maximal Extractable Value) vulnerability
+    MevVulnerability,
+    
+    /// Price manipulation vulnerability
+    PriceManipulation,
     
     /// Unknown vulnerability type
     Unknown,

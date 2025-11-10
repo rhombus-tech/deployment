@@ -202,32 +202,87 @@ impl EVMInterpreter {
             0x01 => self.op_add()?,
             0x02 => self.op_mul()?,
             0x03 => self.op_sub()?,
+            0x04 => self.op_div()?,
+            0x05 => self.op_sdiv()?,
+            0x06 => self.op_mod()?,
+            0x07 => self.op_smod()?,
+            0x08 => self.op_addmod()?,
+            0x09 => self.op_mulmod()?,
+            0x0a => self.op_exp()?,
+            0x0b => self.op_signextend()?,
             0x10 => self.op_lt()?,
             0x11 => self.op_gt()?,
+            0x12 => self.op_slt()?,
+            0x13 => self.op_sgt()?,
             0x14 => self.op_eq()?,
             0x15 => self.op_iszero()?,
             0x16 => self.op_and()?,
             0x17 => self.op_or()?,
             0x18 => self.op_xor()?,
             0x19 => self.op_not()?,
+            0x1a => self.op_byte()?,
+            0x1b => self.op_shl()?,
+            0x1c => self.op_shr()?,
+            0x1d => self.op_sar()?,
             0x20 => self.op_keccak256()?,
+            // Environmental opcodes
+            0x30 => self.op_address()?,
+            0x31 => self.op_balance()?,
+            0x32 => self.op_origin()?,
+            0x33 => self.op_caller()?,
+            0x34 => self.op_callvalue()?,
             0x35 => self.op_calldataload()?,
             0x36 => self.op_calldatasize()?,
+            0x37 => self.op_calldatacopy()?,
+            0x38 => self.op_codesize()?,
+            0x39 => self.op_codecopy()?,
+            0x3a => self.op_gasprice()?,
+            0x3b => self.op_extcodesize()?,
+            0x3c => self.op_extcodecopy()?,
+            0x3d => self.op_returndatasize()?,
+            0x3e => self.op_returndatacopy()?,
+            0x3f => self.op_extcodehash()?,
+            // Block info opcodes
+            0x40 => self.op_blockhash()?,
+            0x41 => self.op_coinbase()?,
+            0x42 => self.op_timestamp()?,
+            0x43 => self.op_number()?,
+            0x44 => self.op_difficulty()?,
+            0x45 => self.op_gaslimit()?,
+            0x46 => self.op_chainid()?,
+            0x47 => self.op_selfbalance()?,
+            0x48 => self.op_basefee()?,
+            // Stack/Memory/Storage
             0x50 => self.op_pop()?,
             0x51 => self.op_mload()?,
             0x52 => self.op_mstore()?,
+            0x53 => self.op_mstore8()?,
             0x54 => self.op_sload()?,
             0x55 => self.op_sstore()?,
             0x56 => self.op_jump()?,
             0x57 => self.op_jumpi()?,
+            0x58 => self.op_pc()?,
+            0x59 => self.op_msize()?,
+            0x5a => self.op_gas()?,
             0x5b => self.op_jumpdest()?,
             0x60..=0x7f => self.op_push(opcode - 0x5f)?,
             0x80..=0x8f => self.op_dup(opcode - 0x7f)?,
             0x90..=0x9f => self.op_swap(opcode - 0x8f)?,
             0xa0 => self.op_log0()?,
             0xa1 => self.op_log1()?,
+            0xa2 => self.op_log2()?,
+            0xa3 => self.op_log3()?,
+            0xa4 => self.op_log4()?,
+            // System opcodes
+            0xf0 => self.op_create()?,
+            0xf1 => self.op_call()?,
+            0xf2 => self.op_callcode()?,
             0xf3 => return self.op_return(),
+            0xf4 => self.op_delegatecall()?,
+            0xf5 => self.op_create2()?,
+            0xfa => self.op_staticcall()?,
             0xfd => return self.op_revert(),
+            0xff => return self.op_selfdestruct(),
             _ => return Err(anyhow!("Unknown opcode: 0x{:02x}", opcode)),
         }
         
@@ -325,12 +380,120 @@ impl EVMInterpreter {
         self.stack_push(a.overflowing_sub(b).0)
     }
     
-    #[allow(dead_code)]
     fn op_div(&mut self) -> Result<()> {
         let a = self.stack_pop()?;
         let b = self.stack_pop()?;
         let result = if b.is_zero() { U256::zero() } else { a / b };
         self.stack_push(result)
+    }
+    
+    fn op_sdiv(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        // Simplified signed division
+        let result = if b.is_zero() { U256::zero() } else { a / b };
+        self.stack_push(result)
+    }
+    
+    fn op_mod(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        let result = if b.is_zero() { U256::zero() } else { a % b };
+        self.stack_push(result)
+    }
+    
+    fn op_smod(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        // Signed modulo: result has same sign as dividend
+        let result = if b.is_zero() {
+            U256::zero()
+        } else {
+            let a_negative = a.bit(255);
+            let b_negative = b.bit(255);
+            let abs_a = if a_negative { (!a).overflowing_add(U256::one()).0 } else { a };
+            let abs_b = if b_negative { (!b).overflowing_add(U256::one()).0 } else { b };
+            let abs_result = abs_a % abs_b;
+            
+            if a_negative && !abs_result.is_zero() {
+                (!abs_result).overflowing_add(U256::one()).0
+            } else {
+                abs_result
+            }
+        };
+        self.stack_push(result)
+    }
+    
+    fn op_signextend(&mut self) -> Result<()> {
+        let byte_num = self.stack_pop()?;
+        let value = self.stack_pop()?;
+        
+        let result = if byte_num < U256::from(32) {
+            let byte_index = byte_num.as_usize();
+            let bit_index = (byte_index + 1) * 8 - 1;
+            let sign_bit = value.bit(bit_index);
+            
+            if sign_bit {
+                // Extend with 1s
+                let mut mask = U256::MAX;
+                mask = mask << (bit_index + 1);
+                value | mask
+            } else {
+                // Extend with 0s (clear high bits)
+                let mut mask = U256::one();
+                mask = (mask << (bit_index + 1)) - U256::one();
+                value & mask
+            }
+        } else {
+            value
+        };
+        
+        self.stack_push(result)
+    }
+    
+    fn op_addmod(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        let n = self.stack_pop()?;
+        let result = if n.is_zero() { 
+            U256::zero() 
+        } else { 
+            (a.overflowing_add(b).0) % n 
+        };
+        self.stack_push(result)
+    }
+    
+    fn op_mulmod(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        let n = self.stack_pop()?;
+        let result = if n.is_zero() { 
+            U256::zero() 
+        } else { 
+            ((a % n) * (b % n)) % n 
+        };
+        self.stack_push(result)
+    }
+    
+    fn op_exp(&mut self) -> Result<()> {
+        let base = self.stack_pop()?;
+        let exponent = self.stack_pop()?;
+        let result = base.overflowing_pow(exponent).0;
+        self.stack_push(result)
+    }
+    
+    fn op_slt(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        // Simplified signed less than
+        self.stack_push(if a < b { U256::one() } else { U256::zero() })
+    }
+    
+    fn op_sgt(&mut self) -> Result<()> {
+        let a = self.stack_pop()?;
+        let b = self.stack_pop()?;
+        // Simplified signed greater than
+        self.stack_push(if a > b { U256::one() } else { U256::zero() })
     }
     
     fn op_lt(&mut self) -> Result<()> {
@@ -377,6 +540,61 @@ impl EVMInterpreter {
     fn op_not(&mut self) -> Result<()> {
         let a = self.stack_pop()?;
         self.stack_push(!a)
+    }
+    
+    fn op_byte(&mut self) -> Result<()> {
+        let i = self.stack_pop()?;
+        let x = self.stack_pop()?;
+        let mut bytes = [0u8; 32];
+        x.to_big_endian(&mut bytes);
+        let byte_val = if i < U256::from(32) {
+            bytes[i.as_usize()]
+        } else {
+            0
+        };
+        self.stack_push(U256::from(byte_val))
+    }
+    
+    fn op_shl(&mut self) -> Result<()> {
+        let shift = self.stack_pop()?;
+        let value = self.stack_pop()?;
+        let result = if shift >= U256::from(256) {
+            U256::zero()
+        } else {
+            value << shift.as_usize()
+        };
+        self.stack_push(result)
+    }
+    
+    fn op_shr(&mut self) -> Result<()> {
+        let shift = self.stack_pop()?;
+        let value = self.stack_pop()?;
+        let result = if shift >= U256::from(256) {
+            U256::zero()
+        } else {
+            value >> shift.as_usize()
+        };
+        self.stack_push(result)
+    }
+    
+    fn op_sar(&mut self) -> Result<()> {
+        let shift = self.stack_pop()?;
+        let value = self.stack_pop()?;
+        // Arithmetic shift right (sign-extending)
+        let is_negative = value.bit(255);
+        let result = if shift >= U256::from(256) {
+            if is_negative { U256::MAX } else { U256::zero() }
+        } else {
+            let shifted = value >> shift.as_usize();
+            if is_negative {
+                // Fill with 1s from the left
+                let mask = U256::MAX << (256 - shift.as_usize());
+                shifted | mask
+            } else {
+                shifted
+            }
+        };
+        self.stack_push(result)
     }
     
     fn op_keccak256(&mut self) -> Result<()> {
@@ -571,6 +789,313 @@ impl EVMInterpreter {
     
     fn op_log1(&mut self) -> Result<()> {
         // For now, just consume gas and continue
+        Ok(())
+    }
+    
+    // ========== ENVIRONMENTAL OPCODES ==========
+    
+    fn op_address(&mut self) -> Result<()> {
+        // Current contract address
+        let addr = self.tx_context.to.unwrap_or_default();
+        let mut bytes = [0u8; 32];
+        bytes[12..].copy_from_slice(addr.as_bytes());
+        self.stack_push(U256::from_big_endian(&bytes))
+    }
+    
+    fn op_balance(&mut self) -> Result<()> {
+        let _addr = self.stack_pop()?;
+        // Return zero balance for now (would need state access)
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_origin(&mut self) -> Result<()> {
+        // Transaction origin (tx.from)
+        let addr = self.tx_context.from;
+        let mut bytes = [0u8; 32];
+        bytes[12..].copy_from_slice(addr.as_bytes());
+        self.stack_push(U256::from_big_endian(&bytes))
+    }
+    
+    fn op_caller(&mut self) -> Result<()> {
+        // Message sender (same as origin in simple context)
+        let addr = self.tx_context.from;
+        let mut bytes = [0u8; 32];
+        bytes[12..].copy_from_slice(addr.as_bytes());
+        self.stack_push(U256::from_big_endian(&bytes))
+    }
+    
+    fn op_callvalue(&mut self) -> Result<()> {
+        self.stack_push(self.tx_context.value)
+    }
+    
+    fn op_calldatacopy(&mut self) -> Result<()> {
+        let dest_offset = self.stack_pop()?.as_usize();
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        
+        if dest_offset + length > self.state.memory.len() {
+            self.state.memory.resize(dest_offset + length, 0);
+        }
+        
+        for i in 0..length {
+            if offset + i < self.tx_context.data.len() {
+                self.state.memory[dest_offset + i] = self.tx_context.data[offset + i];
+            } else {
+                self.state.memory[dest_offset + i] = 0;
+            }
+        }
+        Ok(())
+    }
+    
+    fn op_codesize(&mut self) -> Result<()> {
+        self.stack_push(U256::from(self.bytecode.len()))
+    }
+    
+    fn op_codecopy(&mut self) -> Result<()> {
+        let dest_offset = self.stack_pop()?.as_usize();
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        
+        if dest_offset + length > self.state.memory.len() {
+            self.state.memory.resize(dest_offset + length, 0);
+        }
+        
+        for i in 0..length {
+            if offset + i < self.bytecode.len() {
+                self.state.memory[dest_offset + i] = self.bytecode[offset + i];
+            } else {
+                self.state.memory[dest_offset + i] = 0;
+            }
+        }
+        Ok(())
+    }
+    
+    fn op_gasprice(&mut self) -> Result<()> {
+        self.stack_push(self.tx_context.gas_price)
+    }
+    
+    fn op_extcodesize(&mut self) -> Result<()> {
+        let _addr = self.stack_pop()?;
+        // Return zero for now (would need state access)
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_extcodecopy(&mut self) -> Result<()> {
+        let _addr = self.stack_pop()?;
+        let _dest_offset = self.stack_pop()?;
+        let _offset = self.stack_pop()?;
+        let _length = self.stack_pop()?;
+        // Stub implementation
+        Ok(())
+    }
+    
+    fn op_returndatasize(&mut self) -> Result<()> {
+        self.stack_push(U256::from(self.state.return_data.len()))
+    }
+    
+    fn op_returndatacopy(&mut self) -> Result<()> {
+        let dest_offset = self.stack_pop()?.as_usize();
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        
+        if offset + length > self.state.return_data.len() {
+            return Err(anyhow!("Return data out of bounds"));
+        }
+        
+        if dest_offset + length > self.state.memory.len() {
+            self.state.memory.resize(dest_offset + length, 0);
+        }
+        
+        for i in 0..length {
+            self.state.memory[dest_offset + i] = self.state.return_data[offset + i];
+        }
+        Ok(())
+    }
+    
+    fn op_extcodehash(&mut self) -> Result<()> {
+        let _addr = self.stack_pop()?;
+        // Return zero hash for now (would need state access)
+        self.stack_push(U256::zero())
+    }
+    
+    // ========== BLOCK INFORMATION OPCODES ==========
+    
+    fn op_blockhash(&mut self) -> Result<()> {
+        let _block_number = self.stack_pop()?;
+        // Return zero hash for now (would need blockchain access)
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_coinbase(&mut self) -> Result<()> {
+        let addr = self.block_context.coinbase;
+        let mut bytes = [0u8; 32];
+        bytes[12..].copy_from_slice(addr.as_bytes());
+        self.stack_push(U256::from_big_endian(&bytes))
+    }
+    
+    fn op_timestamp(&mut self) -> Result<()> {
+        self.stack_push(self.block_context.timestamp)
+    }
+    
+    fn op_number(&mut self) -> Result<()> {
+        self.stack_push(self.block_context.number)
+    }
+    
+    fn op_difficulty(&mut self) -> Result<()> {
+        self.stack_push(self.block_context.difficulty)
+    }
+    
+    fn op_gaslimit(&mut self) -> Result<()> {
+        self.stack_push(self.block_context.gas_limit)
+    }
+    
+    fn op_chainid(&mut self) -> Result<()> {
+        // Ethereum mainnet = 1
+        self.stack_push(U256::from(1))
+    }
+    
+    fn op_selfbalance(&mut self) -> Result<()> {
+        // Return zero balance for now (would need state access)
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_basefee(&mut self) -> Result<()> {
+        // Return zero for now (EIP-1559 base fee)
+        self.stack_push(U256::zero())
+    }
+    
+    // ========== CALL OPCODES (STUBS FOR NOW) ==========
+    
+    fn op_call(&mut self) -> Result<()> {
+        // CALL(gas, address, value, argsOffset, argsLength, retOffset, retLength)
+        let _gas = self.stack_pop()?;
+        let _address = self.stack_pop()?;
+        let _value = self.stack_pop()?;
+        let _args_offset = self.stack_pop()?;
+        let _args_length = self.stack_pop()?;
+        let _ret_offset = self.stack_pop()?;
+        let _ret_length = self.stack_pop()?;
+        
+        // Stub: return success (1)
+        self.stack_push(U256::one())
+    }
+    
+    fn op_delegatecall(&mut self) -> Result<()> {
+        // DELEGATECALL(gas, address, argsOffset, argsLength, retOffset, retLength)
+        let _gas = self.stack_pop()?;
+        let _address = self.stack_pop()?;
+        let _args_offset = self.stack_pop()?;
+        let _args_length = self.stack_pop()?;
+        let _ret_offset = self.stack_pop()?;
+        let _ret_length = self.stack_pop()?;
+        
+        // Stub: return success (1)
+        self.stack_push(U256::one())
+    }
+    
+    // ========== ADDITIONAL MEMORY/STORAGE OPCODES ==========
+    
+    fn op_mstore8(&mut self) -> Result<()> {
+        let offset = self.stack_pop()?.as_usize();
+        let value = self.stack_pop()?;
+        
+        if offset + 1 > self.state.memory.len() {
+            self.state.memory.resize(offset + 1, 0);
+        }
+        
+        let byte = (value.as_u64() & 0xFF) as u8;
+        self.state.memory[offset] = byte;
+        Ok(())
+    }
+    
+    // ========== ADDITIONAL LOGGING OPCODES ==========
+    
+    fn op_log2(&mut self) -> Result<()> {
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        let _topic1 = self.stack_pop()?;
+        let _topic2 = self.stack_pop()?;
+        // Stub implementation
+        Ok(())
+    }
+    
+    fn op_log3(&mut self) -> Result<()> {
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        let _topic1 = self.stack_pop()?;
+        let _topic2 = self.stack_pop()?;
+        let _topic3 = self.stack_pop()?;
+        // Stub implementation
+        Ok(())
+    }
+    
+    fn op_log4(&mut self) -> Result<()> {
+        let offset = self.stack_pop()?.as_usize();
+        let length = self.stack_pop()?.as_usize();
+        let _topic1 = self.stack_pop()?;
+        let _topic2 = self.stack_pop()?;
+        let _topic3 = self.stack_pop()?;
+        let _topic4 = self.stack_pop()?;
+        // Stub implementation
+        Ok(())
+    }
+    
+    // ========== ADDITIONAL SYSTEM OPCODES ==========
+    
+    fn op_create(&mut self) -> Result<()> {
+        // CREATE(value, offset, length)
+        let _value = self.stack_pop()?;
+        let _offset = self.stack_pop()?;
+        let _length = self.stack_pop()?;
+        
+        // Stub: return zero address
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_create2(&mut self) -> Result<()> {
+        // CREATE2(value, offset, length, salt)
+        let _value = self.stack_pop()?;
+        let _offset = self.stack_pop()?;
+        let _length = self.stack_pop()?;
+        let _salt = self.stack_pop()?;
+        
+        // Stub: return zero address
+        self.stack_push(U256::zero())
+    }
+    
+    fn op_callcode(&mut self) -> Result<()> {
+        // CALLCODE(gas, address, value, argsOffset, argsLength, retOffset, retLength)
+        let _gas = self.stack_pop()?;
+        let _address = self.stack_pop()?;
+        let _value = self.stack_pop()?;
+        let _args_offset = self.stack_pop()?;
+        let _args_length = self.stack_pop()?;
+        let _ret_offset = self.stack_pop()?;
+        let _ret_length = self.stack_pop()?;
+        
+        // Stub: return success (1)
+        self.stack_push(U256::one())
+    }
+    
+    fn op_staticcall(&mut self) -> Result<()> {
+        // STATICCALL(gas, address, argsOffset, argsLength, retOffset, retLength)
+        let _gas = self.stack_pop()?;
+        let _address = self.stack_pop()?;
+        let _args_offset = self.stack_pop()?;
+        let _args_length = self.stack_pop()?;
+        let _ret_offset = self.stack_pop()?;
+        let _ret_length = self.stack_pop()?;
+        
+        // Stub: return success (1)
+        self.stack_push(U256::one())
+    }
+    
+    fn op_selfdestruct(&mut self) -> Result<()> {
+        let _beneficiary = self.stack_pop()?;
+        
+        // Mark execution as complete
+        self.state.success = true;
+        self.pc = self.bytecode.len();
         Ok(())
     }
 }

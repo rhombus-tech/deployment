@@ -261,11 +261,8 @@ impl Transaction {
         // Check if all required state is available
         for req in &self.state_requirements {
             if !self.bundled_state.contains_key(req) {
-                // Access the state bundler synchronously
-        let state_bundler = match context.state_bundler.try_read() {
-            Ok(bundler) => bundler,
-            Err(_) => return Err(VMError::Internal { description: "Failed to acquire read lock on state bundler".to_string() }),
-        };
+                // FIXED: Use .read().await instead of try_read() - waits for lock instead of failing
+                let state_bundler = context.state_bundler.read().await;
                 if !StateProvider::has_state(&*state_bundler, req).await {
                     return Err(VMError::MissingState {
                         address: req.address,
@@ -993,11 +990,8 @@ impl TransactionSequence {
             return Ok(());
         }
         
-        // Access the state bundler synchronously
-        let state_bundler = match context.state_bundler.try_read() {
-            Ok(bundler) => bundler,
-            Err(_) => return Err(VMError::Internal { description: "Failed to acquire read lock on state bundler".to_string() }),
-        };
+        // FIXED: Use .read().await instead of try_read() - waits for lock instead of failing
+        let state_bundler = context.state_bundler.read().await;
         
         // Check each predicate
         for predicate in &self.state_verification.state_predicates {

@@ -465,43 +465,7 @@ impl<F: Field + CanonicalSerialize + CanonicalDeserialize> EVMZODAAccumulator<F>
             }
         }
         
-        Ok(true) // No vulnerabilities were found
-    }
-    
-    /// Create a simple systematic code matrix for demonstration
-    fn create_systematic_code_matrix(&self, m: usize, n: usize) -> Matrix<F> {
-        let mut matrix = Matrix {
-            rows: m,
-            cols: n,
-            data: vec![vec![F::zero(); n]; m],
-        };
-        // First create identity matrix for systematic code
-        for i in 0..std::cmp::min(m, n) {
-            matrix.data[i][i] = F::one();
-        }
-        
-        // Add systematic parity check rows for error correction
-        // This creates a proper Reed-Solomon style encoding matrix
-        for i in m..n {
-            let parity_row = i - m;
-            // Generate parity coefficients using field arithmetic
-            for j in 0..m {
-                // Use powers of a primitive element for systematic encoding
-                let alpha = F::from((j + 1) as u64);
-                let mut result = F::one();
-                // Compute alpha^(parity_row + 1) by repeated multiplication
-                for _ in 0..(parity_row + 1) {
-                    result *= alpha;
-                }
-                matrix.data[i][j] = result;
-            }
-            // Ensure identity structure is preserved for the diagonal if within bounds
-            if i < matrix.data.len() && i < matrix.data[0].len() {
-                matrix.data[i][i] = F::one();
-            }
-        }
-        
-        matrix
+        Ok(true) // No vulnerabilities found
     }
     
     /// Generate zero-knowledge proof for the accumulated vulnerability matrix

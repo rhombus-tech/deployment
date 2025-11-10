@@ -1,0 +1,136 @@
+# Production TEE Mesh Blockchain Configuration
+# Real endpoints and production settings
+
+[blockchain]
+name = "TEE Mesh Blockchain Production"
+chain_id = 2024
+version = "1.0.0"
+environment = "production"
+
+[tee_mesh]
+# Real Aristo TEE mesh endpoints
+controller_binary_path = "/Users/talzisckind/Downloads/aristo-fresh 2/execution/controller/target/debug/aristo_client"
+coordinator_url = "http://localhost:8080"  # Real HyperTeeController endpoint
+region_id = "us-east-1"
+tee_type = "SGX_SEV_PAIR"
+execution_mode = "mesh"  # Use mesh mode for production
+enable_cross_verification = true
+mesh_timeout_ms = 5000
+circuit_breaker_threshold_ms = 100
+
+[zkevm]
+# Real zkEVM proof generation
+binary_path = "/Users/talzisckind/Downloads/deployment/evm-verify/target/debug/simple-production-server"
+config_path = "/Users/talzisckind/Downloads/deployment/config/config/zkvm-prod.toml"
+verification_level = "enhanced"
+enable_proof_generation = true
+evm_compatibility_mode = "full"
+max_transaction_size = 1048576
+execution_timeout_ms = 10000
+
+[stateless_vm]
+# Real StatelessVM configuration
+binary_path = "/Users/talzisckind/Downloads/deployment/stateless-vm/target/debug/stateless_vm"
+config_path = "/Users/talzisckind/Downloads/deployment/stateless-vm/config.toml"
+verification_mode = "dual"  # ZK + TEE attestation
+enable_caching = true
+cache_size = 50000  # Larger cache for production
+parallel_verification = true
+max_verification_time_ms = 500
+cache_ttl_seconds = 7200  # 2 hours
+
+[ethereum_bridge]
+# Real Ethereum L1 bridge
+service_url = "http://localhost:9090"  # Real EthereumSettlementBridge service
+contract_address = "0x1234567890123456789012345678901234567890"  # Deploy UltimateHybridSettlement
+rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+private_key_path = "/secure/ethereum_private_key"
+gas_price_strategy = "adaptive"
+max_gas_price_gwei = 150
+confirmation_blocks = 12
+max_batch_size = 1000
+batch_timeout_ms = 300000  # 5 minutes
+
+[avalanche_bridge]
+# Real Avalanche C-Chain bridge
+service_url = "http://localhost:9091"  # Real AvalancheMeshBridge service
+region_id = "us-east-1"
+rlnc_enabled = true
+rlnc_redundancy_factor = 1.5
+rpc_url = "https://api.avax.network/ext/bc/C/rpc"
+max_fee_avax = 0.01
+enable_adaptive_rlnc = true
+
+[performance]
+# Production performance settings
+enable_phi_optimization = true
+batch_processing_threads = 8  # Optimize for production hardware
+verification_cache_ttl_seconds = 7200
+metrics_collection_interval_ms = 5000
+enable_parallel_bridge_settlement = true
+max_concurrent_transactions = 1000
+
+[security]
+# Production security
+enable_quantum_resistance = true
+phi_field_validation = true
+attestation_chain_verification = true
+max_timestamp_drift_seconds = 60  # Stricter for production
+enable_audit_logging = true
+require_dual_attestation = true
+
+[logging]
+level = "info"  # Less verbose for production
+format = "json"
+output_path = "/var/log/tee_mesh_blockchain_production.log"
+max_file_size_mb = 500
+max_files = 50
+enable_syslog = true
+syslog_facility = "local0"
+
+[monitoring]
+# Production monitoring
+enable_prometheus = true
+prometheus_port = 9090
+health_check_port = 8081
+enable_detailed_metrics = true
+enable_alerting = true
+alert_webhook_url = "https://your-monitoring-service.com/webhook"
+metrics_retention_days = 30
+
+[networking]
+# Production networking
+max_connections = 10000
+connection_timeout_ms = 30000
+read_timeout_ms = 10000
+write_timeout_ms = 10000
+enable_compression = true
+enable_tls = true
+tls_cert_path = "/etc/ssl/certs/tee_mesh_blockchain.crt"
+tls_key_path = "/etc/ssl/private/tee_mesh_blockchain.key"
+
+[database]
+# Production data persistence
+enable_state_persistence = true
+state_db_path = "/var/lib/tee_mesh_blockchain/state"
+enable_backup = true
+backup_interval_hours = 6
+backup_retention_days = 30
+enable_replication = true
+
+[scaling]
+# Production scaling configuration
+enable_horizontal_scaling = true
+min_instances = 3
+max_instances = 20
+scale_up_threshold = 80  # CPU percentage
+scale_down_threshold = 30
+cooldown_period_minutes = 5
+enable_load_balancing = true
+
+[development]
+# Disable development features in production
+enable_local_testing = false
+mock_tee_execution = false
+enable_trace_logging = false
+test_transaction_delay_ms = 0

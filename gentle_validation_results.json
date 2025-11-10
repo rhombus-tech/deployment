@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-09-11T16:29:20.024535",
+  "results": {
+    "bitcoin": {
+      "status": "success",
+      "phi_value": 0.8416268167265376,
+      "correlation": 0.1417974300437092,
+      "days_in_cycle": 3.8000000000000007,
+      "crash_probability": 0.3,
+      "indicators": {
+        "approaching_peak": "True",
+        "strong_correlation": "False",
+        "mid_cycle_timing": false
+      }
+    },
+    "ethereum": {
+      "status": "success",
+      "phi_value": 0.8416268167265376,
+      "correlation": 0.08578711082131807,
+      "days_in_cycle": 3.8000000000000007,
+      "crash_probability": 0.3,
+      "indicators": {
+        "approaching_peak": "True",
+        "strong_correlation": "False",
+        "mid_cycle_timing": false
+      }
+    },
+    "cardano": {
+      "status": "success",
+      "phi_value": 0.8416268167265376,
+      "correlation": 0.0363535928242253,
+      "days_in_cycle": 3.8000000000000007,
+      "crash_probability": 0.3,
+      "indicators": {
+        "approaching_peak": "True",
+        "strong_correlation": "False",
+        "mid_cycle_timing": false
+      }
+    }
+  },
+  "summary": {
+    "avg_crash_probability": 0.3,
+    "avg_phi_value": 0.8416268167265376,
+    "avg_correlation": 0.08797937789641752
+  }
+}

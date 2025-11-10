@@ -195,7 +195,7 @@ impl ProtocolDependencyGraph {
     }
 
     pub fn is_empty(&self, protocol: &str) -> bool {
-        self.edges.get(protocol).map_or(true, |deps| deps.is_empty())
+        self.edges.get(protocol).map(|deps| deps.is_empty()).unwrap_or(true)
     }
 }
 
@@ -831,101 +831,16 @@ impl ProtocolDependencyMapper {
     }
 
     fn load_known_protocols() -> HashMap<String, ProtocolNode> {
-        // Load database of known DeFi protocols
-        let mut protocols = HashMap::new();
-        
-        // Uniswap protocols
-        protocols.insert("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".to_string(), ProtocolNode {
-            protocol_name: "Uniswap V2".to_string(),
-            contract_address: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".to_string(),
-            protocol_type: ProtocolType::Exchange,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(1_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        // Compound protocols
-        protocols.insert("0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B".to_string(), ProtocolNode {
-            protocol_name: "Compound".to_string(),
-            contract_address: "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B".to_string(),
-            protocol_type: ProtocolType::Lending,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(5_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        // Aave protocols
-        protocols.insert("0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9".to_string(), ProtocolNode {
-            protocol_name: "Aave V2".to_string(),
-            contract_address: "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9".to_string(),
-            protocol_type: ProtocolType::Lending,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(8_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        // MakerDAO
-        protocols.insert("0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B".to_string(), ProtocolNode {
-            protocol_name: "MakerDAO".to_string(),
-            contract_address: "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B".to_string(),
-            protocol_type: ProtocolType::Stablecoin,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(8_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        // Curve Finance
-        protocols.insert("0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".to_string(), ProtocolNode {
-            protocol_name: "Curve 3Pool".to_string(),
-            contract_address: "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".to_string(),
-            protocol_type: ProtocolType::Exchange,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(2_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        protocols
+        // NEUTRAL: Empty protocol database - detect by bytecode pattern, not address
+        // Protocols are identified dynamically during analysis
+        HashMap::new()
     }
     
     /// Load protocol database for protocol identification
+    /// NEUTRAL: Empty database - detect protocols by bytecode patterns
     fn load_protocol_database(&self) -> HashMap<String, ProtocolNode> {
-        let mut protocols = HashMap::new();
-        
-        // Uniswap V2 Factory
-        protocols.insert("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".to_string(), ProtocolNode {
-            protocol_name: "Uniswap V2".to_string(),
-            contract_address: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".to_string(),
-            protocol_type: ProtocolType::AMM,
-            version: Some("2.0".to_string()),
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(2_000_000_000),
-            daily_volume: Some(500_000_000),
-            dependencies: Vec::new(),
-        });
-        
-        // Compound
-        protocols.insert("0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B".to_string(), ProtocolNode {
-            protocol_name: "Compound".to_string(),
-            contract_address: "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B".to_string(),
-            protocol_type: ProtocolType::Lending,
-            version: None,
-            governance_model: GovernanceModel::Decentralized,
-            total_value_locked: Some(5_000_000_000),
-            daily_volume: None,
-            dependencies: Vec::new(),
-        });
-        
-        protocols
+        // NEUTRAL: No hardcoded protocols - detect dynamically
+        HashMap::new()
     }
     
     fn is_known_protocol(&self, address: &str) -> bool {

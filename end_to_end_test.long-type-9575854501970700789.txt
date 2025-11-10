@@ -1,0 +1,2 @@
+zkevm_tee_integration::TEEAttestation: Clone
+Vec<zkevm_tee_integration::TEEAttestation>

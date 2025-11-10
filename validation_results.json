@@ -1,0 +1,52 @@
+[
+  {
+    "method_name": "SIMP Topology Optimization",
+    "performance_metric": 0.0017432825780750948,
+    "computation_time": 0.19568109512329102,
+    "memory_usage": 14.0625,
+    "convergence_iterations": 200,
+    "additional_metrics": {
+      "volume_fraction": 0.01,
+      "max_stress_concentration": 1.0,
+      "structural_efficiency": 573.6304673589891
+    }
+  },
+  {
+    "method_name": "Rhombus \u03c6-Field Optimization",
+    "performance_metric": -33.410089546533506,
+    "computation_time": 0.7791130542755127,
+    "memory_usage": 56.25,
+    "convergence_iterations": 100,
+    "additional_metrics": {
+      "phi_ratio_utilization": 1.0,
+      "geometric_efficiency": 1.0,
+      "stress_distribution_uniformity": 1.0
+    }
+  },
+  {
+    "method_name": "Hexagonal Tessellation (Proven Optimal)",
+    "performance_metric": 0.8176607533967855,
+    "computation_time": 0.0006012916564941406,
+    "memory_usage": 9.765625,
+    "convergence_iterations": 1,
+    "additional_metrics": {
+      "space_filling_efficiency": 0.8887616884747668,
+      "load_distribution_uniformity": 0.92,
+      "theoretical_optimality": 0.9069,
+      "practical_implementation_factor": 0.95
+    }
+  },
+  {
+    "method_name": "Rhombus \u03c6-Field Tessellation",
+    "performance_metric": 0.6716053604362214,
+    "computation_time": 0.06107020378112793,
+    "memory_usage": 29.296875,
+    "convergence_iterations": 50,
+    "additional_metrics": {
+      "space_filling_efficiency": 0.73132793995622,
+      "load_distribution_uniformity": 0.9183368004187372,
+      "phi_ratio_optimization": 0.8865395479061953,
+      "geometric_stability_factor": 0.9262861135468726
+    }
+  }
+]

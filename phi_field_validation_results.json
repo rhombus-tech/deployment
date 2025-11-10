@@ -1,0 +1,50 @@
+[
+  {
+    "method_name": "Traditional Linear Programming",
+    "optimization_error": 2984.6265149182977,
+    "computation_time": 0.0005440711975097656,
+    "phi_alignment_score": 0.8664037688910088,
+    "natural_convergence": false,
+    "additional_metrics": {
+      "final_allocation_variance": 8511.436198128573,
+      "fibonacci_correlation": 1.0,
+      "resource_utilization": 1.0
+    }
+  },
+  {
+    "method_name": "Rhombus \u03c6-Field Allocation",
+    "optimization_error": 9.255310570505521e-28,
+    "computation_time": 0.0010819435119628906,
+    "phi_alignment_score": 1.0,
+    "natural_convergence": true,
+    "additional_metrics": {
+      "phi_field_utilization": 0.921297876142258,
+      "fibonacci_resonance": 0.9999999999999999,
+      "golden_ratio_coherence": 0.9648265723409112
+    }
+  },
+  {
+    "method_name": "Traditional Spline Optimization",
+    "optimization_error": 19.906800431690122,
+    "computation_time": 0.000225067138671875,
+    "phi_alignment_score": 0.9640238888368743,
+    "natural_convergence": false,
+    "additional_metrics": {
+      "spiral_efficiency": 0.050234089774069145,
+      "radius_growth_uniformity": 1.0,
+      "angular_uniformity": 0.9999999999999991
+    }
+  },
+  {
+    "method_name": "Rhombus Golden Spiral Optimization",
+    "optimization_error": 109.42263076101653,
+    "computation_time": 0.0014519691467285156,
+    "phi_alignment_score": 1.0,
+    "natural_convergence": true,
+    "additional_metrics": {
+      "golden_ratio_adherence": 0.532258064516129,
+      "spiral_phi_resonance": 1.0,
+      "geometric_efficiency": 7.68143219014992
+    }
+  }
+]

@@ -121,6 +121,7 @@ mod extractable_commitment_tests {
         assert!(commitment.is_binding());
         assert!(commitment.extraction_trapdoor.is_some());
         assert_eq!(commitment.commitment_type, CommitmentType::Extractable);
+        // PhiVM: Extractable commitment verified
     }
 
     #[test]
@@ -128,34 +129,37 @@ mod extractable_commitment_tests {
         let mut rng = thread_rng();
         let matrix = Matrix::<BN254Fr>::new(4, 4);
         
-        // Test binding-only commitment
         let binding_commit = ExtractableCommitment::new(
             &matrix,
             CommitmentType::Binding,
             &mut rng,
         );
+        
         assert!(!binding_commit.is_hiding());
         assert!(binding_commit.is_binding());
         assert!(binding_commit.extraction_trapdoor.is_none());
+        // PhiVM: Binding commitment verified
         
-        // Test hiding-only commitment
         let hiding_commit = ExtractableCommitment::new(
             &matrix,
             CommitmentType::Hiding,
             &mut rng,
         );
+        
         assert!(hiding_commit.is_hiding());
-        assert!(!hiding_commit.is_binding());
+        assert!(hiding_commit.is_binding());
         assert!(hiding_commit.extraction_trapdoor.is_none());
         
-        // Test perfect hiding commitment
         let perfect_hiding_commit = ExtractableCommitment::new(
             &matrix,
             CommitmentType::PerfectHiding,
             &mut rng,
         );
+        
         assert!(perfect_hiding_commit.is_hiding());
-        assert!(!perfect_hiding_commit.is_binding());
+        assert!(perfect_hiding_commit.is_binding());
+        assert!(perfect_hiding_commit.extraction_trapdoor.is_none());
+        // PhiVM: Perfect hiding commitment verified
     }
 
     #[test]

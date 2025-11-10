@@ -3,13 +3,6 @@ name = "evm-verify"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-members = [
-    "common",
-    "contracts",
-    "pcd",
-    "pcc",
-]
 
 [features]
 default = ["pcd", "pcc"]

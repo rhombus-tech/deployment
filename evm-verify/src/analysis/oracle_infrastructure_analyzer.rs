@@ -74,11 +74,8 @@ impl OracleInfrastructureAnalyzer {
         tellor_functions.insert([0x1f, 0x37, 0x9a, 0xcc]); // getDataBefore()
         tellor_functions.insert([0x77, 0xfc, 0xd7, 0xc3]); // getCurrentValue()
 
-        let mut known_oracle_addresses = HashMap::new();
-        // Chainlink Price Feeds
-        known_oracle_addresses.insert("0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419".to_string(), "Chainlink ETH/USD".to_string());
-        known_oracle_addresses.insert("0xf4030086522a5beea4988f8ca5b36dbc97bee88c".to_string(), "Chainlink BTC/USD".to_string());
-        known_oracle_addresses.insert("0xaed0c38402a5d19df6e4c03f4e2dced6e29c1ee9".to_string(), "Chainlink DAI/USD".to_string());
+        // NEUTRAL: No hardcoded oracle addresses - detect by pattern
+        let known_oracle_addresses = HashMap::new();
 
         Self {
             bytecode,

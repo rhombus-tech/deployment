@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
+use dashmap::DashMap;
 use serde_json;
 use hex;
 use ethereum_types::H256;
@@ -65,8 +67,11 @@ pub struct BundledState {
 pub struct StateBundler {
     /// Available state providers in priority order
     providers: Vec<Arc<dyn StateProvider>>,
-    /// Local cache of fetched state
-    cache: HashMap<StateRequirement, Bytes>,
+    /// Local cache of fetched state (lock-free concurrent HashMap)
+    cache: DashMap<StateRequirement, Bytes>,
+    /// Cache statistics
+    cache_hits: Arc<AtomicU64>,
+    cache_misses: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for StateBundler {
@@ -137,7 +142,9 @@ impl StateBundler {
     pub fn new(providers: Vec<Arc<dyn StateProvider>>) -> Self {
         Self {
             providers,
-            cache: HashMap::new(),
+            cache: DashMap::new(),
+            cache_hits: Arc::new(AtomicU64::new(0)),
+            cache_misses: Arc::new(AtomicU64::new(0)),
         }
     }
     
@@ -149,7 +156,9 @@ impl StateBundler {
         
         StateBundler {
             providers: vec![direct_provider],
-            cache: HashMap::new(),
+            cache: DashMap::new(),
+            cache_hits: Arc::new(AtomicU64::new(0)),
+            cache_misses: Arc::new(AtomicU64::new(0)),
         }
     }
     
@@ -226,20 +235,21 @@ impl StateBundler {
     
     /// Fetch state for a specific requirement
     pub async fn fetch_state(&self, requirement: &StateRequirement) -> Result<Bytes> {
-        // Check cache first
-        if let Some(data) = self.cache.get(requirement) {
-            return Ok(data.clone());
+        // Check cache first - DashMap allows concurrent reads
+        if let Some(cached_entry) = self.cache.get(requirement) {
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
+            return Ok(cached_entry.value().clone());
         }
+        
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
         
         // Try each provider in order
         for provider in &self.providers {
             if provider.has_state(requirement).await {
                 match provider.fetch_state(requirement).await {
                     Ok(data) => {
-                        // Cache the result
-                        let mut cache = self.cache.clone();
-                        cache.insert(requirement.clone(), data.clone());
-                        
+                        // FIXED: Actually insert into cache! DashMap handles concurrency
+                        self.cache.insert(requirement.clone(), data.clone());
                         return Ok(data);
                     }
                     Err(_) => continue, // Try next provider
@@ -252,6 +262,21 @@ impl StateBundler {
             key: format!("{:?}", requirement.key),
             description: "State not available from any provider".into(),
         })
+    }
+    
+    /// Get cache hit rate for monitoring
+    pub fn cache_hit_rate(&self) -> f64 {
+        let hits = self.cache_hits.load(Ordering::Relaxed) as f64;
+        let misses = self.cache_misses.load(Ordering::Relaxed) as f64;
+        let total = hits + misses;
+        if total == 0.0 { 0.0 } else { hits / total }
+    }
+    
+    /// Clear cache
+    pub fn clear_cache(&self) {
+        self.cache.clear();
+        self.cache_hits.store(0, Ordering::Relaxed);
+        self.cache_misses.store(0, Ordering::Relaxed);
     }
     
     /// Analyze EVM bytecode to determine state access patterns

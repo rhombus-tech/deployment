@@ -5,6 +5,8 @@ pub mod proofs;
 pub mod prover;
 pub mod zk;
 pub mod tee;
+pub mod compression;
+pub mod english;
 
 #[cfg(test)]
 pub mod tests;

@@ -116,7 +116,16 @@ fn generate_random_matrix<F: Field>(rows: usize, cols: usize, _rng: &mut impl Rn
     let data = (0..rows)
         .map(|_| (0..cols).map(|_| F::rand(&mut rng)).collect())
         .collect();
-    Matrix { rows, cols, data }
+    let golden_ratio = 1.618033988749895; // φ
+    let rhombus_structure = crate::tensor_zoda::RhombusStructure::new(rows, cols, golden_ratio);
+    Matrix { 
+        rows, 
+        cols, 
+        data, 
+        golden_ratio,
+        rhombus_structure,
+        optimization_enabled: true,
+    }
 }
 
 // Move all benchmark functions under the criterion feature flag

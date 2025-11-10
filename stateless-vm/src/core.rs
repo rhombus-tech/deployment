@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
+use parking_lot::RwLock as ParkingLotRwLock;
 use anyhow::Result;
 use crate::errors::VMError;
 use crate::state::{StateBundler, StateRequirement};
@@ -25,14 +27,16 @@ pub enum ExecutionMode {
 
 /// Core implementation of the stateless virtual machine
 pub struct StatelessVM {
-    /// Current block height
-    block_height: BlockHeight,
+    /// Current block height (atomic for thread-safety)
+    block_height: Arc<AtomicU64>,
     /// State bundler for packaging state with transactions
     state_bundler: Arc<RwLock<StateBundler>>,
     /// Security verification engine
     security_verifier: Arc<dyn SecurityVerifier>,
-    /// Current state root
-    state_root: StateRoot,
+    /// Current state root (protected by parking_lot RwLock for better perf)
+    state_root: Arc<ParkingLotRwLock<StateRoot>>,
+    /// State version counter for optimistic concurrency control
+    state_version: Arc<AtomicU64>,
     /// Default verification level
     default_verification_level: VerificationLevel,
     /// Chain ID (Avalanche C-Chain is 43114)
@@ -54,12 +58,13 @@ impl StatelessVM {
         initial_block_height: BlockHeight,
     ) -> Self {
         Self {
-            block_height: initial_block_height,
+            block_height: Arc::new(AtomicU64::new(initial_block_height)),
             state_bundler,
             security_verifier,
-            state_root: initial_state_root,
+            state_root: Arc::new(ParkingLotRwLock::new(initial_state_root)),
+            state_version: Arc::new(AtomicU64::new(0)),
             default_verification_level: VerificationLevel::Standard,
-            chain_id: 1, // Default to Ethereum mainnet, will be set to Avalanche C-Chain (43114) later
+            chain_id: 43114, // Avalanche C-Chain
             atomic_executor: None,
             parallel_engine: None,
             execution_mode: ExecutionMode::Coordinated,
@@ -78,19 +83,25 @@ impl StatelessVM {
             });
         }
 
+        // FIXED: Read state root safely
+        let current_state_root = self.state_root.read().clone();
+        let current_block_height = self.block_height.load(Ordering::SeqCst);
+        
         // Create execution context
         let context = ExecutionContext::new(
-            self.block_height,
-            self.state_root.clone(),
+            current_block_height,
+            current_state_root,
             Arc::clone(&self.state_bundler),
         );
 
         // Execute the transaction
         let result = transaction.execute(context).await?;
 
-        // Update state root if transaction was successful
+        // FIXED: Update state root atomically if transaction was successful
         if result.is_success() {
-            self.state_root = result.new_state_root().clone();
+            let mut state_root_lock = self.state_root.write();
+            *state_root_lock = result.new_state_root().clone();
+            self.state_version.fetch_add(1, Ordering::SeqCst);
         }
 
         Ok(result)
@@ -108,20 +119,26 @@ impl StatelessVM {
             });
         }
         
+        // FIXED: Read state root safely
+        let current_state_root = self.state_root.read().clone();
+        let current_block_height = self.block_height.load(Ordering::SeqCst);
+        
         // Create execution context
         let context = ExecutionContext::new(
-            self.block_height,
-            self.state_root.clone(),
+            current_block_height,
+            current_state_root,
             Arc::clone(&self.state_bundler),
         );
         
         // Execute the sequence
         let results = sequence.execute(context).await?;
         
-        // Update state root if entire sequence was successful
+        // FIXED: Update state root atomically if entire sequence was successful
         if results.iter().all(|r| r.is_success()) {
             if let Some(last_result) = results.last() {
-                self.state_root = last_result.new_state_root().clone();
+                let mut state_root_lock = self.state_root.write();
+                *state_root_lock = last_result.new_state_root().clone();
+                self.state_version.fetch_add(1, Ordering::SeqCst);
             }
         }
         
@@ -185,17 +202,17 @@ impl StatelessVM {
 
     /// Get the current block height
     pub fn block_height(&self) -> BlockHeight {
-        self.block_height
+        self.block_height.load(Ordering::SeqCst)
     }
 
     /// Get the current state root
-    pub fn state_root(&self) -> &StateRoot {
-        &self.state_root
+    pub fn state_root(&self) -> StateRoot {
+        self.state_root.read().clone()
     }
 
     /// Update the block height
     pub fn update_block_height(&mut self, new_height: BlockHeight) {
-        self.block_height = new_height;
+        self.block_height.store(new_height, Ordering::SeqCst);
     }
     
     /// Set the chain ID (Avalanche C-Chain is 43114)
@@ -352,8 +369,8 @@ impl StatelessVM {
             .ok_or_else(|| VMError::InvalidOperation { description: "Parallel execution engine not configured".to_string() })?;
         
         let base_context = ExecutionContext {
-            block_height: self.block_height,
-            state_root: self.state_root.clone(),
+            block_height: self.block_height.load(Ordering::SeqCst),
+            state_root: self.state_root.read().clone(),
             state_bundler: self.state_bundler.clone(),
         };
         
@@ -370,8 +387,8 @@ impl StatelessVM {
             .ok_or_else(|| VMError::InvalidOperation { description: "Parallel execution engine not configured".to_string() })?;
         
         let base_context = ExecutionContext {
-            block_height: self.block_height,
-            state_root: self.state_root.clone(),
+            block_height: self.block_height.load(Ordering::SeqCst),
+            state_root: self.state_root.read().clone(),
             state_bundler: self.state_bundler.clone(),
         };
         
@@ -390,6 +407,34 @@ impl StatelessVM {
             .ok_or_else(|| VMError::InvalidOperation { description: "Parallel execution engine not configured".to_string() })?;
         
         Ok(engine.get_metrics())
+    }
+    
+    // HELPER METHODS FOR THREAD-SAFE STATE ACCESS
+    
+    /// Get current state root safely
+    pub fn get_state_root(&self) -> StateRoot {
+        self.state_root.read().clone()
+    }
+    
+    /// Get current state version (for monitoring conflicts)
+    pub fn get_state_version(&self) -> u64 {
+        self.state_version.load(Ordering::SeqCst)
+    }
+    
+    /// Get current block height
+    pub fn get_block_height(&self) -> BlockHeight {
+        self.block_height.load(Ordering::SeqCst)
+    }
+    
+    /// Advance block height atomically
+    pub fn advance_block(&self) -> BlockHeight {
+        self.block_height.fetch_add(1, Ordering::SeqCst) + 1
+    }
+    
+    /// Get cache hit rate for monitoring performance
+    pub async fn get_cache_hit_rate(&self) -> f64 {
+        let bundler = self.state_bundler.read().await;
+        bundler.cache_hit_rate()
     }
 }
 

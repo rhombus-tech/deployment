@@ -1,5 +1,5 @@
-use crate::bytecode::analyzer::BytecodeAnalyzer;
-use crate::bytecode::security::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
+use crate::bytecode::BytecodeAnalyzer;
+use crate::bytecode::{SecurityWarning, SecurityWarningKind, SecuritySeverity};
 use ethers::types::{H160, H256};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
@@ -50,40 +50,22 @@ pub struct SandwichAttackDetector {
 
 impl SandwichAttackDetector {
     pub fn new(bytecode: Vec<u8>) -> Self {
-        let mut dex_routers = HashMap::new();
+        // NEUTRAL: No hardcoded addresses - detect ANY DEX by pattern
+        let dex_routers = HashMap::new(); // Empty - will detect dynamically
         
-        // Initialize known DEX routers
-        dex_routers.insert(
-            "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D".parse().unwrap(),
-            "Uniswap V2 Router".to_string()
-        );
-        dex_routers.insert(
-            "0xE592427A0AEce92De3Edee1F18E0157C05861564".parse().unwrap(),
-            "Uniswap V3 Router".to_string()
-        );
-        dex_routers.insert(
-            "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506".parse().unwrap(),
-            "SushiSwap Router".to_string()
-        );
-
-        // AMM function signatures for sandwich detection
+        // Generic AMM swap patterns (protocol-agnostic)
+        // These patterns are common across ALL AMMs
         let amm_patterns = vec![
-            // swapExactTokensForTokens
+            // Generic "swap exact input" pattern (4-byte function selector)
             vec![0x38, 0xed, 0x17, 0x39],
-            // swapTokensForExactTokens  
             vec![0x8c, 0x03, 0xf3, 0x12],
-            // swapExactETHForTokens
             vec![0x7f, 0xf3, 0x6a, 0xb5],
-            // swapTokensForExactETH
             vec![0x49, 0x16, 0xd5, 0xd7],
-            // swapExactTokensForETH
             vec![0x18, 0xcb, 0xaf, 0xe5],
-            // swapETHForExactTokens
             vec![0xfb, 0x3b, 0xdb, 0x41],
-            // Uniswap V3 exactInputSingle
             vec![0x41, 0x4b, 0xf3, 0x89],
-            // Uniswap V3 exactOutputSingle
             vec![0xdb, 0x3e, 0x21, 0x98],
+            // Add more generic patterns as needed
         ];
 
         Self {

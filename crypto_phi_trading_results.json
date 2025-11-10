@@ -1,0 +1,92 @@
+[
+  {
+    "strategy_name": "Traditional Momentum",
+    "total_return": -0.05444067707628564,
+    "sharpe_ratio": 0,
+    "max_drawdown": 0.0,
+    "win_rate": 0.0,
+    "phi_alignment_score": 0.2860559567929737,
+    "num_trades": 3,
+    "avg_trade_duration": 9.0,
+    "additional_metrics": {
+      "volatility": 0.0,
+      "best_trade": -0.054440677076285596,
+      "worst_trade": -0.054440677076285596
+    }
+  },
+  {
+    "strategy_name": "Rhombus \u03c6-Field Trading",
+    "total_return": -0.0031818842319132346,
+    "sharpe_ratio": 0.16651225350578733,
+    "max_drawdown": 0.08750679067768741,
+    "win_rate": 0.25,
+    "phi_alignment_score": 1.0,
+    "num_trades": 10,
+    "avg_trade_duration": 13.25,
+    "additional_metrics": {
+      "phi_field_utilization": 0.14989790119742813,
+      "phi_cycle_correlation": 0.31761026708898676,
+      "rhombus_field_efficiency": 0.09300650315416166
+    }
+  },
+  {
+    "strategy_name": "Traditional Momentum",
+    "total_return": 0,
+    "sharpe_ratio": 0,
+    "max_drawdown": 0,
+    "win_rate": 0,
+    "phi_alignment_score": 0.25362570467516143,
+    "num_trades": 1,
+    "avg_trade_duration": 0,
+    "additional_metrics": {
+      "volatility": 0,
+      "best_trade": 0,
+      "worst_trade": 0
+    }
+  },
+  {
+    "strategy_name": "Rhombus \u03c6-Field Trading",
+    "total_return": 0.688079643288342,
+    "sharpe_ratio": 13.673404994064489,
+    "max_drawdown": 0.011822051526816634,
+    "win_rate": 0.6666666666666666,
+    "phi_alignment_score": 0.9878240102438367,
+    "num_trades": 8,
+    "avg_trade_duration": 17.0,
+    "additional_metrics": {
+      "phi_field_utilization": 0.16517417530804546,
+      "phi_cycle_correlation": 0.20881451248878208,
+      "rhombus_field_efficiency": 0.09386019588730875
+    }
+  },
+  {
+    "strategy_name": "Traditional Momentum",
+    "total_return": -0.0985338502011961,
+    "sharpe_ratio": 0,
+    "max_drawdown": 0.0,
+    "win_rate": 0.0,
+    "phi_alignment_score": 0.17663515416670833,
+    "num_trades": 3,
+    "avg_trade_duration": 19.0,
+    "additional_metrics": {
+      "volatility": 0.0,
+      "best_trade": -0.09853385020119615,
+      "worst_trade": -0.09853385020119615
+    }
+  },
+  {
+    "strategy_name": "Rhombus \u03c6-Field Trading",
+    "total_return": 0.5041227168342033,
+    "sharpe_ratio": 15.54664555308164,
+    "max_drawdown": 0.014168650643448284,
+    "win_rate": 0.75,
+    "phi_alignment_score": 0.979222019046549,
+    "num_trades": 10,
+    "avg_trade_duration": 11.75,
+    "additional_metrics": {
+      "phi_field_utilization": 0.16846667495186304,
+      "phi_cycle_correlation": 0.240303818984614,
+      "rhombus_field_efficiency": 0.09439723768897171
+    }
+  }
+]

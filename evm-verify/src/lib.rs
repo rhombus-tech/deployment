@@ -19,11 +19,12 @@ use crate::utils::address_to_field;
 type Fr = <Bn254 as PairingEngine>::Fr;
 
 // Core modules
-pub mod accumulation;
+pub mod analysis;
 pub mod api;
 pub mod block_execution;
 pub mod bytecode;
 pub mod circuits;
+pub mod crypto;
 pub mod common;
 pub mod ethereum;
 pub mod state_trie;
@@ -42,6 +43,8 @@ pub mod config;
 pub mod monitoring;
 pub mod middleware;
 pub mod profiling;
+pub mod utils;
+pub mod fractal_network;
 
 // Production infrastructure re-exports
 pub use error::{ZkEvmError as ZodaError, ErrorSeverity, ErrorCategory, ZkEvmError};
@@ -52,7 +55,7 @@ pub use monitoring::production::{ZodaMonitoring, HealthStatus, SystemHealth};
 pub use profiling::{ZodaPerformanceProfiler, PerformanceReport, BottleneckReport};
 
 // VM re-exports 
-pub use circuits::ExecutionContext;
+pub use circuits::{ExecutionContext, BlockContext};
 
 // Production logging initialization
 pub fn init_production_logging() -> Result<(), Box<dyn std::error::Error>> {
@@ -72,10 +75,8 @@ pub mod integration_test;
 #[cfg(feature = "integration-tests")]
 pub mod simple_contract_test;
 pub mod prover;
-pub mod utils;
 pub mod pcc;
 pub mod pcd;
-pub mod analysis;
 
 // Re-export the UnifiedVerifier for easier access
 pub use api::UnifiedVerifier;

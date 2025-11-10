@@ -31,7 +31,7 @@ impl fmt::Display for TransactionId {
 }
 
 /// State root hash
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct StateRoot(pub H256);
 
 impl fmt::Display for StateRoot {
