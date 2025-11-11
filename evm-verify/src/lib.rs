@@ -32,6 +32,10 @@ pub mod vm;
 pub mod proving;
 pub mod execution;
 
+// Accumulation module for WARP integration
+#[cfg(feature = "accumulation")]
+pub mod accumulation;
+
 // Our new EF compliance proof module
 // pub mod ef_compliance_prover; // Removed due to compilation errors
 
