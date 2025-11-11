@@ -1,10 +1,10 @@
-# Avalanche Stateless Virtual Machine
+# zkEVM Stateless Virtual Machine
 
-A high-performance stateless virtual machine for Avalanche that enables reliable multi-step agent transactions.
+A high-performance stateless virtual machine for zkEVM with regional execution and cross-regional atomicity.
 
 ## Overview
 
-This project implements a stateless virtual machine for the Avalanche blockchain, specifically designed to support complex AI agent interactions. By moving state requirements into the transaction itself, the VM allows for consistent and reliable execution of multi-step transactions without unexpected failures due to state dependencies.
+This project implements a stateless virtual machine for our zkEVM, designed to enable regional infrastructure with cross-regional atomic transactions. By moving state requirements into the transaction itself, the VM allows for consistent and reliable execution of multi-step transactions across regions without unexpected failures due to state dependencies.
 
 ## Key Features
 

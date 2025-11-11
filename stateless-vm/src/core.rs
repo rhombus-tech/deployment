@@ -39,7 +39,7 @@ pub struct StatelessVM {
     state_version: Arc<AtomicU64>,
     /// Default verification level
     default_verification_level: VerificationLevel,
-    /// Chain ID (Avalanche C-Chain is 43114)
+    /// Chain ID (Ethereum mainnet is 1)
     chain_id: u64,
     /// Atomic executor for true atomicity guarantees
     atomic_executor: Option<Arc<AtomicExecutor>>,
@@ -64,7 +64,7 @@ impl StatelessVM {
             state_root: Arc::new(ParkingLotRwLock::new(initial_state_root)),
             state_version: Arc::new(AtomicU64::new(0)),
             default_verification_level: VerificationLevel::Standard,
-            chain_id: 43114, // Avalanche C-Chain
+            chain_id: 1, // Ethereum mainnet
             atomic_executor: None,
             parallel_engine: None,
             execution_mode: ExecutionMode::Coordinated,
@@ -215,7 +215,7 @@ impl StatelessVM {
         self.block_height.store(new_height, Ordering::SeqCst);
     }
     
-    /// Set the chain ID (Avalanche C-Chain is 43114)
+    /// Set the chain ID (Ethereum mainnet is 1)
     pub fn set_chain_id(&mut self, chain_id: u64) {
         self.chain_id = chain_id;
     }

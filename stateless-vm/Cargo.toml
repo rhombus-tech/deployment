@@ -1,8 +1,8 @@
 [package]
-name = "avalanche-stateless-vm"
+name = "zkevm-stateless-vm"
 version = "0.1.0"
 edition = "2021"
-description = "A stateless virtual machine for executing multi-step agent transactions on Avalanche"
+description = "A stateless virtual machine for zkEVM with regional execution and cross-regional atomicity"
 license = "MIT"
 
 [dependencies]
@@ -33,9 +33,6 @@ rayon = "1.8"
 dashmap = "5.5"
 futures = "0.3"
 parking_lot = "0.12"
-
-# Avalanche specific
-avalanche-types = "0.1.0"
 
 # PCD integration
 pcd = { path = "../evm-verify/pcd" }

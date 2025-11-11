@@ -7,22 +7,22 @@ use tokio::time::sleep;
 use anyhow::Result;
 use serde_json::Value;
 
-use avalanche_stateless_vm::{
+use zkevm_stateless_vm::{
     StatelessVM, Transaction
 };
-use avalanche_stateless_vm::types::{
+use zkevm_stateless_vm::types::{
     VerificationLevel, Address, TransactionId, Priority, BlockHeight
 };
-use avalanche_stateless_vm::state::{StateProvider};
-use avalanche_stateless_vm::streaming::{
+use zkevm_stateless_vm::state::{StateProvider};
+use zkevm_stateless_vm::streaming::{
     ContinuousProvingEngine, ContinuousProvingConfig, ProofAccumulationStrategy,
     OptimizationLevel
 };
-use avalanche_stateless_vm::realtime::{
+use zkevm_stateless_vm::realtime::{
     RealTimeVerificationEngine, ValidationConfig
 };
-use avalanche_stateless_vm::accumulator::{ProofAccumulator, CompressionAlgorithm};
-use avalanche_stateless_vm::pcd::PCDSecurityVerifier;
+use zkevm_stateless_vm::accumulator::{ProofAccumulator, CompressionAlgorithm};
+use zkevm_stateless_vm::pcd::PCDSecurityVerifier;
 use ethereum_types::{U256, H256};
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -43,16 +43,16 @@ impl SimpleStateProvider {
 
 #[async_trait]
 impl StateProvider for SimpleStateProvider {
-    async fn fetch_state(&self, _requirement: &avalanche_stateless_vm::state::StateRequirement) -> Result<Vec<u8>, avalanche_stateless_vm::VMError> {
+    async fn fetch_state(&self, _requirement: &zkevm_stateless_vm::state::StateRequirement) -> Result<Vec<u8>, zkevm_stateless_vm::VMError> {
         Ok(vec![0; 32]) // Return dummy state
     }
     
-    async fn has_state(&self, _requirement: &avalanche_stateless_vm::state::StateRequirement) -> bool {
+    async fn has_state(&self, _requirement: &zkevm_stateless_vm::state::StateRequirement) -> bool {
         true // Always claim to have state
     }
     
-    async fn state_root_at_height(&self, _height: BlockHeight) -> Result<avalanche_stateless_vm::types::StateRoot, avalanche_stateless_vm::VMError> {
-        Ok(avalanche_stateless_vm::types::StateRoot(H256::zero()))
+    async fn state_root_at_height(&self, _height: BlockHeight) -> Result<zkevm_stateless_vm::types::StateRoot, zkevm_stateless_vm::VMError> {
+        Ok(zkevm_stateless_vm::types::StateRoot(H256::zero()))
     }
 }
 
@@ -211,17 +211,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(SimpleStateProvider::new())
     ];
     
-    let state_bundler = avalanche_stateless_vm::StateBundler::new(state_providers);
+    let state_bundler = zkevm_stateless_vm::StateBundler::new(state_providers);
     // Create security verifier
     let security_verifier = Arc::new(PCDSecurityVerifier::new(
-        avalanche_stateless_vm::pcd::VerificationStrategy::Groth16,
+        zkevm_stateless_vm::pcd::VerificationStrategy::Groth16,
         false, // use_warp
     ));
 
     let vm = StatelessVM::new(
         Arc::new(tokio::sync::RwLock::new(state_bundler)),
         security_verifier.clone(),
-        avalanche_stateless_vm::types::StateRoot(H256::zero()),
+        zkevm_stateless_vm::types::StateRoot(H256::zero()),
         0, // initial block height
     );
 
@@ -348,7 +348,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match proving_engine.submit_transaction(
                         transaction.clone(),
                         stream_id.clone(),
-                        avalanche_stateless_vm::streaming::TransactionPriority::Normal,
+                        zkevm_stateless_vm::streaming::TransactionPriority::Normal,
                     ).await {
                         Ok(_) => submitted_count += 1,
                         Err(e) => println!("⚠️  Failed to submit transaction {}: {}", i, e),

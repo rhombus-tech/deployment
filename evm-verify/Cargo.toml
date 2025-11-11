@@ -118,6 +118,11 @@ required-features = ["pcc"]
 name = "bytecode_circuit_example"
 path = "examples/bytecode_circuit_example.rs"
 
+[[example]]
+name = "prove_ethereum_code_paths"
+path = "examples/prove_ethereum_code_paths.rs"
+required-features = ["accumulation"]
+
 [[bin]]
 name = "zoda-integration-test"
 path = "src/bin/zoda_integration_test.rs"

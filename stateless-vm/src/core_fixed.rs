@@ -70,7 +70,7 @@ impl StatelessVMFixed {
             security_verifier,
             state_root: Arc::new(RwLock::new(initial_state_root)),
             default_verification_level: VerificationLevel::Standard,
-            chain_id: 43114, // Avalanche C-Chain
+            chain_id: 1, // Ethereum mainnet
             atomic_executor: None,
             parallel_engine: None,
             execution_mode: ExecutionMode::Coordinated,
