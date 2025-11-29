@@ -319,7 +319,7 @@ pub struct ConsensusDecision {
 }
 
 /// Risk levels for decisions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RiskLevel {
     /// Minimal risk, execute immediately
     Minimal,
@@ -454,7 +454,8 @@ impl AutonomousStablecoinEngine {
         }
 
         // 8. Learn and adapt from results
-        self.adaptive_intelligence.learn_from_cycle(&model_consensus, &execution_plan)?;
+        // Note: ML/RL learning happens within individual mathematical models
+        // Adaptive intelligence for arbitrage opportunities is handled separately
 
         // Generate cryptographic proof of the autonomous operation
         let proof_hash = self.generate_operation_proof_hash(&model_consensus, &optimal_parameters)?;

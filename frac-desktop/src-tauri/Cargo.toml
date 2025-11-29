@@ -1,0 +1,30 @@
+[workspace]
+
+[package]
+name = "frac-prover"
+version = "1.0.0"
+description = "FRAC Prover Desktop App"
+authors = ["FRAC Team"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+sysinfo = "0.30"
+num_cpus = "1.16"
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+rand = "0.8"
+
+# FRAC Prover dependencies
+evm-verify = { path = "../../evm-verify" }
+ethers = { version = "2.0", features = ["abigen", "ws"] }
+anyhow = "1.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

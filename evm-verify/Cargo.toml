@@ -12,13 +12,16 @@ accumulation = ["pcd/accumulation"]
 zoda = ["pcd/zoda"]
 warp = ["accumulation", "pcd/warp"]
 integration-tests = ["zoda"]
-all = ["pcd", "pcc", "accumulation", "zoda", "warp", "integration-tests"]
+stateless-integration = ["dep:zkevm-stateless-vm"]
+all = ["pcd", "pcc", "accumulation", "zoda", "warp", "integration-tests", "stateless-integration"]
 
 [dependencies]
 # Internal dependencies
 evm-verify-common = { path = "./common" }
 pcd = { path = "./pcd", optional = true }
 pcc = { path = "./pcc", optional = true }
+# StatelessVM integration (optional to avoid circular dependency)
+zkevm-stateless-vm = { path = "../stateless-vm", optional = true, default-features = false }
 
 # Ethereum - Official EF Standards
 ethers = { version = "2.0", features = ["ws"] }
@@ -101,6 +104,10 @@ flate2 = "1.0"
 # Memory security
 zeroize = "1.7"
 
+# P2P Networking
+libp2p = { version = "0.53", features = ["tokio", "tcp", "noise", "yamux", "gossipsub", "mdns", "kad", "identify", "ping", "macros"] }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+
 # Temporary files for testing
 tempfile = "3.8"
 
@@ -108,6 +115,7 @@ tempfile = "3.8"
 
 [dev-dependencies]
 hex-literal = "0.4"
+rand_chacha = "0.9.0"
 
 [[example]]
 name = "pcc_example"
@@ -168,3 +176,14 @@ required-features = ["accumulation"]
 [[bin]]
 name = "live-proving-service"
 path = "src/bin/live_proving_service.rs"
+
+[[bin]]
+name = "production_fractal_prover"
+path = "src/bin/production_fractal_prover.rs"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+# StatelessVM for production fractal prover only
+# Avoided in main deps to prevent circular dependency
+
+[target.'cfg(target_env = "msvc")'.dependencies]
+# StatelessVM for production fractal prover only

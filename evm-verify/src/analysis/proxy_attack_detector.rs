@@ -1,5 +1,6 @@
 use crate::bytecode::security::{SecuritySeverity, SecurityWarning, SecurityWarningKind, Operation};
 use std::collections::{HashMap, HashSet};
+use serde::{Serialize, Deserialize};
 
 /// Enhanced detector for upgradeable proxy attack patterns
 #[derive(Debug, Clone)]
@@ -9,7 +10,7 @@ pub struct ProxyAttackDetector {
 }
 
 /// Types of upgradeable proxy vulnerabilities
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProxyAttackType {
     InitializationBypass,
     MaliciousUpgrade,
@@ -22,7 +23,7 @@ pub enum ProxyAttackType {
 }
 
 /// Proxy vulnerability detection result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyVulnerability {
     pub attack_type: ProxyAttackType,
     pub severity: SecuritySeverity,
@@ -34,7 +35,7 @@ pub struct ProxyVulnerability {
 }
 
 /// Location information for proxy vulnerabilities
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyLocation {
     pub contract_address: Option<String>,
     pub function_selector: Option<String>,
@@ -43,7 +44,7 @@ pub struct ProxyLocation {
 }
 
 /// Components of a proxy system
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProxyComponent {
     ProxyContract,
     Implementation,
@@ -284,24 +285,15 @@ impl ProxyAttackDetector {
     fn analyze_upgrade_mechanisms(&self, _trace: &[u8]) -> Vec<UpgradeIssue> {
         let mut issues = Vec::new();
 
-        if self.has_upgrade_function() && !self.has_multi_sig_requirement() {
+        // REMOVED: "Single admin upgrades" - this is intentional in many protocols (USDC, USDT, etc.)
+        // Only flag if there's ACTUAL bypass or unauthorized upgrade capability
+        
+        // DON'T flag timelock as Critical - it's a design choice
+        // Many well-audited protocols choose fast upgrades for security patches
+        if self.has_upgrade_function() && !self.has_timelock_protection() && !self.has_multi_sig_requirement() {
             issues.push(UpgradeIssue {
-                severity: SecuritySeverity::Critical,
-                description: "Single admin can perform upgrades".to_string(),
-                location: ProxyLocation {
-                    contract_address: self.contract_address.clone(),
-                    function_selector: Some("upgrade(address)".to_string()),
-                    bytecode_offset: Some(0),
-                    proxy_component: ProxyComponent::Upgrader,
-                },
-                confidence: 0.9,
-            });
-        }
-
-        if self.has_upgrade_function() && !self.has_timelock_protection() {
-            issues.push(UpgradeIssue {
-                severity: SecuritySeverity::High,
-                description: "Upgrades lack timelock protection".to_string(),
+                severity: SecuritySeverity::Medium, // Downgrade from High - not a vuln
+                description: "Upgrades can be performed quickly (no timelock or multisig)".to_string(),
                 location: ProxyLocation {
                     contract_address: self.contract_address.clone(),
                     function_selector: Some("upgrade(address)".to_string()),

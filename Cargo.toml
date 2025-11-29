@@ -14,7 +14,9 @@ members = [
     "avalanche-bundle-relayer",
     "statelessvm-test",
     "tee_analyzer",
-    "evm-verify"
+    "evm-verify",
+    "trustless-wasm",
+    "trustless-proving-server"
 ]
 
 [workspace.dependencies]

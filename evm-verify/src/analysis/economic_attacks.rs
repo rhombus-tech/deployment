@@ -138,8 +138,16 @@ impl EconomicAttackAnalyzer {
 
         let has_redeem = self.has_function_signatures(&self.redeem_functions);
         let has_rate_limits = self.analyze_withdrawal_limits();
-
-        if has_redeem && !has_rate_limits {
+        
+        // IMPORTANT: Check if this is a legitimate DeFi protocol
+        let is_lending_protocol = self.is_lending_protocol();
+        let is_vault_protocol = self.is_vault_protocol();
+        
+        // Only flag as bank run risk if:
+        // 1. Has redeem functions
+        // 2. No rate limits
+        // 3. NOT a recognized legitimate DeFi pattern
+        if has_redeem && !has_rate_limits && !is_lending_protocol && !is_vault_protocol {
             vulnerabilities.push(EconomicVulnerability {
                 attack_type: EconomicAttack::BankRun,
                 conditions: vec![
@@ -159,6 +167,10 @@ impl EconomicAttackAnalyzer {
                     "withdrawal_rate <= max_sustainable_rate".to_string(),
                 ],
             });
+        } else if has_redeem && !has_rate_limits && (is_lending_protocol || is_vault_protocol) {
+            // Flag as lower severity/confidence for legitimate DeFi protocols
+            // This is expected behavior, not a vulnerability
+            // Don't add to vulnerabilities - it's working as designed
         }
 
         vulnerabilities
@@ -342,6 +354,71 @@ impl EconomicAttackAnalyzer {
             }
         }
         false
+    }
+    
+    /// Detect if this is a legitimate lending protocol (Compound, Aave, etc.)
+    fn is_lending_protocol(&self) -> bool {
+        // Lending protocols have specific function patterns:
+        // 1. mint() + redeem() + borrow() + repay()
+        // 2. exchangeRate functions
+        // 3. Interest rate calculations
+        
+        let lending_signatures = [
+            // Compound cToken functions
+            [0xb2, 0xa0, 0x2f, 0xf1], // exchangeRateCurrent()
+            [0x18, 0x16, 0x0d, 0xdd], // exchangeRateStored()
+            [0xbd, 0x6d, 0x89, 0x4f], // borrowRatePerBlock()
+            [0x15, 0xf2, 0x40, 0x53], // supplyRatePerBlock()
+            [0xc5, 0xe3, 0xc5, 0x45], // borrowBalanceCurrent()
+            [0x17, 0xba, 0xc6, 0xb0], // borrowBalanceStored()
+            // Aave functions
+            [0x69, 0x32, 0x8d, 0xec], // deposit()
+            [0x09, 0xe3, 0x77, 0xab], // borrow()
+            [0x57, 0x3e, 0xad, 0x1b], // repay()
+            [0x63, 0xf1, 0xf5, 0x23], // liquidationCall()
+        ];
+        
+        let mut signature_count = 0;
+        for sig in &lending_signatures {
+            if self.has_function_signature(sig) {
+                signature_count += 1;
+            }
+        }
+        
+        // If we find 2+ lending-specific signatures, it's likely a lending protocol
+        signature_count >= 2
+    }
+    
+    /// Detect if this is a legitimate vault protocol (Yearn, etc.)
+    fn is_vault_protocol(&self) -> bool {
+        // Vault protocols have:
+        // 1. deposit() + withdraw()
+        // 2. pricePerShare() or similar
+        // 3. Strategy management functions
+        
+        let vault_signatures = [
+            // Yearn vault functions
+            [0xb6, 0xb5, 0x5f, 0x25], // deposit()
+            [0x2e, 0x1a, 0x7d, 0x4d], // withdraw(uint256)
+            [0x99, 0x53, 0x0b, 0x06], // pricePerShare()
+            [0x01, 0xe1, 0xd1, 0x14], // totalAssets()
+            [0x38, 0xd5, 0x2e, 0x0f], // maxDeposit()
+            [0xce, 0x96, 0xcb, 0x77], // maxWithdraw()
+            // ERC4626 standard
+            [0x94, 0xbf, 0x80, 0x4b], // totalAssets()
+            [0xc6, 0xe6, 0xf5, 0x92], // convertToShares()
+            [0x07, 0xa2, 0xd1, 0x3a], // convertToAssets()
+        ];
+        
+        let mut signature_count = 0;
+        for sig in &vault_signatures {
+            if self.has_function_signature(sig) {
+                signature_count += 1;
+            }
+        }
+        
+        // If we find 2+ vault-specific signatures, it's likely a vault protocol
+        signature_count >= 2
     }
 }
 

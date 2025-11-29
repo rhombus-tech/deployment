@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: trustless-production
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'trustless-production'
+        environment: 'production'
+    
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
+    
+    # Load rules once and periodically evaluate them
+    rule_files:
+      - '/etc/prometheus/rules/*.yml'
+    
+    # Scrape configurations
+    scrape_configs:
+      # Trustless Proving Server
+      - job_name: 'trustless-proving-server'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - trustless-production
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      
+      # Node Exporter
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: '(.*):10250'
+            replacement: '${1}:9100'
+            target_label: __address__
+      
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: trustless-production
+data:
+  alerts.yml: |
+    groups:
+      - name: trustless_proving
+        interval: 30s
+        rules:
+          # High error rate
+          - alert: HighProvingErrorRate
+            expr: rate(proving_errors_total[5m]) > 0.1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High proving error rate detected"
+              description: "Error rate is {{ $value }} per second"
+          
+          # Server down
+          - alert: ProvingServerDown
+            expr: up{job="trustless-proving-server"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Proving server is down"
+              description: "{{ $labels.instance }} has been down for more than 2 minutes"
+          
+          # High memory usage
+          - alert: HighMemoryUsage
+            expr: container_memory_usage_bytes{pod=~"trustless-proving-server.*"} / container_spec_memory_limit_bytes > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage"
+              description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory"
+          
+          # High CPU usage
+          - alert: HighCPUUsage
+            expr: rate(container_cpu_usage_seconds_total{pod=~"trustless-proving-server.*"}[5m]) > 0.9
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage"
+              description: "Pod {{ $labels.pod }} CPU usage is above 90%"
+          
+          # Slow proofs
+          - alert: SlowProofs
+            expr: histogram_quantile(0.99, rate(proving_duration_seconds_bucket[5m])) > 1.0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Proofs are taking too long"
+              description: "P99 proving time is {{ $value }}s"

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Fractal Network - Earn FRAC Tokens</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .steps {
+            margin: 30px 0;
+        }
+        .step {
+            padding: 20px;
+            margin: 15px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .earnings {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .earnings h3 {
+            margin-bottom: 15px;
+        }
+        .tier {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        .cta {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        .cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+        .secondary {
+            background: #764ba2;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Join Fractal Network</h1>
+        <p class="subtitle">Earn FRAC tokens by generating ZK proofs. No permission needed!</p>
+
+        <div class="highlight">
+            <strong>⚡ Permissionless:</strong> Anyone can join. No approval, no whitelist, no middlemen.
+        </div>
+
+        <div class="earnings">
+            <h3>💰 Potential Earnings</h3>
+            <div class="tier">🥉 <strong>Bronze</strong> (1K FRAC): ~10 FRAC/day | 5% APY</div>
+            <div class="tier">🥈 <strong>Silver</strong> (10K FRAC): ~16 FRAC/day | 6% APY + 1.5x multiplier</div>
+            <div class="tier">🥇 <strong>Gold</strong> (100K FRAC): ~24 FRAC/day | 7% APY + 2.0x multiplier</div>
+            <div class="tier">💎 <strong>Platinum</strong> (1M FRAC): ~32 FRAC/day | 8% APY + 2.5x multiplier</div>
+            <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.9;">
+                * Based on 1000 proofs/day. Actual earnings vary with network demand.
+            </p>
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">Step 1: Download</div>
+                Clone the repository or download the release binary
+            </div>
+
+            <div class="step">
+                <div class="step-number">Step 2: Run Join Script</div>
+                <code>./join-network.sh</code>
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    The script will generate your node ID, build the prover, and start earning!
+                </p>
+            </div>
+
+            <div class="step">
+                <div class="step-number">Step 3: (Optional) Stake FRAC</div>
+                Stake tokens to increase your earnings multiplier and voting power
+            </div>
+
+            <div class="step">
+                <div class="step-number">Step 4: Earn</div>
+                Your node automatically generates proofs and earns FRAC tokens 24/7
+            </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Requirements</h3>
+        <ul style="margin-left: 20px; line-height: 2;">
+            <li>Rust (install from <a href="https://rustup.rs" target="_blank">rustup.rs</a>)</li>
+            <li>2GB RAM minimum (8GB recommended)</li>
+            <li>24/7 uptime (optional but earns more)</li>
+            <li>Ethereum address to receive rewards</li>
+        </ul>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="https://github.com/trustless-network" class="cta">
+                📥 Get Started
+            </a>
+            <a href="https://docs.trustless.network/join" class="cta secondary">
+                📚 Full Guide
+            </a>
+        </div>
+
+        <p style="text-align: center; margin-top: 30px; color: #999; font-size: 0.9em;">
+            Join 1000+ node operators securing the network 🌐
+        </p>
+    </div>
+</body>
+</html>

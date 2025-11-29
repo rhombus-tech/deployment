@@ -1,0 +1,48 @@
+[package]
+name = "trustless-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[dependencies]
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+hex = "0.4"
+
+# Your existing crates (optional - for server-side integration)
+# Note: Full evm-verify integration requires tokio which doesn't work in WASM
+# For production, use server-side evm-verify or WASI runtime
+# evm-verify = { path = "../evm-verify", default-features = false }
+# zkevm-stateless-vm = { path = "../stateless-vm", optional = true }
+
+# Async runtime - not needed for WASM (wasm-bindgen-futures handles it)
+# tokio = { version = "1.0", features = ["rt", "sync"], default-features = false }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# WASM-specific dependencies
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = "z"      # Optimize for size
+lto = true           # Enable link-time optimization
+codegen-units = 1    # Single codegen unit for better optimization
+strip = true         # Strip symbols

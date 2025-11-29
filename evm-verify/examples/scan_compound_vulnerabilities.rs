@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     println!("🔍 Scanning recent blocks for CURRENT vulnerabilities...");
     
     // Initialize provider - using public endpoint
-    let provider = Provider::<Http>::try_from("https://eth-mainnet.g.alchemy.com/v2/demo")?;
+    let provider = Provider::<Http>::try_from("http://localhost:8545")?;
     
     // Known Compound Finance contract addresses
     let compound_contracts = HashMap::from([

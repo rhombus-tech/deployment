@@ -1,0 +1,258 @@
+# FRAC RPC - Production Deployment
+# Complete infrastructure for proving-optimized Ethereum RPC
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Primary Erigon Node (Your Own Infrastructure)
+  # ============================================
+  erigon-primary:
+    image: thorax/erigon:latest
+    container_name: frac-erigon-primary
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+      - "8546:8546"  # WebSocket
+    volumes:
+      - ./data/erigon-primary:/data
+    command: |
+      --chain mainnet
+      --datadir /data
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8545
+      --http.api eth,net,web3,debug,trace
+      --http.vhosts=*
+      --http.corsdomain=*
+      --ws
+      --ws.port 8546
+      --maxpeers 100
+      --prune htc
+      --prune.r.before=11184524
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 16G
+
+  # ============================================
+  # Secondary Erigon Node (Backup)
+  # ============================================
+  erigon-secondary:
+    image: thorax/erigon:latest
+    container_name: frac-erigon-secondary
+    restart: unless-stopped
+    ports:
+      - "8547:8545"
+    volumes:
+      - ./data/erigon-secondary:/data
+    command: |
+      --chain mainnet
+      --datadir /data
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8545
+      --http.api eth,net,web3
+      --maxpeers 50
+      --prune htc
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+
+  # ============================================
+  # Geth Full Node (Validation)
+  # ============================================
+  geth:
+    image: ethereum/client-go:latest
+    container_name: frac-geth
+    restart: unless-stopped
+    ports:
+      - "8548:8545"
+    volumes:
+      - ./data/geth:/root/.ethereum
+    command: |
+      --mainnet
+      --http
+      --http.addr 0.0.0.0
+      --http.api eth,net,web3
+      --http.vhosts=*
+      --http.corsdomain=*
+      --syncmode snap
+      --maxpeers 50
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+
+  # ============================================
+  # PostgreSQL L2 Cache Layer
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: frac-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: frac_rpc
+      POSTGRES_USER: frac
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fracpassword}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    command: |
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=16MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # ============================================
+  # Redis Cache Layer (L1)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: frac-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: |
+      redis-server
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ============================================
+  # FRAC RPC Gateway (Your Application)
+  # ============================================
+  frac-rpc:
+    build: .
+    container_name: frac-rpc-gateway
+    restart: unless-stopped
+    ports:
+      - "80:8545"  # Public RPC endpoint
+      - "9090:9090"  # Metrics endpoint
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8545
+      - ERIGON_PRIMARY_URL=http://erigon-primary:8545
+      - ERIGON_SECONDARY_URL=http://erigon-secondary:8545
+      - REDIS_URL=redis://redis:6379
+      - ALCHEMY_URL=${ALCHEMY_URL}  # Fallback (from .env)
+      - INFURA_URL=${INFURA_URL}    # Fallback (from .env)
+      - LOG_LEVEL=info
+    depends_on:
+      - erigon-primary
+      - redis
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # ============================================
+  # Nginx Load Balancer (Optional)
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: frac-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"  # HTTPS endpoint
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - frac-rpc
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================
+  # Prometheus (Monitoring)
+  # ============================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: frac-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ============================================
+  # Grafana (Dashboards)
+  # ============================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: frac-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin  # Change in production!
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+    networks:
+      - frac-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  frac-network:
+    driver: bridge
+
+volumes:
+  erigon-primary-data:
+  erigon-secondary-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:

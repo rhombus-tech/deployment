@@ -1,5 +1,6 @@
 use crate::bytecode::security::{SecuritySeverity, SecurityWarning, SecurityWarningKind, Operation};
 use std::collections::{HashMap, HashSet};
+use serde::{Serialize, Deserialize};
 
 /// Advanced detector for DeFi composability attack patterns
 #[derive(Debug, Clone)]
@@ -12,7 +13,7 @@ pub struct ComposabilityAttackDetector {
 }
 
 /// Types of composability attacks
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComposabilityAttackType {
     ReentrancyChain,
     FlashLoanArbitrage,
@@ -25,7 +26,7 @@ pub enum ComposabilityAttackType {
 }
 
 /// Composability vulnerability detection result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComposabilityVulnerability {
     pub attack_type: ComposabilityAttackType,
     pub severity: SecuritySeverity,
@@ -39,7 +40,7 @@ pub struct ComposabilityVulnerability {
 }
 
 /// Attack vector information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttackVector {
     pub entry_point: String,
     pub execution_path: Vec<String>,
@@ -48,7 +49,7 @@ pub struct AttackVector {
 }
 
 /// External call information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalCall {
     pub target_contract: String,
     pub function_selector: String,
@@ -57,7 +58,7 @@ pub struct ExternalCall {
 }
 
 /// Types of external calls
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CallType {
     DirectCall,
     DelegateCall,
@@ -67,7 +68,7 @@ pub enum CallType {
 }
 
 /// Risk levels for external calls
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RiskLevel {
     Low,
     Medium,
@@ -76,7 +77,7 @@ pub enum RiskLevel {
 }
 
 /// Impact assessment for composability attacks
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComposabilityImpact {
     pub max_funds_at_risk: Option<u64>,
     pub affected_protocols_count: u32,
@@ -163,6 +164,11 @@ impl ComposabilityAttackDetector {
 
     /// Analyze contract for composability attack vulnerabilities
     pub fn analyze_composability_attacks(&self, execution_trace: &[u8]) -> Vec<ComposabilityVulnerability> {
+        // Only analyze complex multi-contract interactions
+        if execution_trace.len() < 1000 {
+            return vec![]; // Too simple for composability attacks
+        }
+        
         let mut vulnerabilities = Vec::new();
 
         vulnerabilities.extend(self.detect_reentrancy_chains(execution_trace));

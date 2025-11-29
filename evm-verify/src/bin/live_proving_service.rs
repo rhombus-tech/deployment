@@ -1429,8 +1429,9 @@ async fn main() -> Result<()> {
     println!("================================");
     
     // Initialize service
+    // INTEGRATED: Use FRAC RPC (your infrastructure + smart fallbacks)
     let rpc_url = std::env::var("ETH_RPC_URL")
-        .unwrap_or_else(|_| "https://ethereum-rpc.publicnode.com".to_string());
+        .unwrap_or_else(|_| "http://localhost:8545".to_string());
     
     println!("🔗 Connecting to Ethereum RPC: {}", rpc_url);
     

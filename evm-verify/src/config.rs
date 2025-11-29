@@ -191,6 +191,9 @@ pub struct SecurityConfig {
     pub rate_limit_per_ip: u32,
     /// Enable audit logging
     pub enable_audit_log: bool,
+    /// Enable vulnerability analysis during proving (default: true)
+    /// When false, proving is faster but security checks are skipped
+    pub enable_vulnerability_analysis: bool,
 }
 
 /// Storage configuration
@@ -301,6 +304,7 @@ impl Default for ZkEvmConfig {
                 enable_rate_limiting: true,
                 rate_limit_per_ip: 100,
                 enable_audit_log: true,
+                enable_vulnerability_analysis: true, // Default: security ON
             },
             storage: StorageConfig {
                 data_dir: PathBuf::from("./data"),

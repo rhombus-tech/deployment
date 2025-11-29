@@ -435,7 +435,7 @@ pub fn detect_signature_replay_attacks(analyzer: &BytecodeAnalyzer) -> Vec<Secur
 
     vulnerabilities.into_iter().map(|vuln| {
         SecurityWarning {
-            kind: SecurityWarningKind::ReplayAttack,
+            kind: SecurityWarningKind::SignatureReplay,
             severity: vuln.severity,
             pc: vuln.location as u64,
             description: vuln.description,

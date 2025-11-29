@@ -1,6 +1,7 @@
 pub mod analyzer;
 pub mod circuits;
 pub mod prover;
+pub mod vulnerability_proof;
 pub mod api;
 
 // Re-export specific modules instead of using glob imports

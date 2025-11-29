@@ -2,8 +2,9 @@
 
 use super::phi_optimizer::{PHI, PHI_INVERSE};
 use super::topology::ProverID;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZODAProofTask {
     pub circuit_id: String,
     pub tensor_segments: Vec<TensorSegment>,
@@ -12,28 +13,28 @@ pub struct ZODAProofTask {
     pub priority: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TensorSegment {
     pub data: Vec<u8>,
     pub phi_encoding: Vec<f64>,
     pub rhombus_structure: RhombusParams,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhiParams {
     pub optimization_level: f64,
     pub fibonacci_index: usize,
     pub golden_ratio_scaling: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregationMethod {
     HierarchicalAggregation,
     PhiOptimizedCombination,
     FractalReduction,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RhombusParams {
     pub width: usize,
     pub height: usize,

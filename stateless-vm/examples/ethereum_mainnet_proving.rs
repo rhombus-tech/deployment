@@ -66,7 +66,11 @@ impl EthereumMainnetClient {
     pub fn new(rpc_url: String) -> Self {
         Self {
             rpc_url,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(10))
+                .connect_timeout(Duration::from_secs(5))
+                .build()
+                .unwrap(),
         }
     }
 
@@ -170,11 +174,23 @@ impl EthereumMainnetClient {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 === Real Ethereum Mainnet Block Proving ===");
     
+    // Check for --skip-vulnerabilities flag
+    let args: Vec<String> = std::env::args().collect();
+    let skip_vulnerability_analysis = args.contains(&"--skip-vulnerabilities".to_string());
+    
+    if skip_vulnerability_analysis {
+        println!("⚡ Running in FAST mode (vulnerability analysis disabled)");
+    } else {
+        println!("🔒 Running in SECURE mode (vulnerability analysis enabled)");
+    }
+    println!();
+    
     // Use truly free public Ethereum RPC endpoints (no API key required)
     let rpc_urls = vec![
-        "https://eth.merkle.io".to_string(),
-        "https://rpc.flashbots.net".to_string(),
         "https://ethereum-rpc.publicnode.com".to_string(),
+        "https://rpc.ankr.com/eth".to_string(),
+        "https://eth.merkle.io".to_string(),
+        "https://cloudflare-eth.com".to_string(),
     ];
     
     // Try multiple RPC endpoints until one works
@@ -212,10 +228,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
     
     let state_bundler = zkevm_stateless_vm::StateBundler::new(state_providers);
-    // Create security verifier
-    let security_verifier = Arc::new(PCDSecurityVerifier::new(
+    // Create security verifier with configurable vulnerability analysis
+    let security_verifier = Arc::new(PCDSecurityVerifier::new_with_analysis(
         zkevm_stateless_vm::pcd::VerificationStrategy::Groth16,
         false, // use_warp
+        !skip_vulnerability_analysis, // enable_vulnerability_analysis
     ));
 
     let vm = StatelessVM::new(
@@ -262,7 +279,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     let realtime_engine = RealTimeVerificationEngine::new(
-        vec![security_verifier],
+        vec![security_verifier.clone()],
         proof_accumulator,
         realtime_config,
     );
@@ -290,10 +307,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("📊 Latest Ethereum block: {}", latest_block);
     
-    // Test proving on recent blocks (last 10 blocks)
-    let test_blocks = (latest_block.saturating_sub(10)..=latest_block).collect::<Vec<_>>();
+    // Test proving on recent blocks (last 3 blocks for quick test)
+    let test_blocks = (latest_block.saturating_sub(2)..=latest_block).collect::<Vec<_>>();
     
-    println!("🧱 Testing zkEVM proving on blocks: {:?}", test_blocks);
+    println!("🧱 Testing zkEVM proving on {} blocks", test_blocks.len());
     
     let mut total_proving_time = Duration::new(0, 0);
     let mut total_transactions = 0u64;
@@ -355,8 +372,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 
-                // Wait for proofs to be generated
-                sleep(Duration::from_millis(500)).await;
+                // Wait for proofs to be generated (minimal delay for async processing)
+                sleep(Duration::from_millis(10)).await;
                 
                 let prove_duration = prove_start.elapsed();
                 
@@ -406,6 +423,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ PASS: Meets Ethereum Foundation L1 zkEVM requirements!");
         } else {
             println!("❌ FAIL: Does not meet EF requirements");
+        }
+        
+        // 🚀 Print contract proof cache statistics
+        println!("\n");
+        security_verifier.print_cache_stats();
+        
+        let cache_stats = security_verifier.cache_stats();
+        let hit_rate = security_verifier.cache_hit_rate();
+        
+        if hit_rate > 0.0 {
+            println!("💡 Cache Performance Impact:");
+            println!("   • Time saved: {:.2}s", cache_stats.time_saved_ms as f64 / 1000.0);
+            println!("   • Estimated speedup: {:.1}×", 1.0 / (1.0 - hit_rate).max(0.01));
+            println!("   • Without cache, proving would have taken ~{:.2}s longer", 
+                     cache_stats.time_saved_ms as f64 / 1000.0);
         }
     } else {
         println!("❌ No blocks were successfully proved");

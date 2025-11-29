@@ -711,7 +711,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("rpc-url")
                 .value_name("URL")
                 .help("Ethereum RPC endpoint URL")
-                .default_value("https://eth-mainnet.g.alchemy.com/v2/demo")
+                // INTEGRATED: Use FRAC RPC by default
+                .default_value("http://localhost:8545")
         )
         .arg(
             Arg::new("blocks")

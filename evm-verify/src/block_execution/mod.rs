@@ -25,8 +25,8 @@ pub use performance_monitor::{PerformanceMonitor, PerformanceReport, ExecutionMe
 pub use crate::api::pcd::PCDVerifier;
 pub use crate::api::pcd_adapter::PCDAdapter;
 
-#[cfg(feature = "accumulation")]
-pub use pcd::evm_accumulation::{EVMAccumulator, generate_evm_proof, verify_evm_proof};
+// 🚀 WARP/FRI: No longer using EVMAccumulator (Groth16)
+// Block-level WARP/FRI proofs handle all verification
 
 use ethers::types::{Block, Transaction, U256};
 use anyhow::{Result, anyhow};

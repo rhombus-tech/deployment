@@ -1,0 +1,98 @@
+{
+  "dashboard": {
+    "title": "Trustless Proving Network - Production Dashboard",
+    "tags": ["trustless", "proving", "zoda", "warp"],
+    "timezone": "UTC",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Proofs Generated",
+        "type": "stat",
+        "targets": [{
+          "expr": "trustless_total_proofs",
+          "legendFormat": "Total Proofs"
+        }],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Proofs Per Second",
+        "type": "graph",
+        "targets": [{
+          "expr": "rate(trustless_total_proofs[1m])",
+          "legendFormat": "Proofs/sec"
+        }],
+        "gridPos": {"h": 8, "w": 9, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Average Proving Time (µs)",
+        "type": "graph",
+        "targets": [{
+          "expr": "histogram_quantile(0.50, rate(proving_duration_microseconds_bucket[5m]))",
+          "legendFormat": "P50"
+        }, {
+          "expr": "histogram_quantile(0.95, rate(proving_duration_microseconds_bucket[5m]))",
+          "legendFormat": "P95"
+        }, {
+          "expr": "histogram_quantile(0.99, rate(proving_duration_microseconds_bucket[5m]))",
+          "legendFormat": "P99"
+        }],
+        "gridPos": {"h": 8, "w": 9, "x": 15, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Active Nodes",
+        "type": "stat",
+        "targets": [{
+          "expr": "count(up{job=\"trustless-proving-server\"} == 1)",
+          "legendFormat": "Active Nodes"
+        }],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [{
+          "expr": "rate(proving_errors_total[5m])",
+          "legendFormat": "Errors/sec"
+        }],
+        "gridPos": {"h": 8, "w": 9, "x": 6, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [{
+          "expr": "container_memory_usage_bytes{pod=~\"trustless-proving-server.*\"} / 1024 / 1024 / 1024",
+          "legendFormat": "{{pod}}"
+        }],
+        "gridPos": {"h": 8, "w": 9, "x": 15, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "CPU Usage %",
+        "type": "graph",
+        "targets": [{
+          "expr": "rate(container_cpu_usage_seconds_total{pod=~\"trustless-proving-server.*\"}[5m]) * 100",
+          "legendFormat": "{{pod}}"
+        }],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Request Rate by Endpoint",
+        "type": "graph",
+        "targets": [{
+          "expr": "rate(http_requests_total[5m])",
+          "legendFormat": "{{endpoint}}"
+        }],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 36,
+    "version": 1
+  }
+}

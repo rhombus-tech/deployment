@@ -63,6 +63,7 @@ impl Default for ServiceConfig {
     fn default() -> Self {
         Self {
             bind_address: "0.0.0.0:8080".parse().unwrap(),
+            // INTEGRATED: Use FRAC RPC gateway
             ethereum_rpc_url: std::env::var("ETHEREUM_RPC_URL")
                 .unwrap_or_else(|_| "http://localhost:8545".to_string()),
             websocket_url: std::env::var("ETHEREUM_WS_URL").ok(),

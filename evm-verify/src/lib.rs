@@ -27,6 +27,7 @@ pub mod circuits;
 pub mod crypto;
 pub mod common;
 pub mod ethereum;
+pub mod privacy;  // Privacy-preserving transactions
 pub mod state_trie;
 pub mod vm;
 pub mod proving;
@@ -47,8 +48,10 @@ pub mod config;
 pub mod monitoring;
 pub mod middleware;
 pub mod profiling;
+pub mod scanner;
 pub mod utils;
 pub mod fractal_network;
+pub mod integration;
 
 // Production infrastructure re-exports
 pub use error::{ZkEvmError as ZodaError, ErrorSeverity, ErrorCategory, ZkEvmError};

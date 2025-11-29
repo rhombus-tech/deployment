@@ -388,10 +388,12 @@ impl Default for ZodaConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            ethereum_rpc_url: "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY".to_string(),
+            // INTEGRATED: Use FRAC RPC which handles fallbacks internally
+            ethereum_rpc_url: "http://localhost:8545".to_string(),
             backup_rpc_urls: vec![
-                "https://mainnet.infura.io/v3/YOUR_PROJECT_ID".to_string(),
-                "https://rpc.ankr.com/eth".to_string(),
+                // No backup needed - FRAC RPC has built-in fallbacks
+                // (Erigon Primary → Erigon Secondary → Alchemy → Infura)
+
             ],
             chain_id: 1,
             max_block_lag: 10,

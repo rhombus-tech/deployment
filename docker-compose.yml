@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  proving-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.proving-server
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=info
+      - ENABLE_FRACTAL=true
+      - NODE_ID=local-node-1
+      - METRICS_ENABLED=true
+    volumes:
+      - ./trustless-proving-server/config:/app/config:ro
+      - proving-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - trustless-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus-config.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - trustless-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/trustless.json:ro
+    depends_on:
+      - prometheus
+    networks:
+      - trustless-net
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=trustless
+      - POSTGRES_USER=trustless
+      - POSTGRES_PASSWORD=changeme
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - trustless-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - trustless-net
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  proving-data:
+  prometheus-data:
+  grafana-data:
+  postgres-data:
+  redis-data:
+
+networks:
+  trustless-net:
+    driver: bridge

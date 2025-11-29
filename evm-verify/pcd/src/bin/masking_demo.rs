@@ -1,41 +1,29 @@
 use pcd::tensor_zoda::{ExtractableCommitment, CommitmentType, Matrix};
 use ark_bn254::Fr as BN254Fr;
-use ark_ff::Field;
 use rand::thread_rng;
 
 fn main() {
-    println!("=== zkEVM Economic Masking Demonstration ===\n");
+    println!("=== zkEVM Commitment Types Demonstration ===\n");
     
     let mut rng = thread_rng();
-    let mut matrix = Matrix::<BN254Fr>::new(4, 4);
+    let matrix = Matrix::<BN254Fr>::new(4, 4);
     
-    // Fill with sample tensor data
-    for i in 0..4 {
-        for j in 0..4 {
-            matrix.data[i][j] = BN254Fr::from((i * 4 + j + 1) as u64);
-        }
-    }
+    println!("Testing different commitment types:\n");
     
-    println!("Testing different masking security levels:\n");
-    
-    // Test StandardHiding (Investigation accessible)
-    let standard_commit = ExtractableCommitment::new(
+    // Test Binding
+    let binding_commit = ExtractableCommitment::new(
         &matrix,
-        CommitmentType::StandardHiding,
+        CommitmentType::Binding,
         &mut rng,
     );
     
-    println!("🔒 StandardHiding Commitment:");
-    println!("  Security Bits: {}", standard_commit.security_bits);
-    println!("  Hiding: {}", standard_commit.is_hiding());
-    println!("  Binding: {}", standard_commit.is_binding());
-    println!("  Unmasking Cost: ${:.0}", standard_commit.unmasking_cost_estimate());
-    println!("  Rational for $10M investigation: {}", 
-             standard_commit.is_unmasking_rational(10_000_000.0));
-    println!("  Rational for $100K attack: {}\n", 
-             standard_commit.is_unmasking_rational(100_000.0));
+    println!("🔒 Binding Commitment:");
+    println!("  Type: {:?}", binding_commit.commitment_type);
+    println!("  Hiding: {}", binding_commit.is_hiding());
+    println!("  Binding: {}", binding_commit.is_binding());
+    println!("  Purpose: Computationally binding\n");
     
-    // Test Hiding (Nation-state level)
+    // Test Hiding (Computationally hiding)
     let hiding_commit = ExtractableCommitment::new(
         &matrix,
         CommitmentType::Hiding,
@@ -43,29 +31,23 @@ fn main() {
     );
     
     println!("🔐 Hiding Commitment:");
-    println!("  Security Bits: {}", hiding_commit.security_bits);
+    println!("  Type: {:?}", hiding_commit.commitment_type);
     println!("  Hiding: {}", hiding_commit.is_hiding());
     println!("  Binding: {}", hiding_commit.is_binding());
-    println!("  Unmasking Cost: ${:.0}", hiding_commit.unmasking_cost_estimate());
-    println!("  Rational for $10B government: {}", 
-             hiding_commit.is_unmasking_rational(10_000_000_000.0));
-    println!("  Rational for $1M corporate: {}\n", 
-             hiding_commit.is_unmasking_rational(1_000_000.0));
+    println!("  Purpose: Computationally hiding\n");
     
-    // Test StrongHiding (Physically impossible)
-    let strong_commit = ExtractableCommitment::new(
+    // Test PerfectHiding (Information-theoretically hiding)
+    let perfect_commit = ExtractableCommitment::new(
         &matrix,
-        CommitmentType::StrongHiding,
+        CommitmentType::PerfectHiding,
         &mut rng,
     );
     
-    println!("🛡️  StrongHiding Commitment:");
-    println!("  Security Bits: {}", strong_commit.security_bits);
-    println!("  Hiding: {}", strong_commit.is_hiding());
-    println!("  Binding: {}", strong_commit.is_binding());
-    println!("  Unmasking Cost: ${}", strong_commit.unmasking_cost_estimate());
-    println!("  Rational for any finite budget: {}\n", 
-             strong_commit.is_unmasking_rational(f64::MAX));
+    println!("🛡️  PerfectHiding Commitment:");
+    println!("  Type: {:?}", perfect_commit.commitment_type);
+    println!("  Hiding: {}", perfect_commit.is_hiding());
+    println!("  Binding: {}", perfect_commit.is_binding());
+    println!("  Purpose: Information-theoretically hiding\n");
     
     // Test Extractable (Trapdoor access)
     let extractable_commit = ExtractableCommitment::new(
@@ -75,29 +57,29 @@ fn main() {
     );
     
     println!("🔑 Extractable Commitment:");
-    println!("  Security Bits: {}", extractable_commit.security_bits);
+    println!("  Type: {:?}", extractable_commit.commitment_type);
     println!("  Hiding: {}", extractable_commit.is_hiding());
     println!("  Binding: {}", extractable_commit.is_binding());
     println!("  Has Trapdoor: {}", extractable_commit.extraction_trapdoor.is_some());
-    println!("  Unmasking Cost: ${:.0}", extractable_commit.unmasking_cost_estimate());
-    println!("  Rational for $10B (w/o trapdoor): {}\n", 
-             extractable_commit.is_unmasking_rational(10_000_000_000.0));
+    println!("  Purpose: Allows extraction of committed value\n");
     
-    println!("=== Strategic Deployment Recommendations ===\n");
+    println!("=== Commitment Type Usage ===\n");
     
-    println!("📊 For EF Performance Metrics:");
-    println!("  Use: StandardHiding ($1M barrier)");
-    println!("  Allows: Critical investigations");
-    println!("  Blocks: Corporate espionage, casual attacks\n");
+    println!("📊 Binding:");
+    println!("  - Cannot change committed value");
+    println!("  - Used for non-repudiation\n");
     
-    println!("🔬 For Core ZODA Algorithms:");
-    println!("  Use: StrongHiding (Physically impossible)");
-    println!("  Allows: No unauthorized access");
-    println!("  Blocks: All reverse engineering attempts\n");
+    println!("🔐 Hiding:");
+    println!("  - Computationally hides committed value");
+    println!("  - Used for privacy-preserving protocols\n");
     
-    println!("⚖️  For Regulatory Compliance:");
-    println!("  Use: Extractable (Trapdoor access)");
-    println!("  Allows: Court-ordered disclosure");
+    println!("🛡️  PerfectHiding:");
+    println!("  - Information-theoretically secure");
+    println!("  - Maximum privacy guarantees\n");
+    
+    println!("🔑 Extractable:");
+    println!("  - Trapdoor allows value extraction");
+    println!("  - Used for compliance/auditing");
     println!("  Blocks: Unauthorized competitors\n");
     
     println!("💡 Economic Security Achieved:");

@@ -12,9 +12,9 @@ use serde::{Serialize, Deserialize};
 use tokio::sync::{Mutex, RwLock};
 use ark_std::rand::thread_rng;
 
-#[cfg(feature = "accumulation")]
-use pcd::evm_accumulation::{EVMAccumulator, generate_evm_proof, verify_evm_proof};
-use ark_bn254::Fr as Bn254Fr;
+// 🚀 WARP/FRI: No longer using EVMAccumulator (Groth16)
+// State accumulation is handled through commitments
+// Block-level WARP/FRI proof covers all state transitions
 
 use crate::block_execution::{BatchResult};
 use crate::block_execution::batch_processor::TransactionResult;
@@ -23,10 +23,6 @@ use crate::block_execution::batch_processor::TransactionResult;
 pub struct StateAccumulator {
     /// Current accumulated state
     current_state: Arc<RwLock<AccumulatedState>>,
-    
-    /// ZODA tensor accumulator
-    #[cfg(feature = "accumulation")]
-    tensor_accumulator: Arc<Mutex<EVMAccumulator>>,
     
     /// State transition history
     transition_history: Arc<Mutex<Vec<StateTransition>>>,
@@ -226,13 +222,8 @@ impl StateAccumulator {
             },
         };
 
-        #[cfg(feature = "accumulation")]
-        let tensor_accumulator = Arc::new(Mutex::new(EVMAccumulator::new(true))); // Enable batch mode
-
         Ok(Self {
             current_state: Arc::new(RwLock::new(initial_state)),
-            #[cfg(feature = "accumulation")]
-            tensor_accumulator,
             transition_history: Arc::new(Mutex::new(Vec::new())),
             metrics: Arc::new(Mutex::new(AccumulationMetrics::default())),
             compression_config: CompressionConfig::default(),
@@ -344,55 +335,54 @@ impl StateAccumulator {
             self.perform_mock_accumulation(transitions).await
         }
     }
-
+    
+    /// Create cryptographic commitment to state transitions
+    fn create_state_transition_commitment(&self, transitions: &[StateTransition]) -> Result<Vec<u8>> {
+        use sha3::{Digest, Sha3_256};
+        
+        let mut hasher = Sha3_256::new();
+        hasher.update(b"STATE_TRANSITION_COMMITMENT");
+        
+        for transition in transitions {
+            hasher.update(transition.transaction_hash.as_bytes());
+            hasher.update(transition.pre_state_root.as_bytes());
+            hasher.update(transition.post_state_root.as_bytes());
+            
+            let mut gas_bytes = [0u8; 32];
+            transition.gas_used.to_big_endian(&mut gas_bytes);
+            hasher.update(&gas_bytes);
+        }
+        
+        Ok(hasher.finalize().to_vec())
+    }
+    
     #[cfg(feature = "accumulation")]
     async fn perform_zoda_tensor_accumulation(
         &self,
         transitions: &[StateTransition],
     ) -> Result<(H256, Option<Vec<u8>>)> {
-        let mut accumulator = self.tensor_accumulator.lock().await;
-        let mut rng = thread_rng();
-
-        // Create comprehensive bytecode representing the entire block
-        let mut block_bytecode = Vec::new();
-        for transition in transitions {
-            // Add transition data to bytecode
-            block_bytecode.extend_from_slice(transition.transaction_hash.as_bytes());
-            block_bytecode.extend_from_slice(transition.pre_state_root.as_bytes());
-            block_bytecode.extend_from_slice(transition.post_state_root.as_bytes());
-            let mut gas_bytes = [0u8; 32];
-            transition.gas_used.to_big_endian(&mut gas_bytes);
-            block_bytecode.extend_from_slice(&gas_bytes);
+        // 🚀 WARP/FRI: State accumulation without Groth16
+        // Block-level WARP/FRI proof covers all state transitions
+        
+        if transitions.is_empty() {
+            return Err(anyhow!("No state transitions to accumulate"));
         }
 
-        // Initialize accumulator with block bytecode
-        accumulator.initialize(Bytes::from(block_bytecode))?;
-
-        // Create state vectors for accumulation
-        let initial_state_vector = self.encode_state_vector(&transitions[0].pre_state_root)?;
-        let final_state_vector = self.encode_state_vector(&transitions.last().unwrap().post_state_root)?;
-
-        // Perform tensor accumulation
-        accumulator.accumulate(Some(initial_state_vector), final_state_vector, &mut rng)?;
-
-        // Verify the accumulated proof
-        let is_valid = accumulator.verify()?;
-        if !is_valid {
-            return Err(anyhow!("Tensor accumulation verification failed"));
+        // Validate state transition chain
+        for i in 1..transitions.len() {
+            if transitions[i].pre_state_root != transitions[i-1].post_state_root {
+                return Err(anyhow!(
+                    "State transition chain broken at index {}", i
+                ));
+            }
         }
-
-        // Extract proof
-        let proof = if let Some(proof) = &accumulator.proof {
-            Some(crate::api::pcd_adapter::serialize_proof(proof)?)
-        } else {
-            None
-        };
 
         let final_state_root = transitions.last().unwrap().post_state_root;
+        let commitment = self.create_state_transition_commitment(transitions)?;
 
-        Ok((final_state_root, proof))
+        Ok((final_state_root, Some(commitment)))
     }
-
+    
     #[cfg(not(feature = "accumulation"))]
     async fn perform_mock_accumulation(
         &self,
@@ -442,26 +432,8 @@ impl StateAccumulator {
         Ok(H256::from_slice(&hash_result))
     }
 
-    /// Encode state root into field elements for ZODA operations
-    fn encode_state_vector(&self, state_root: &H256) -> Result<Vec<Bn254Fr>> {
-        let mut state_vector = Vec::new();
-        
-        // Convert state root bytes to field elements
-        let chunks = state_root.as_bytes().chunks(8);
-        for chunk in chunks {
-            let mut padded = [0u8; 8];
-            padded[..chunk.len()].copy_from_slice(chunk);
-            let value = u64::from_be_bytes(padded);
-            state_vector.push(Bn254Fr::from(value));
-        }
-        
-        // Ensure we have at least one element
-        if state_vector.is_empty() {
-            state_vector.push(Bn254Fr::from(1u32));
-        }
-        
-        Ok(state_vector)
-    }
+    // 🚀 WARP/FRI: Field element encoding no longer needed
+    // State is committed directly via SHA3 hashing
 
     /// Count unique affected accounts across all transitions
     fn count_affected_accounts(&self, transitions: &[StateTransition]) -> usize {
@@ -555,11 +527,7 @@ impl StateAccumulator {
             history.clear();
         }
 
-        #[cfg(feature = "accumulation")]
-        {
-            let mut accumulator = self.tensor_accumulator.lock().await;
-            *accumulator = EVMAccumulator::new(true);
-        }
+        // State reset - tensor_accumulator removed (WARP/FRI handles proving)
 
         Ok(())
     }

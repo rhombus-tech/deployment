@@ -1,0 +1,104 @@
+# FRAC RPC - Prometheus Monitoring Configuration
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'frac-rpc'
+    environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - 'alertmanager:9093'  # Uncomment to enable alerting
+
+# Rule files
+rule_files:
+  # - "alerts/*.yml"  # Add custom alert rules here
+
+# Scrape configurations
+scrape_configs:
+  # FRAC RPC Gateway Metrics
+  - job_name: 'frac-rpc-gateway'
+    static_configs:
+      - targets: ['frac-rpc:9090']
+        labels:
+          service: 'rpc-gateway'
+          instance: 'primary'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Nginx Metrics (if nginx-prometheus-exporter is installed)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: 'nginx'
+    scrape_interval: 15s
+
+  # Redis Metrics (if redis_exporter is installed)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis-cache'
+    scrape_interval: 15s
+
+  # PostgreSQL Metrics (if postgres_exporter is installed)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres-cache'
+    scrape_interval: 15s
+
+  # Erigon Node Metrics (if available)
+  - job_name: 'erigon-primary'
+    static_configs:
+      - targets: ['erigon-primary:6060']
+        labels:
+          service: 'ethereum-node'
+          node: 'primary'
+    scrape_interval: 30s
+
+  - job_name: 'erigon-secondary'
+    static_configs:
+      - targets: ['erigon-secondary:6060']
+        labels:
+          service: 'ethereum-node'
+          node: 'secondary'
+    scrape_interval: 30s
+
+  # Geth Node Metrics (if available)
+  - job_name: 'geth'
+    static_configs:
+      - targets: ['geth:6060']
+        labels:
+          service: 'ethereum-node'
+          node: 'geth'
+    scrape_interval: 30s
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+    scrape_interval: 15s
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 30d
+      size: 50GB
+
+# Remote write (optional - for long-term storage)
+# remote_write:
+#   - url: "https://your-remote-storage/api/v1/write"
+#     basic_auth:
+#       username: "your-username"
+#       password: "your-password"

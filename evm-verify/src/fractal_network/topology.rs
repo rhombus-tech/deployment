@@ -2,7 +2,7 @@
 
 use super::phi_optimizer::{PHI, PHI_INVERSE};
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ProverID(pub String);
 
 #[derive(Debug, Clone)]

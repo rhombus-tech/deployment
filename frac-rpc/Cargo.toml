@@ -1,0 +1,57 @@
+[workspace]
+
+[package]
+name = "frac-rpc"
+version = "1.0.0"
+edition = "2021"
+authors = ["FRAC Team"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+
+# Web framework
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "compression-gzip", "trace"] }
+
+# Ethereum
+ethers = { version = "2.0", features = ["ws", "ipc"] }
+alloy-rpc-types = "0.1"
+
+# Caching
+redis = { version = "0.24", features = ["tokio-comp", "cluster", "connection-manager"] }
+dashmap = "5.5"
+
+# Database
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls", "chrono", "json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Metrics & Monitoring
+prometheus = "0.13"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Performance
+rayon = "1.8"
+crossbeam = "0.8"
+
+# Utilities
+anyhow = "1.0"
+thiserror = "1.0"
+chrono = "0.4"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+futures = "0.3"
+base64 = "0.21"
+num_cpus = "1.16"
+
+# Configuration
+config = "0.13"
+dotenv = "0.15"
+
+[dev-dependencies]
+criterion = "0.5"

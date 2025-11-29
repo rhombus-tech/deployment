@@ -665,11 +665,18 @@ impl ZodaWarpHybridStrategy {
         zoda_strategy.initialize(circuit_bytes)?;
         let verification_result = zoda_strategy.verify()?;
         
+        // Get the actual proof data (serialized accumulator state)
+        let proof_data = zoda_strategy.get_proof_data()
+            .unwrap_or_else(|_| {
+                // Fallback to verification result if serialization fails
+                verification_result.to_string().into_bytes()
+            });
+        
         let proving_time = start_time.elapsed();
         
         // Create proof item with metadata
         let proof_item = ZODAProofItem {
-            proof_data: verification_result.to_string().into_bytes(),
+            proof_data,
             circuit_id: rand::random(),
             proving_time,
             vulnerability_count: if verification_result { 0 } else { 1 },

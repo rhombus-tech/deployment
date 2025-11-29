@@ -10,10 +10,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Try multiple public RPC endpoints
     let rpc_endpoints = vec![
-        "https://eth-mainnet.g.alchemy.com/v2/demo",
+        "http://localhost:8545",
         "https://ethereum-rpc.publicnode.com",
         "https://rpc.ankr.com/eth",
-        "https://eth.llamarpc.com",
+        "http://localhost:8545",
         "https://cloudflare-eth.com",
     ];
     

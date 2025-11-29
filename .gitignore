@@ -12,3 +12,8 @@ trader_joe_exploit/
 
 # Local Netlify folder
 .netlify
+
+# Ignore API keys and secrets
+verify/.env
+verify/run_english_contract.sh
+*.env

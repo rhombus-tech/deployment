@@ -1,0 +1,49 @@
+{
+  "name": "@trustless/sdk",
+  "version": "0.1.0",
+  "description": "Client-side proving and atomic execution for Ethereum - making trustlessness accessible",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "wasm"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build:wasm": "cd ../trustless-wasm && wasm-pack build --target web --out-dir ../trustless-sdk/wasm",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest",
+    "lint": "eslint src",
+    "prepublishOnly": "npm run build:wasm && npm run build"
+  },
+  "keywords": [
+    "ethereum",
+    "zk-proofs",
+    "trustless",
+    "zkEVM",
+    "client-side-proving",
+    "atomic-execution",
+    "web3",
+    "blockchain"
+  ],
+  "author": "Trustless Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trustless-labs/trustless-sdk"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4",
+    "eslint": "^8.56.0"
+  },
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  }
+}

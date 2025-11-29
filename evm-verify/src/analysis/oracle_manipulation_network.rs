@@ -155,6 +155,11 @@ impl OracleManipulationNetworkAnalyzer {
 
     /// Detect oracle manipulation networks in execution trace
     pub fn detect_oracle_manipulation(&mut self, trace: &EVMExecutionTrace) -> Vec<OracleManipulationVulnerability> {
+        // Only analyze if trace shows oracle usage (price feeds, data sources)
+        if trace.execution_steps.len() < 10 {
+            return vec![]; // Too simple - no multi-contract oracle interactions
+        }
+        
         let mut vulnerabilities = Vec::new();
 
         // Extract oracle interactions from trace

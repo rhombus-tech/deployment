@@ -8,7 +8,8 @@ license = "MIT"
 [dependencies]
 # Core dependencies
 ethers = { version = "2.0", features = ["abigen", "ws"] }
-evm-verify = { path = "../evm-verify", optional = true }
+# Removed evm-verify dependency to break circular dependency
+# We only need pcd (below) for proving functionality
 hex = "0.4"
 md5 = "0.7"
 anyhow = "1.0"
@@ -83,5 +84,9 @@ rand = "0.8"
 default = ["server"]
 metrics = []
 server = ["warp"]
-evm-verify = ["dep:evm-verify"]
-full-verification = ["evm-verify"]
+# Removed evm-verify feature - no longer needed
+
+[[bin]]
+name = "fractal_proving_node"
+path = "src/bin/fractal_proving_node.rs"
+# Removed evm-verify requirement
