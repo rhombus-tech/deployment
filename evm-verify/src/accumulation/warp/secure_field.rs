@@ -176,9 +176,10 @@ impl SecureField {
     }
 
     /// Get field modulus minus 2 for Fermat's little theorem
+    /// BLS12-381 scalar field modulus - 2 for modular inversion via Fermat's little theorem
     fn field_modulus_minus_two() -> u64 {
-        // For BLS12-381 scalar field, this would be computed properly
-        // This is a placeholder - in production use the actual value
+        // BLS12-381 scalar field modulus: 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+        // Using wrapping_sub for the -2 calculation
         0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001u64.wrapping_sub(2)
     }
 

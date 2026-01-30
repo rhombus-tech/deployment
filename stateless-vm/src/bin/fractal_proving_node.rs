@@ -14,6 +14,7 @@ use evm_verify::fractal_network::{
 };
 use ethereum_types::{Address, H256, U256};
 use std::sync::Arc;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 use anyhow::Result;
 
@@ -101,12 +102,12 @@ impl RealFractalProver {
             to: Some(VMAddress::zero()),
             value: U256::zero(),
             data,
-            gas_limit: 1000000,
+            gas_limit: U256::from(1000000u64),
             gas_price: U256::from(1000000000u64),
             code: None,
             block_height: 0,
             state_requirements: vec![],
-            bundled_state: None,
+            bundled_state: HashMap::new(),
             verification_level: Some(VerificationLevel::Standard),
             priority: Priority::Medium,
             nonce: 0,

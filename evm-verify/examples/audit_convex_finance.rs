@@ -1,6 +1,6 @@
 /// Convex Finance Security Audit
 /// Comprehensive analysis of Convex Finance protocol contracts
-/// Using all 134 vulnerability analyzers including cutting-edge 2024-2025 detectors
+/// Using all 850+ vulnerability analyzers including 50 new critical detectors (Dec 2025)
 
 use evm_verify::analysis::comprehensive_analyzer::ComprehensiveAnalyzerBuilder;
 use ethers::{
@@ -14,8 +14,10 @@ use std::sync::Arc;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 CONVEX FINANCE SECURITY AUDIT");
     println!("══════════════════════════════════════════════════════");
-    println!("Analyzing with 134 vulnerability detectors");
-    println!("Including 15 cutting-edge 2024-2025 analyzers\n");
+    println!("Analyzing with 850+ vulnerability detectors");
+    println!("Including 50 NEW critical analyzers (Dec 2025)");
+    println!("  • Lending cap bypass • Oracle manipulation • Vault exploits");
+    println!("  • MEV attacks • ZK vulnerabilities • Cross-chain issues\n");
 
     // Connect to Ethereum mainnet
     let provider = Provider::<Http>::try_from("https://ethereum.publicnode.com")?;
@@ -110,13 +112,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         total_contracts_analyzed += 1;
 
         // Display results
-        println!("\n📊 SECURITY ANALYSIS RESULTS:");
+        println!("\n📊 SECURITY ANALYSIS RESULTS (VALIDATED):");
         println!("──────────────────────────────");
         println!("🔴 Critical: {}", result.security_summary.critical_count);
         println!("🟠 High:     {}", result.security_summary.high_count);
         println!("🟡 Medium:   {}", result.security_summary.medium_count);
         println!("🔵 Low:      {}", result.security_summary.low_count);
         println!("📈 Total:    {}", result.total_vulnerabilities);
+        println!("\n💡 NOTE: Results filtered for confidence ≥75% + exploit validation");
 
         total_critical += result.security_summary.critical_count;
         total_high += result.security_summary.high_count;
@@ -125,6 +128,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Highlight critical/high severity findings
         if result.security_summary.critical_count > 0 || result.security_summary.high_count > 0 {
             println!("\n🚨 HIGH-PRIORITY FINDINGS:");
+
+            // === 50 NEW CRITICAL ANALYZERS (DEC 2025) ===
+            if !result.supply_cap_bypass_vulnerabilities.is_empty() {
+                println!("  🔴 Supply cap bypass: {}", result.supply_cap_bypass_vulnerabilities.len());
+            }
+            if !result.borrow_cap_bypass_vulnerabilities.is_empty() {
+                println!("  🔴 Borrow cap bypass: {}", result.borrow_cap_bypass_vulnerabilities.len());
+            }
+            if !result.bad_debt_socialization_vulnerabilities.is_empty() {
+                println!("  🔴 Bad debt socialization: {}", result.bad_debt_socialization_vulnerabilities.len());
+            }
+            if !result.recursive_borrowing_vulnerabilities.is_empty() {
+                println!("  🔴 Recursive borrowing: {}", result.recursive_borrowing_vulnerabilities.len());
+            }
+            if !result.liquidation_threshold_gaming_vulnerabilities.is_empty() {
+                println!("  🔴 Liquidation gaming: {}", result.liquidation_threshold_gaming_vulnerabilities.len());
+            }
+            if !result.isolated_market_vulnerabilities.is_empty() {
+                println!("  🔴 Isolated market manipulation: {}", result.isolated_market_vulnerabilities.len());
+            }
+            if !result.chainlink_ocr2_vulnerabilities.is_empty() {
+                println!("  🔴 Chainlink OCR2 issues: {}", result.chainlink_ocr2_vulnerabilities.len());
+            }
+            if !result.rebase_fee_combo_vulnerabilities.is_empty() {
+                println!("  🔴 Rebase + fee-on-transfer: {}", result.rebase_fee_combo_vulnerabilities.len());
+            }
+            if !result.lst_withdrawal_queue_vulnerabilities.is_empty() {
+                println!("  🔴 LST withdrawal queue: {}", result.lst_withdrawal_queue_vulnerabilities.len());
+            }
+            if !result.vault_performance_fee_vulnerabilities.is_empty() {
+                println!("  🔴 Vault performance fee exploits: {}", result.vault_performance_fee_vulnerabilities.len());
+            }
 
             // Check cutting-edge analyzer results
             if !result.restaking_vulnerabilities.is_empty() {

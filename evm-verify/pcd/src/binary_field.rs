@@ -340,7 +340,7 @@ mod tests {
     fn test_addition() {
         let a = BinaryField128::from_u64(0b1010);
         let b = BinaryField128::from_u64(0b1100);
-        let c = a.add(&b);
+        let c = a.add(b);
         assert_eq!(c.low, 0b0110); // XOR
     }
     
@@ -348,7 +348,7 @@ mod tests {
     fn test_multiplication() {
         let a = BinaryField128::from_u64(2);
         let b = BinaryField128::from_u64(3);
-        let c = a.mul(&b);
+        let c = a.mul(b);
         assert_eq!(c.low, 6);
     }
     
@@ -356,7 +356,7 @@ mod tests {
     fn test_inverse() {
         let a = BinaryField128::from_u64(7);
         let a_inv = a.inverse().unwrap();
-        let product = a.mul(&a_inv);
+        let product = a.mul(a_inv);
         assert!(product.is_one());
     }
     
@@ -364,6 +364,6 @@ mod tests {
     fn test_zero_one() {
         assert!(BinaryField128::ZERO.is_zero());
         assert!(BinaryField128::ONE.is_one());
-        assert_eq!(BinaryField128::ZERO.add(&BinaryField128::ONE), BinaryField128::ONE);
+        assert_eq!(BinaryField128::ZERO.add(BinaryField128::ONE), BinaryField128::ONE);
     }
 }

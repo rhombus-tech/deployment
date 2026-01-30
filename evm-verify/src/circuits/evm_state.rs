@@ -37,7 +37,9 @@ impl EVMState {
             storage: runtime.final_state.clone(),
             memory: runtime.memory_accesses.clone(),
             storage_access: runtime.storage_accesses.clone(),
-            delegate_targets: Vec::new(), // TODO: Extract from runtime
+            delegate_targets: runtime.delegate_calls.iter()
+                .map(|dc| dc.target)
+                .collect(), // Extract delegate call targets from runtime
             storage_root: H256::zero(),
             storage_proofs: Vec::new(),
         }

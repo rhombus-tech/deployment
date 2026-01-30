@@ -89,9 +89,12 @@ pub struct AccountingError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmergencyMechanismAbuse {
-    pub abuse_type: String,
-    pub mechanism: String,
-    pub impact: String,
+    pub description: String,
+    pub vulnerability_type: String,
+    pub abuse_scenario: String,
+    pub affected_functions: Vec<String>,
+    pub recommended_fix: String,
+    pub severity: String,
 }
 
 /// Cross-chain bridge security vulnerability types
@@ -732,79 +735,176 @@ impl BridgeSecurityAnalyzer {
         100_000_000_000_000_000u64 // High impact estimate
     }
 
-    fn detect_emergency_mechanism_abuse(&self, _trace: &[u8]) -> Vec<EmergencyMechanismAbuse> {
-        Vec::new() // Placeholder implementation
+    fn detect_emergency_mechanism_abuse(&self, trace: &[u8]) -> Vec<EmergencyMechanismAbuse> {
+        let mut vulnerabilities = Vec::new();
+        
+        // Check for emergency functions (pause, emergency withdraw, etc.)
+        let pause_selector = [0x8f, 0xcb, 0xaf, 0x0c]; // pause()
+        let unpause_selector = [0x3f, 0x4b, 0xa8, 0x3a]; // unpause()  
+        let emergency_withdraw_selector = [0x5f, 0xd8, 0xc7, 0x10]; // emergencyWithdraw()
+        
+        let has_pause = trace.windows(4).any(|w| w == pause_selector);
+        let has_emergency_withdraw = trace.windows(4).any(|w| w == emergency_withdraw_selector);
+        
+        // Check for access control on emergency functions
+        let has_only_owner = trace.windows(4).any(|w| matches!(w, [0x8d, 0xa5, 0xcb, 0x5b])); // owner()
+        let has_timelock = trace.windows(4).any(|w| matches!(w, [0x43, _, _, _])); // TIMESTAMP check
+        let has_multisig = trace.windows(4).any(|w| matches!(w, [0x11, _, _, _])); // GT for threshold check
+        
+        // Emergency functions without timelock or multisig are vulnerable
+        if (has_pause || has_emergency_withdraw) && !has_timelock && !has_multisig {
+            vulnerabilities.push(EmergencyMechanismAbuse {
+                description: "Emergency functions lack sufficient protection".to_string(),
+                vulnerability_type: "Single-sig emergency control".to_string(),
+                abuse_scenario: "Malicious/compromised owner can pause bridge and lock funds".to_string(),
+                affected_functions: vec!["pause".to_string(), "emergencyWithdraw".to_string()],
+                recommended_fix: "Add timelock (24-48h) or multisig (3/5) requirement".to_string(),
+                severity: "High".to_string(),
+            });
+        }
+        
+        // Check for emergency functions that can steal funds
+        if has_emergency_withdraw && !has_only_owner {
+            vulnerabilities.push(EmergencyMechanismAbuse {
+                description: "Emergency withdraw missing access control".to_string(),
+                vulnerability_type: "Unrestricted emergency withdrawal".to_string(),
+                abuse_scenario: "Anyone can call emergencyWithdraw and drain bridge".to_string(),
+                affected_functions: vec!["emergencyWithdraw".to_string()],
+                recommended_fix: "Add onlyOwner or onlyGovernance modifier".to_string(),
+                severity: "Critical".to_string(),
+            });
+        }
+        
+        vulnerabilities
     }
 
-    fn has_validation_function_nearby(&self, _pos: usize) -> bool {
-        false // Simplified check
+    fn has_validation_function_nearby(&self, pos: usize) -> bool {
+        // Check for validation patterns within 50 bytes
+        let start = pos.saturating_sub(25);
+        let end = (pos + 25).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        // Look for EQ, LT, GT (validation comparisons)
+        window.contains(&0x14) || window.contains(&0x10) || window.contains(&0x11)
     }
 
-    fn has_bypass_condition(&self, _pos: usize) -> bool {
-        false // Simplified check
+    fn has_bypass_condition(&self, pos: usize) -> bool {
+        // Check for JUMPI that could bypass validation
+        let start = pos.saturating_sub(10);
+        let end = (pos + 10).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        window.contains(&0x57) // JUMPI
     }
 
     fn extract_function_selector(&self, _pos: usize) -> [u8; 4] {
         [0u8; 4] // Default selector
     }
 
-    fn trace_shows_validation_bypass(&self, _trace: &[u8]) -> bool {
-        false // Simplified check
+    fn trace_shows_validation_bypass(&self, trace: &[u8]) -> bool {
+        // Check if trace shows signature validation being skipped
+        // Pattern: CALL to ecrecover should be followed by validation
+        let has_ecrecover = trace.windows(4).any(|w| matches!(w, [0xf1, _, _, _])); // CALL
+        
+        if !has_ecrecover {
+            return true; // No signature check at all
+        }
+        
+        // Check if ecrecover result is actually used for validation
+        // Should see: ecrecover -> ISZERO -> JUMPI pattern
+        let has_validation = trace.windows(3).any(|w| {
+            matches!(w, [0x15, _, 0x57]) // ISZERO followed by JUMPI
+        });
+        
+        // Bypass if ecrecover exists but validation doesn't
+        !has_validation
     }
 
-    fn has_ecrecover_call(&self, _pos: usize) -> bool {
-        // Check for ECRECOVER opcode (0x01)
-        false // Simplified implementation
+    fn has_ecrecover_call(&self, pos: usize) -> bool {
+        // Check for ECRECOVER precompile call (address 0x01)
+        let start = pos.saturating_sub(20);
+        let end = (pos + 20).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        // PUSH1 0x01 followed by CALL or STATICCALL
+        window.windows(3).any(|w| matches!(w, [0x60, 0x01, 0xf1]) || matches!(w, [0x60, 0x01, 0xfa]))
     }
 
-    fn has_signature_validation_checks(&self, _pos: usize) -> bool {
-        // Check for proper signature validation patterns
-        false // Simplified implementation
+    fn has_signature_validation_checks(&self, pos: usize) -> bool {
+        // Check for ecrecover + comparison pattern
+        self.has_ecrecover_call(pos) && self.has_validation_function_nearby(pos)
     }
 
-    fn has_merkle_proof_pattern(&self, _pos: usize) -> bool {
-        // Check for merkle proof verification patterns
-        false // Simplified implementation
+    fn has_merkle_proof_pattern(&self, pos: usize) -> bool {
+        // Check for keccak256 hashing in a loop (merkle proof pattern)
+        let start = pos.saturating_sub(30);
+        let end = (pos + 30).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        // Look for SHA3 (0x20) with JUMPDEST (0x5b) indicating loop
+        let has_keccak = window.contains(&0x20);
+        let has_loop = window.contains(&0x5b);
+        has_keccak && has_loop
     }
 
-    fn has_complete_merkle_verification(&self, _pos: usize) -> bool {
-        // Check for complete merkle verification
-        false // Simplified implementation
+    fn has_complete_merkle_verification(&self, pos: usize) -> bool {
+        // Check for merkle proof + root comparison
+        self.has_merkle_proof_pattern(pos) && self.has_validation_function_nearby(pos)
     }
 
     fn has_single_admin_pattern(&self) -> bool {
-        // Check for single admin patterns
-        false // Simplified implementation
+        // Check for owner() or admin() pattern with single SLOAD
+        let owner_sig = [0x8d, 0xa5, 0xcb, 0x5b]; // owner() selector
+        let admin_sig = [0xf8, 0x51, 0xa4, 0x40]; // admin() selector
+        let has_owner_admin = self.bytecode.windows(4).any(|w| w == owner_sig || w == admin_sig);
+        // Check if there's only one admin (single SLOAD for admin check)
+        let sload_count = self.bytecode.iter().filter(|&&b| b == 0x54).count();
+        has_owner_admin && sload_count <= 2
     }
 
     fn has_race_condition_pattern(&self) -> bool {
-        // Check for race condition patterns
-        false // Simplified implementation
+        // Check for SLOAD followed by SSTORE without lock pattern
+        let has_sload_sstore = self.bytecode.windows(10).any(|w| {
+            w.iter().position(|&b| b == 0x54)
+                .and_then(|sload_pos| w[sload_pos..].iter().position(|&b| b == 0x55))
+                .is_some()
+        });
+        // No mutex pattern (no comparison with status flag)
+        let has_mutex = self.bytecode.windows(3).any(|w| matches!(w, [0x54, _, 0x14]));
+        has_sload_sstore && !has_mutex
     }
 
     fn has_missing_conflict_resolution_pattern(&self) -> bool {
-        // Check for missing conflict resolution
-        false // Simplified implementation
+        // Check for multiple admin operations without conflict resolution
+        let admin_call_count = self.bytecode.iter().filter(|&&b| b == 0xf1).count();
+        let has_nonce_check = self.bytecode.windows(2).any(|w| matches!(w, [0x54, _]));
+        admin_call_count > 1 && !has_nonce_check
     }
 
     fn has_withdrawal_bypass_pattern(&self) -> bool {
-        // Check for withdrawal bypass patterns
-        false // Simplified implementation
+        // Check for withdrawal without balance check
+        let has_withdrawal = self.bytecode.windows(4).any(|w| matches!(w, [0x60, _, 0xf1, _]));
+        let has_balance_check = self.bytecode.contains(&0x31); // BALANCE opcode
+        has_withdrawal && !has_balance_check
     }
 
     fn has_accounting_error_pattern(&self) -> bool {
-        // Check for accounting error patterns
-        false // Simplified implementation
+        // Check for arithmetic without SafeMath (no overflow checks)
+        let has_arithmetic = self.bytecode.contains(&0x01) || self.bytecode.contains(&0x08); // ADD or MUL
+        let has_overflow_check = self.bytecode.windows(3).any(|w| matches!(w, [0x10, _, 0x57])); // LT + JUMPI
+        has_arithmetic && !has_overflow_check
     }
 
     fn has_merkle_verification(&self) -> bool {
-        // Check for merkle verification patterns in bytecode
-        false // Simplified implementation
+        // Check for SHA3 in loop pattern (merkle tree)
+        let has_keccak = self.bytecode.contains(&0x20);
+        let has_loop = self.bytecode.contains(&0x5b); // JUMPDEST
+        has_keccak && has_loop
     }
 
     fn has_replay_protection_flaws(&self) -> bool {
-        // Check for replay protection implementation flaws
-        false // Simplified implementation
+        // Check for nonce usage without proper increment
+        let has_nonce_load = self.bytecode.windows(2).any(|w| matches!(w, [0x54, _]));
+        let has_nonce_increment = self.bytecode.windows(3).any(|w| matches!(w, [0x60, 0x01, 0x01])); // PUSH1 1, ADD
+        let has_nonce_store = self.bytecode.windows(2).any(|w| matches!(w, [0x55, _]));
+        // Has nonce but doesn't increment properly
+        has_nonce_load && !(has_nonce_increment && has_nonce_store)
     }
     
     // Admin and privilege detection
@@ -1104,9 +1204,12 @@ impl BridgeSecurityAnalyzer {
         false
     }
     
-    fn has_leaf_prefix_pattern(&self, _pos: usize) -> bool {
-        // Simplified - would check for proper leaf/internal node prefixes
-        false
+    fn has_leaf_prefix_pattern(&self, pos: usize) -> bool {
+        // Check for prefix bytes (0x00 for leaf, 0x01 for internal) in merkle proof
+        let start = pos.saturating_sub(10);
+        let end = (pos + 10).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        window.windows(2).any(|w| matches!(w, [0x60, 0x00]) || matches!(w, [0x60, 0x01]))
     }
     
     fn has_merkle_validation_logic(&self, pos: usize) -> bool {
@@ -1148,9 +1251,15 @@ impl BridgeSecurityAnalyzer {
         false
     }
     
-    fn has_begin_commit_pattern(&self, _pos: usize) -> bool {
-        // Simplified - would check for transaction-like atomicity patterns
-        false
+    fn has_begin_commit_pattern(&self, pos: usize) -> bool {
+        // Check for state checkpoint pattern (SLOAD, operate, SSTORE with revert on failure)
+        let start = pos.saturating_sub(15);
+        let end = (pos + 15).min(self.bytecode.len());
+        let window = &self.bytecode[start..end];
+        let has_sload = window.contains(&0x54);
+        let has_sstore = window.contains(&0x55);
+        let has_revert = window.contains(&0xfd);
+        has_sload && has_sstore && has_revert
     }
     
     fn has_comparison_and_branch(&self, pos: usize) -> bool {

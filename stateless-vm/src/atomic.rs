@@ -144,7 +144,12 @@ pub trait PCCVerifier: Send + Sync {
 
 #[async_trait]  
 pub trait PCDProver: Send + Sync {
-    async fn prove_atomic_execution(&self, sequence: &TransactionSequence) -> Result<H256, VMError>;
+    async fn prove_atomic_execution(
+        &self, 
+        sequence: &TransactionSequence,
+        state_root_before: Option<H256>,
+        state_root_after: Option<H256>,
+    ) -> Result<H256, VMError>;
 }
 
 impl AtomicExecutor {
@@ -281,7 +286,7 @@ impl AtomicExecutor {
             // Generate execution proof only (fast - no analysis needed)
             // Use cached proving keys for speed
             let exec_proof = if let Some(prover) = &self.pcd_prover {
-                prover.prove_atomic_execution(&sequence).await?
+                prover.prove_atomic_execution(&sequence, None, None).await?
             } else {
                 return Err(VMError::ProofGenerationFailed {
                     reason: "PCD prover not configured".to_string(),
@@ -346,7 +351,7 @@ impl AtomicExecutor {
             
             // Generate execution proof
             let exec_proof = if let Some(prover) = &self.pcd_prover {
-                prover.prove_atomic_execution(&sequence).await?
+                prover.prove_atomic_execution(&sequence, None, None).await?
             } else {
                 return Err(VMError::ProofGenerationFailed {
                     reason: "PCD prover not configured".to_string(),
@@ -696,7 +701,12 @@ impl RealPCDProver {
 #[cfg(feature = "evm-verify")]
 #[async_trait]
 impl PCDProver for RealPCDProver {
-    async fn prove_atomic_execution(&self, sequence: &TransactionSequence) -> Result<H256, VMError> {
+    async fn prove_atomic_execution(
+        &self, 
+        sequence: &TransactionSequence,
+        state_root_before: Option<H256>,
+        state_root_after: Option<H256>,
+    ) -> Result<H256, VMError> {
         // Convert sequence to bytecode for PCD proof generation
         let mut bytecode = Vec::new();
         
@@ -722,9 +732,12 @@ impl PCDProver for RealPCDProver {
             bytecode.extend_from_slice(&value_bytes);
         }
         
-        // Generate PCD proof
-        let (_proof, _verifying_key) = self.verifier.generate_pcd_proof(&bytecode)
-            .map_err(|e| VMError::ProofGenerationFailed { reason: e.to_string() })?;
+        // Generate PCD proof with real state roots from StatelessVM's Merkle Patricia Trie
+        let (_proof, _verifying_key) = self.verifier.generate_pcd_proof_with_state(
+            &bytecode,
+            state_root_before,
+            state_root_after,
+        ).map_err(|e| VMError::ProofGenerationFailed { reason: e.to_string() })?;
         
         // Return proof hash
         Ok(H256::from_slice(&ethers::utils::keccak256(&_proof)[..]))
@@ -736,7 +749,12 @@ pub struct MockPCDProver;
 
 #[async_trait]
 impl PCDProver for MockPCDProver {
-    async fn prove_atomic_execution(&self, _sequence: &TransactionSequence) -> Result<H256, VMError> {
+    async fn prove_atomic_execution(
+        &self, 
+        _sequence: &TransactionSequence,
+        _state_root_before: Option<H256>,
+        _state_root_after: Option<H256>,
+    ) -> Result<H256, VMError> {
         // Mock proof generation - always return success with mock hash
         Ok(H256::from_slice(&[2u8; 32]))
     }

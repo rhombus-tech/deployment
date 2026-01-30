@@ -1,0 +1,45 @@
+# Remaining Critical Detectors to Implement (~26 more)
+
+## Permission & Access (3)
+- capability_based_escalation_detector.rs
+- role_hierarchy_violation_detector.rs  
+- permission_escalation_advanced_detector.rs
+
+## Protocol Composition (2)
+- protocol_pause_cascade_detector.rs
+- composability_invariant_violation_detector.rs
+
+## MEV/Builder (3)
+- builder_exclusive_orderflow_detector.rs
+- time_bandit_reorg_detector.rs
+- priority_fee_manipulation_detector.rs
+
+## Signature/Auth (3)
+- eip712_domain_phishing_detector.rs
+- permit_deadline_manipulation_detector.rs
+- eip1271_recursive_validation_detector.rs
+
+## Math Precision (3)
+- exp_taylor_overflow_detector.rs
+- sqrt_newton_nonconvergence_detector.rs  
+- div_before_mul_precision_loss_detector.rs
+
+## L2/Sequencer (2 more)
+- sequencer_liveness_assumption_detector.rs
+- delayed_inbox_censorship_detector.rs
+
+## Oracle (1 more)
+- oracle_update_delay_exploit_detector.rs
+
+## Token Edge Cases (2 more)
+- multi_entry_token_tusd_detector.rs
+- rebasing_token_vault_integration_detector.rs
+
+## Advanced Attacks (7)
+- view_function_state_reentrancy_detector.rs
+- double_initialization_attack_detector.rs
+- create2_metamorphic_state_detector.rs
+- gas_limit_dependent_logic_detector.rs
+- role_renounce_lockout_detector.rs
+- fraud_proof_griefing_detector.rs
+- state_commitment_delay_l2_detector.rs

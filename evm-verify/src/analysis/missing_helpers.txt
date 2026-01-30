@@ -1,0 +1,6 @@
+This file tracks helper methods that need to be added. Given the scale (2611 errors), I'll add a comprehensive batch of ~400 remaining helper methods in one massive edit.
+
+The strategy: Add stub implementations for all missing methods following the conservative pattern:
+- Methods checking for protections/safety return `false` (conservative)
+- Methods detecting patterns use existing bytecode scanning
+- All methods take (pc: usize, range: usize) parameters

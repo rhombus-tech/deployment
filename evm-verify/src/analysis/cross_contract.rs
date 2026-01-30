@@ -131,6 +131,24 @@ impl ContractProtocol {
         Ok(())
     }
 
+    /// Get all contracts in the protocol (for cross-contract analyzers)
+    pub fn get_contracts(&self) -> HashMap<H160, &Vec<u8>> {
+        self.contracts.iter().map(|(addr, bytecode)| (*addr, bytecode)).collect()
+    }
+    
+    /// Get call targets for a specific contract (for cross-contract analyzers)
+    pub fn get_call_targets(&self, contract: &H160) -> Vec<H160> {
+        if let Some(analyzer) = self.analyzers.get(contract) {
+            self.extract_external_calls(analyzer, *contract)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(addr, _)| addr)
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+    
     /// Build the call graph by analyzing all contracts and their interactions
     pub fn build_call_graph(&mut self) -> Result<HashMap<H160, Vec<(H160, CallInfo)>>> {
         use crate::analysis::call_graph::{CallGraph, CallType as GraphCallType, ContractType};

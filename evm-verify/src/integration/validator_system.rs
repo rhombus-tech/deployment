@@ -110,7 +110,7 @@ impl ValidatorVulnerabilitySystem {
         self.scanner.queue_scan(address.to_string(), priority, None).await;
         
         // Process (will use cache if available)
-        let results = self.scanner.process_batch(1).await;
+        let results: Vec<(String, Result<ComprehensiveAnalysisResult, String>)> = self.scanner.process_batch(1).await;
         
         let analysis = results.into_iter()
             .next()
@@ -152,7 +152,7 @@ impl ValidatorVulnerabilitySystem {
         }
         
         // Process batch
-        let results = self.scanner.process_batch(contracts.len()).await;
+        let results: Vec<(String, Result<ComprehensiveAnalysisResult, String>)> = self.scanner.process_batch(contracts.len()).await;
         
         // Convert to validator results
         results.into_iter()

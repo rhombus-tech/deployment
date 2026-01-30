@@ -146,6 +146,9 @@ pub const TIMESTAMP: u8 = 0x42;
 /// NUMBER opcode
 pub const NUMBER: u8 = 0x43;
 
+/// BLOCKNUMBER opcode (alias for NUMBER)
+pub const BLOCKNUMBER: u8 = 0x43;
+
 /// DIFFICULTY opcode
 pub const DIFFICULTY: u8 = 0x44;
 
@@ -206,8 +209,14 @@ pub const PUSH2: u8 = 0x61;
 /// PUSH4 opcode
 pub const PUSH4: u8 = 0x63;
 
+/// PUSH16 opcode
+pub const PUSH16: u8 = 0x6F;
+
 /// PUSH20 opcode
 pub const PUSH20: u8 = 0x73;
+
+/// PUSH32 opcode
+pub const PUSH32: u8 = 0x7F;
 
 /// DUP1 opcode
 pub const DUP1: u8 = 0x80;

@@ -7,6 +7,7 @@ use ethers::types::H256;
 #[allow(dead_code)]
 pub struct StatelessVM {
     config: String,
+    rpc_url: String,
 }
 
 impl StatelessVM {
@@ -14,6 +15,8 @@ impl StatelessVM {
     pub fn new() -> Result<Self> {
         Ok(Self {
             config: "default".to_string(),
+            rpc_url: std::env::var("ETH_RPC_URL")
+                .unwrap_or_else(|_| "https://eth.llamarpc.com".to_string()),
         })
     }
 
@@ -23,12 +26,32 @@ impl StatelessVM {
         block_number: u64,
         tx_hashes: &[H256],
     ) -> Result<ExecutionResult> {
-        // Mock execution for now
+        // Production: Fetch real block data from RPC
+        use ethers::providers::{Provider, Http, Middleware};
+        use ethers::types::BlockId;
+        
+        // Connect to Ethereum via RPC
+        let provider = Provider::<Http>::try_from(self.rpc_url.as_str())
+            .map_err(|e| anyhow::anyhow!("Failed to connect to RPC: {}", e))?;
+        
+        // Fetch block with transactions
+        let block_id = BlockId::Number(ethers::types::BlockNumber::Number(block_number.into()));
+        let block = provider
+            .get_block(block_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch block: {}", e))?
+            .ok_or_else(|| anyhow::anyhow!("Block {} not found", block_number))?;
+        
+        // Extract real block data
+        let gas_used = block.gas_used.as_u64();
+        let state_root = block.state_root.as_bytes().to_vec();
+        let receipt_root = block.receipts_root.as_bytes().to_vec();
+        
         Ok(ExecutionResult {
             block_number,
-            gas_used: 21000 * tx_hashes.len() as u64,
-            state_root: vec![0u8; 32],
-            receipt_root: vec![0u8; 32],
+            gas_used,
+            state_root,
+            receipt_root,
             tx_count: tx_hashes.len(),
         })
     }

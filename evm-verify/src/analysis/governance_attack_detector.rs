@@ -253,10 +253,22 @@ impl GovernanceAttackDetector {
     }
 
     fn has_flash_loan_vulnerable_tokens(&self) -> bool {
-        // Check if governance tokens can be borrowed (simplified heuristic)
+        // Check if governance tokens can be borrowed via flash loans
         let erc20_transfer = [0xa9, 0x05, 0x9c, 0xbb]; // transfer()
         let approve = [0x09, 0x5e, 0xa7, 0xb3]; // approve()
-        self.has_function_signature(&erc20_transfer) && self.has_function_signature(&approve)
+        let delegate = [0x5c, 0x19, 0xa9, 0x5c]; // delegate()
+        let voting_power = [0xf1, 0x12, 0x7e, 0xd8]; // getPriorVotes() or similar
+        
+        // Must be an ERC20 token
+        let is_erc20 = self.has_function_signature(&erc20_transfer) && 
+                      self.has_function_signature(&approve);
+        
+        // Check if it has governance/voting functions (makes it a governance token)
+        let has_governance = self.has_function_signature(&delegate) || 
+                            self.has_function_signature(&voting_power);
+        
+        // Vulnerable if it's a governance token (can be flash loaned for voting)
+        is_erc20 && has_governance
     }
 
     fn has_low_quorum_threshold(&self) -> bool {
@@ -271,28 +283,31 @@ impl GovernanceAttackDetector {
         }
         false
     }
-
-    fn has_predictable_proposal_timing(&self) -> bool {
-        // Look for timestamp-based logic without randomization
-        for i in 0..self.bytecode.len().saturating_sub(2) {
-            if self.bytecode[i] == 0x42 { // TIMESTAMP
-                return true; // Simplified: any timestamp usage
-            }
-        }
-        false
-    }
-
+    
     fn has_emergency_functions(&self) -> bool {
         self.admin_functions.iter().any(|sig| self.has_function_signature(sig))
     }
 
+    // ... (rest of the code remains the same)
     fn has_multi_sig_protection(&self) -> bool {
-        // Look for multi-sig patterns (simplified)
+        // Look for multi-sig patterns - Gnosis Safe, MultiSigWallet, Timelock
         let multi_sig_sigs = [
             [0x5c, 0x60, 0xda, 0x1b], // executeTransaction() - Gnosis Safe
             [0x6a, 0x76, 0x13, 0x48], // confirmTransaction() - MultiSig
+            [0xc6, 0x42, 0x7f, 0xc4], // addOwner() - MultiSig management
+            [0x0d, 0x58, 0x2f, 0x13], // queue() - Timelock
         ];
-        multi_sig_sigs.iter().any(|sig| self.has_function_signature(sig))
+        
+        // Check for multi-sig function signatures
+        let has_multisig_functions = multi_sig_sigs.iter().any(|sig| self.has_function_signature(sig));
+        
+        // Also check for threshold comparison pattern (require N of M signatures)
+        let has_threshold_pattern = self.bytecode.windows(3).any(|w| {
+            matches!(w, [0x11, _, 0x57]) || // GT + JUMPI (signature count > threshold)
+            matches!(w, [0x10, _, 0x57])    // LT + JUMPI
+        });
+        
+        has_multisig_functions || has_threshold_pattern
     }
 
     fn has_manipulable_voting_tokens(&self) -> bool {
@@ -309,6 +324,16 @@ impl GovernanceAttackDetector {
             [0x8d, 0xa5, 0xcb, 0x5b], // pause()
         ];
         owner_functions.iter().any(|sig| self.has_function_signature(sig)) && !self.has_multi_sig_protection()
+    }
+    
+    fn has_predictable_proposal_timing(&self) -> bool {
+        // Check if proposal timing uses predictable patterns (timestamp/blocknumber)
+        // without randomization or VRF
+        let uses_timestamp = self.bytecode.iter().any(|&b| b == 0x42); // TIMESTAMP
+        let uses_blocknumber = self.bytecode.iter().any(|&b| b == 0x43); // NUMBER
+        
+        // Predictable if timing depends on blockchain state variables
+        uses_timestamp || uses_blocknumber
     }
 
     fn has_function_signature(&self, signature: &[u8; 4]) -> bool {

@@ -21,6 +21,9 @@ pub struct AdvancedReentrancyVulnerability {
     pub protection_mechanisms: Vec<ProtectionMechanism>,
     pub is_likely_false_positive: bool,
     pub safe_pattern_detected: Option<String>,
+    pub has_access_control: bool,
+    pub access_control_type: Option<String>,
+    pub has_reentrancy_guard: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -92,6 +95,8 @@ impl AdvancedReentrancyDetector {
             
             // Only report if confidence is high enough and not clearly safe
             if confidence > 0.3 && !is_likely_false_positive {
+                let has_reentrancy_guard = protections.contains(&ProtectionMechanism::ReentrancyGuard);
+                
                 vulnerabilities.push(AdvancedReentrancyVulnerability {
                     pc: call_info.pc,
                     severity,
@@ -102,6 +107,9 @@ impl AdvancedReentrancyDetector {
                     protection_mechanisms: protections.clone(),
                     is_likely_false_positive,
                     safe_pattern_detected: safe_pattern.clone(),
+                    has_access_control: false,  // Advanced detector doesn't check this yet
+                    access_control_type: None,
+                    has_reentrancy_guard,
                 });
             }
         }
@@ -371,6 +379,12 @@ impl AdvancedReentrancyDetector {
                 0xF2 => calls.push(CallInfo { pc, opcode: 0xF2, is_delegatecall: false, transfers_value: true }),
                 0xF4 => calls.push(CallInfo { pc, opcode: 0xF4, is_delegatecall: true, transfers_value: false }),
                 0xFA => calls.push(CallInfo { pc, opcode: 0xFA, is_delegatecall: false, transfers_value: false }),
+                0x60..=0x7F => {
+                    // PUSH1-PUSH32: skip the data bytes to avoid false positives
+                    // Data bytes inside PUSH instructions are not executable opcodes
+                    let push_size = (opcode - 0x5F) as usize;
+                    pc += push_size;
+                }
                 _ => {}
             }
             
@@ -383,15 +397,27 @@ impl AdvancedReentrancyDetector {
     fn find_state_changes_after(&self, call_pc: usize) -> Vec<usize> {
         let mut changes = Vec::new();
         let search_end = (call_pc + 500).min(self.bytecode.len());
+        let mut i = call_pc + 1;
         
-        for i in (call_pc + 1)..search_end {
-            if self.bytecode[i] == 0x55 { // SSTORE
+        while i < search_end {
+            let opcode = self.bytecode[i];
+            
+            if opcode == 0x55 { // SSTORE
                 changes.push(i);
             }
+            
             // Stop at next external call or return
-            if matches!(self.bytecode[i], 0xF1 | 0xF2 | 0xF3 | 0xF4 | 0xFA | 0xF0) {
+            if matches!(opcode, 0xF1 | 0xF2 | 0xF3 | 0xF4 | 0xFA | 0xF0) {
                 break;
             }
+            
+            // Skip PUSH data bytes to avoid false positives
+            if (0x60..=0x7F).contains(&opcode) {
+                let push_size = (opcode - 0x5F) as usize;
+                i += push_size;
+            }
+            
+            i += 1;
         }
         
         changes

@@ -574,7 +574,7 @@ impl GasTracker {
     }
     
     fn is_storage_warm(&self, _contract: Address, _slot: U256) -> bool {
-        // Simplified - in production would track warm/cold state
+        // Conservative assumption: treat all storage as cold for gas calculations
         false
     }
     

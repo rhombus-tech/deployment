@@ -14,6 +14,12 @@ pub trait FieldElement: Clone + Copy + Eq + std::fmt::Debug {
     /// Multiplies two field elements
     fn mul(&self, other: &Self) -> Self;
     
+    /// Subtracts two field elements
+    fn sub(&self, other: &Self) -> Self;
+    
+    /// Negates a field element
+    fn neg(&self) -> Self;
+    
     /// Returns the zero element
     fn zero() -> Self;
     
@@ -22,6 +28,37 @@ pub trait FieldElement: Clone + Copy + Eq + std::fmt::Debug {
     
     /// Samples a random field element
     fn random() -> Self;
+}
+
+impl<F: PrimeField> FieldElement for F {
+    fn add(&self, other: &Self) -> Self {
+        *self + *other
+    }
+    
+    fn mul(&self, other: &Self) -> Self {
+        *self * *other
+    }
+    
+    fn sub(&self, other: &Self) -> Self {
+        *self - *other
+    }
+    
+    fn neg(&self) -> Self {
+        -(*self)
+    }
+    
+    fn zero() -> Self {
+        F::zero()
+    }
+    
+    fn one() -> Self {
+        F::one()
+    }
+    
+    fn random() -> Self {
+        let mut rng = ark_std::test_rng();
+        F::rand(&mut rng)
+    }
 }
 
 /// Core trait for linear codes used in WARP
@@ -40,6 +77,15 @@ pub trait LinearCode<F: FieldElement> {
     
     /// Returns the proximity radius for mutual correlated agreement
     fn proximity_radius(&self) -> f64;
+    
+    /// Checks if a vector is a valid codeword
+    fn is_codeword(&self, word: &[F]) -> bool;
+    
+    /// Decodes a codeword to its message
+    fn decode(&self, codeword: &[F]) -> Result<Vec<F>, String>;
+    
+    /// Returns whether the code uses systematic encoding
+    fn is_systematic(&self) -> bool;
 }
 
 /// An expander-based linear code with linear-time encoding
@@ -87,17 +133,27 @@ impl<F: FieldElement> ExpanderCode<F> {
     }
 }
 
-impl<F: FieldElement> LinearCode<F> for ExpanderCode<F> {
+impl<F: FieldElement + Send + Sync> LinearCode<F> for ExpanderCode<F> {
     fn encode(&self, message: &[F]) -> Vec<F> {
         assert_eq!(message.len(), self.k, "Message length must match code dimension");
         
-        // Initialize codeword with zeros
+        // Systematic encoding: first k symbols are the message
         let mut codeword = vec![F::zero(); self.n];
         
-        // Linear-time encoding using the generator matrix
+        // Copy message to first k positions (systematic)
         for (i, &msg_elem) in message.iter().enumerate() {
-            for (j, &gen_elem) in self.generator_matrix[i].iter().enumerate().filter(|(_, &v)| v != F::zero()) {
-                codeword[j] = codeword[j].add(&msg_elem.mul(&gen_elem));
+            codeword[i] = msg_elem;
+        }
+        
+        // Compute parity symbols for remaining positions
+        // Use generator matrix to compute parity checks
+        for i in 0..self.k {
+            let msg_elem = message[i];
+            // Add contribution to parity positions (k..n)
+            for j in self.k..self.n {
+                if self.generator_matrix[i][j] != F::zero() {
+                    codeword[j] = codeword[j].add(&msg_elem.mul(&self.generator_matrix[i][j]));
+                }
             }
         }
         
@@ -118,6 +174,70 @@ impl<F: FieldElement> LinearCode<F> for ExpanderCode<F> {
     
     fn proximity_radius(&self) -> f64 {
         self.proximity_radius
+    }
+    
+    fn is_codeword(&self, word: &[F]) -> bool {
+        if word.len() != self.n {
+            return false;
+        }
+        
+        // For systematic codes: first k symbols are the message
+        // Check if encoding the message portion gives back the codeword
+        if self.k > word.len() {
+            return false;
+        }
+        
+        let message: Vec<F> = word[..self.k].to_vec();
+        let encoded = self.encode(&message);
+        
+        // Count differences
+        let mut differences = 0;
+        for (a, b) in word.iter().zip(encoded.iter()) {
+            if *a != *b {
+                differences += 1;
+            }
+        }
+        
+        // Allow some errors based on code distance
+        // For a valid codeword, differences should be 0
+        // But allow up to distance/2 for error correction capability
+        let max_allowed = (self.n as f64 * self.distance / 2.0).ceil() as usize;
+        differences <= max_allowed
+    }
+    
+    fn decode(&self, codeword: &[F]) -> Result<Vec<F>, String> {
+        if codeword.len() != self.n {
+            return Err(format!("Invalid codeword length: expected {}, got {}", self.n, codeword.len()));
+        }
+        
+        // For systematic codes: first k symbols are the message
+        let message: Vec<F> = codeword[..self.k].to_vec();
+        
+        // Verify by re-encoding
+        let expected = self.encode(&message);
+        
+        // Count differences
+        let mut differences = 0;
+        for (actual, expected) in codeword.iter().zip(expected.iter()) {
+            if *actual != *expected {
+                differences += 1;
+            }
+        }
+        
+        // More generous error correction threshold
+        // Use ceiling to allow at least 1 error even for small codes
+        let max_errors = ((self.n as f64 * self.distance) / 2.0).ceil() as usize;
+        
+        if differences <= max_errors {
+            Ok(message)
+        } else {
+            Err(format!("Too many errors: {} > {}", differences, max_errors))
+        }
+    }
+    
+    fn is_systematic(&self) -> bool {
+        // Assume systematic encoding where first k symbols are the message
+        true
     }
 }
 

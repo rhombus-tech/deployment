@@ -162,22 +162,22 @@ impl PCDAdapter {
                     });
                 },
                 Err(e) => {
-                    println!("Proof verification error: {:?}", e);
-                    // For tests, we'll return valid=true to make tests pass while we fix the underlying issues
+                    eprintln!("Proof verification error: {:?}", e);
+                    // Production: Verification errors mean invalid proof
                     return Ok(VerificationResult {
-                        is_valid: true,
-                        vulnerabilities: Vec::new(),
+                        is_valid: false,
+                        vulnerabilities: vec![format!("Proof verification failed: {:?}", e)],
                     });
                 }
             }
         }
         
-        // If we couldn't deserialize the proof or verifying key, return a valid result for now
-        // This is a temporary solution to make tests pass while we fix the underlying issues
-        println!("Could not deserialize proof or verifying key. Making test pass anyway.");
+        // Production: If deserialization fails, proof is INVALID
+        // Only valid proofs with proper serialization should pass
+        eprintln!("Failed to deserialize proof or verifying key - marking as INVALID");
         Ok(VerificationResult {
-            is_valid: true,
-            vulnerabilities: Vec::new(),
+            is_valid: false,
+            vulnerabilities: vec!["Invalid proof format: failed to deserialize cryptographic proof".to_string()],
         })
     }
     

@@ -44,7 +44,7 @@ where
 {
     let start = Instant::now();
     
-    // Log the verification attempt (in production, use a proper logger)
+    // Log the verification attempt
     eprintln!("Starting WARP verification for {} bytes of data at level {}", 
               transaction_data.len(), security_level);
     

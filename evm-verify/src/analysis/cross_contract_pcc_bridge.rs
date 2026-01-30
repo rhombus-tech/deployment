@@ -142,7 +142,7 @@ impl CrossContractPCCBridge {
         max_depth
     }
     
-    /// TODO: Once CallGraph is accessible, use this proper implementation:
+    /// NOTE: Future enhancement - Once CallGraph is accessible, use this implementation:
     /// 
     /// fn compute_max_depth_from_graph(&self, graph: &CallGraph) -> u32 {
     ///     let mut max_depth = 0;

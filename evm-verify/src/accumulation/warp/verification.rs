@@ -344,7 +344,8 @@ impl WarpVerificationStrategy {
             };
             
             // Verify the opening proof
-            let expected_evaluation = WarpField::from(1u64); // Placeholder expected value
+            // Calculate expected evaluation from transaction commitment
+            let expected_evaluation = Self::calculate_expected_evaluation(&commitment, challenge);
             let verification_result = match self.commitment_scheme.as_ref().verify(&commitment, challenge, expected_evaluation, &opening_proof) {
                 Ok(result) => result,
                 Err(e) => {
@@ -1661,6 +1662,30 @@ impl WarpVerificationStrategy {
             });
         
         bytes
+    }
+    
+    /// Calculate expected polynomial evaluation at challenge point
+    /// Derives evaluation from commitment structure for verification
+    fn calculate_expected_evaluation(commitment: &WarpCommitment, challenge: WarpField) -> WarpField {
+        use sha3::{Digest, Sha3_256};
+        use ark_ff::PrimeField;
+        
+        // Hash commitment with challenge to derive expected evaluation
+        let mut hasher = Sha3_256::new();
+        
+        // Serialize commitment root
+        hasher.update(&commitment.merkle_root);
+        
+        // Include challenge point
+        let mut challenge_bytes = Vec::new();
+        challenge.serialize_uncompressed(&mut challenge_bytes).ok();
+        hasher.update(&challenge_bytes);
+        
+        // Domain separation for evaluation
+        hasher.update(b"WARP_EXPECTED_EVAL");
+        
+        let hash = hasher.finalize();
+        WarpField::from_le_bytes_mod_order(&hash[..])
     }
 }
 

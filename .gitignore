@@ -17,3 +17,40 @@ trader_joe_exploit/
 verify/.env
 verify/run_english_contract.sh
 *.env
+
+# ============================================================================
+# PROPRIETARY CODE - DO NOT PUSH TO PUBLIC GITHUB
+# ============================================================================
+
+# Privacy System (Millennium Privacy) - PRIVATE
+evm-verify/src/privacy/
+evm-verify/examples/*privacy*.rs
+evm-verify/examples/millennium_privacy_demo.rs
+evm-verify/examples/test_millennium_privacy.rs
+evm-verify/examples/ethereum_blocks_with_privacy.rs
+evm-verify/examples/zkevm_with_optional_privacy.rs
+evm-verify/tests/privacy_integration_test.rs
+PRIVACY_SYSTEM.md
+
+# GPU Breakthrough Optimizations - PRIVATE
+evm-verify/src/privacy/gpu_hierarchical_bulletproof.rs
+evm-verify/src/bin/gpu_security_analysis.rs
+evm-verify/src/bin/live_proving_service.rs
+evm-verify/examples/gpu_privacy_benchmark.rs
+test_consumer_gpu_optimizations.rs
+test_all_four_optimizations.rs
+
+# Privacy-related analyzers - PRIVATE
+evm-verify/src/analysis/cross_contract_privacy_pool_correlation.rs
+evm-verify/src/analysis/differential_privacy_violation_detector.rs
+evm-verify/src/analysis/privacy_zk_exploits.rs
+evm-verify/src/analysis/dust_attack_deanonymization_detector.rs
+evm-verify/src/analysis/payment_channel_balance_deanonymization_detector.rs
+evm-verify/src/analysis/privacy_pool_detector.rs
+evm-verify/src/analysis/aztec_connect_bridge_privacy_leak_detector.rs
+evm-verify/src/analysis/manta_network_privacy_pool_front_running_detector.rs
+evm-verify/src/analysis/private_transaction_leakage_detector.rs
+evm-verify/src/analysis/private_data_leak_detector.rs
+evm-verify/src/analysis/railgun_shield_unshield_timing_analysis_detector.rs
+evm-verify/src/analysis/dark_pool_order_linkability_detector.rs
+evm-verify/src/analysis/erc5564_stealth_address_detector.rs

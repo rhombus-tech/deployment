@@ -1,0 +1,31 @@
+[env]
+Z3_SYS_Z3_HEADER = "/opt/homebrew/opt/z3/include/z3.h"
+LIBRARY_PATH = "/opt/homebrew/opt/z3/lib"
+CPATH = "/opt/homebrew/opt/z3/include"
+
+[build]
+# Single-threaded compilation to save memory (Williams STOC 2025 approach)
+jobs = 1
+
+[target.aarch64-apple-darwin]
+# Ryan Williams-inspired space optimization flags
+# "Simulating Time With Square-Root Space" (STOC 2025)
+# Key: Block-respecting decomposition + memory reuse
+rustflags = [
+  # Block decomposition (Williams Lemma 2.1)
+  "-C", "codegen-units=256",        # Maximum block parallelization
+  
+  # Space minimization (Cook-Mertz tree evaluation)
+  "-C", "opt-level=0",              # No optimization = O(1) memory overhead
+  "-C", "debuginfo=0",              # No debug symbols
+  "-C", "incremental=false",        # No incremental state
+  # Removed embed-bitcode=no to allow LTO in release mode
+  
+  # LLVM memory reduction
+  "-C", "metadata=short",           # Minimal metadata
+  
+  # Experimental space savers
+  "-Z", "fewer-names",              # Reduce symbol table
+  "-Z", "no-profiler-runtime",      # Skip profiler
+  "-Z", "share-generics=no",        # Don't share across crates
+]

@@ -178,7 +178,7 @@ impl TensorZODAAdversarialTester {
 // φ-Optimized Fractal ZODA Prover Network Implementation
 // First large-scale fractal network with mathematical optimization
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
@@ -213,6 +213,7 @@ enum ConnectionType {
     BackupPath,        // Redundancy for fault tolerance
 }
 
+#[derive(Debug)]
 struct ZODAProofTask {
     circuit_id: String,
     tensor_segments: Vec<TensorSegment>,
@@ -221,12 +222,14 @@ struct ZODAProofTask {
     priority: u8,
 }
 
+#[derive(Debug, Clone)]
 struct TensorSegment {
     data: Vec<u8>,
     phi_encoding: Vec<f64>,
     rhombus_structure: RhombusParams,
 }
 
+#[derive(Debug)]
 struct PhiParams {
     optimization_level: f64,
     fibonacci_index: usize,
@@ -240,6 +243,7 @@ enum AggregationMethod {
     FractalReduction,
 }
 
+#[derive(Debug, Clone)]
 struct RhombusParams {
     width: usize,
     height: usize,
@@ -282,6 +286,7 @@ enum NetworkMessage {
     ConsensusVote(ConsensusMessage),
 }
 
+#[derive(Debug)]
 struct ProofSegment {
     task_id: String,
     segment_data: Vec<u8>,
@@ -289,18 +294,21 @@ struct ProofSegment {
     contributor: ProverID,
 }
 
+#[derive(Debug)]
 struct PhiOptimization {
     new_phi_level: f64,
     fibonacci_sequence_update: Vec<u64>,
     efficiency_improvement: f64,
 }
 
+#[derive(Debug)]
 struct TopologyUpdate {
     node_additions: Vec<ProverID>,
     node_removals: Vec<ProverID>,
     connection_changes: Vec<ConnectionChange>,
 }
 
+#[derive(Debug)]
 struct ConnectionChange {
     source: ProverID,
     target: ProverID,
@@ -315,6 +323,7 @@ enum ChangeType {
     PhiOptimization(f64),
 }
 
+#[derive(Debug)]
 struct ConsensusMessage {
     proposal: ConsensusProposal,
     vote: Vote,
@@ -328,25 +337,28 @@ enum ConsensusProposal {
     ProofValidation(ProofValidationRequest),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Vote {
     Approve,
     Reject,
     Abstain,
 }
 
+#[derive(Debug)]
 struct NetworkParams {
     phi_optimization_threshold: f64,
     fibonacci_branching_factor: u8,
     cluster_size_limits: (u8, u8),
 }
 
+#[derive(Debug)]
 struct ReputationUpdate {
     node: ProverID,
     reputation_delta: i32,
     phi_efficiency_bonus: f64,
 }
 
+#[derive(Debug)]
 struct ProofValidationRequest {
     proof_data: Vec<u8>,
     claimed_efficiency: f64,
@@ -555,9 +567,9 @@ impl FractalZODAProver {
         let total_weight = phi_weight + contribution_weight;
         
         // Evaluate proposal using φ-optimization principles
-        let vote = match proposal {
+        let vote = match &proposal {
             ConsensusProposal::NetworkParameterUpdate(params) => {
-                if self.validates_phi_optimization(&params) {
+                if self.validates_network_params(params) {
                     Vote::Approve
                 } else {
                     Vote::Reject
@@ -612,8 +624,17 @@ impl FractalZODAProver {
         
         // Add new connections following φ-optimization
         while self.local_cluster.len() < self.calculate_optimal_cluster_size() as usize {
-            let new_connection = self.find_optimal_cluster_member()?;
-            self.local_cluster.push(new_connection);
+            if let Some(prover_id) = self.find_optimal_cluster_member() {
+                let new_connection = FractalConnection {
+                    target: prover_id,
+                    connection_type: ConnectionType::LocalCluster,
+                    bandwidth_weight: PHI,
+                    phi_efficiency: PHI,
+                };
+                self.local_cluster.push(new_connection);
+            } else {
+                break; // No more optimal members found
+            }
         }
         
         Ok(())
@@ -656,6 +677,87 @@ impl FractalZODAProver {
         
         // φ-weighted distance calculation
         (dx.powi(2) * PHI + dy.powi(2) * PHI + dz.powi(2)).sqrt()
+    }
+    
+    // Stub implementations for missing methods
+    fn get_optimal_targets(&self) -> Vec<ProverID> {
+        // Placeholder: return empty or local cluster
+        self.local_cluster.iter().map(|c| c.target.clone()).collect()
+    }
+    
+    fn create_segment_task(&self, _segment: &TensorSegment, _target: &ProverID) -> Result<ZODAProofTask, NetworkError> {
+        // Placeholder implementation
+        Err(NetworkError::ProofDecompositionError)
+    }
+    
+    async fn send_message(&self, _target: ProverID, _message: NetworkMessage) -> Result<(), NetworkError> {
+        // Placeholder implementation
+        Ok(())
+    }
+    
+    fn validates_phi_optimization(&self, _params: &PhiCoordinates) -> bool {
+        // Placeholder: always return true
+        true
+    }
+    
+    fn validates_network_params(&self, _params: &NetworkParams) -> bool {
+        // Placeholder: always return true
+        true
+    }
+    
+    async fn broadcast_to_network(&self, _message: NetworkMessage) -> Result<(), NetworkError> {
+        // Placeholder implementation
+        Ok(())
+    }
+    
+    fn generate_random_phi_coordinates(&self) -> PhiCoordinates {
+        // Placeholder implementation
+        PhiCoordinates {
+            fractal_level: 0,
+            cluster_position: 0,
+            phi_x: 0.0,
+            phi_y: 0.0,
+            phi_z: 0.0,
+        }
+    }
+    
+    fn calculate_backup_coordinates(&self, _index: usize) -> PhiCoordinates {
+        // Placeholder implementation
+        self.fractal_coordinates.clone()
+    }
+    
+    fn generate_phi_encoding(&self, _segments: &[TensorSegment]) -> Result<Vec<f64>, NetworkError> {
+        // Placeholder implementation
+        Ok(vec![PHI, PHI_INVERSE])
+    }
+    
+    fn calculate_rhombus_params(&self, _size: usize) -> RhombusParams {
+        // Placeholder implementation
+        RhombusParams {
+            width: 64,
+            height: 64,
+            phi_proportion: PHI,
+        }
+    }
+    
+    fn calculate_network_efficiency(&mut self) -> f64 {
+        // Placeholder implementation
+        self.phi_efficiency_score
+    }
+    
+    fn rebalance_hierarchical_structure(&mut self) -> Result<(), NetworkError> {
+        // Placeholder implementation
+        Ok(())
+    }
+    
+    fn update_shortcut_connections(&mut self) -> Result<(), NetworkError> {
+        // Placeholder implementation
+        Ok(())
+    }
+    
+    fn find_optimal_cluster_member(&mut self) -> Option<ProverID> {
+        // Placeholder implementation
+        self.local_cluster.first().map(|c| c.target.clone())
     }
 }
 
@@ -705,7 +807,9 @@ impl RhombusOptimizer {
             phi_proportions: (PHI, PHI_INVERSE),
         }
     }
-    
+}
+
+impl TensorZODAAdversarialTester {
     fn test_side_channels_basic(&self) -> Result<SideChannelTestResults> {
         let timing_tests = self.iterations / 4;
         let mut timing_measurements = Vec::new();

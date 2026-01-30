@@ -22,6 +22,18 @@ pub struct P2PNetwork {
     
     /// Network configuration
     config: NetworkConfig,
+    
+    /// Network statistics tracking
+    stats: Arc<RwLock<InternalNetworkStats>>,
+}
+
+/// Internal stats for tracking
+#[derive(Default)]
+struct InternalNetworkStats {
+    messages_sent: u64,
+    messages_received: u64,
+    bytes_sent: u64,
+    bytes_received: u64,
 }
 
 #[derive(Clone)]
@@ -98,6 +110,7 @@ impl P2PNetwork {
             message_rx: Arc::new(RwLock::new(rx)),
             message_tx: tx,
             config,
+            stats: Arc::new(RwLock::new(InternalNetworkStats::default())),
         }
     }
     
@@ -324,12 +337,13 @@ pub struct NetworkStats {
 
 impl P2PNetwork {
     pub async fn get_stats(&self) -> NetworkStats {
+        let stats = self.stats.read().await;
         NetworkStats {
             connected_peers: self.peer_count().await,
-            messages_sent: 0,  // TODO: track
-            messages_received: 0,
-            bytes_sent: 0,
-            bytes_received: 0,
+            messages_sent: stats.messages_sent,
+            messages_received: stats.messages_received,
+            bytes_sent: stats.bytes_sent,
+            bytes_received: stats.bytes_received,
         }
     }
 }

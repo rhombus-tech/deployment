@@ -33,6 +33,7 @@ pub fn value_to_field<F: Field>(value: U256) -> F {
 mod tests {
     use super::*;
     use ark_bn254::Fr;
+    use ark_ff::Field;
 
     #[test]
     fn test_bytes_to_field() {

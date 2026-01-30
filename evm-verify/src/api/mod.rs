@@ -17,6 +17,8 @@ pub mod realtime;
 pub mod realtime_endpoints;
 pub mod external_client;
 pub mod cross_contract_pcc;
+pub mod ai_explainer;
+pub mod dashboard_endpoints;
 
 #[cfg(test)]
 mod integration_tests;

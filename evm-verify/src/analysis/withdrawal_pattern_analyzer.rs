@@ -60,7 +60,9 @@ impl WithdrawalPatternAnalyzer {
             // Look for JUMPDEST (loop start) followed by CALL pattern
             if self.bytecode[i] == 0x5b { // JUMPDEST
                 // Check next 15 bytes for CALL with value
-                let section = &self.bytecode[i..i+15.min(self.bytecode.len()-i)];
+                let end = (i + 15).min(self.bytecode.len());
+                if end <= i { continue; }
+                let section = &self.bytecode[i..end];
                 let has_call_with_value = section.windows(3).any(|w| {
                     w[0] == 0xf1 || // CALL
                     (w.contains(&0xf1) && section.contains(&0x34)) // CALL and CALLVALUE
@@ -124,7 +126,9 @@ impl WithdrawalPatternAnalyzer {
         while i < self.bytecode.len().saturating_sub(10) {
             if self.bytecode[i] == 0xf1 || self.bytecode[i] == 0xf4 { // CALL or DELEGATECALL
                 // Check next 10 bytes for SSTORE
-                let following = &self.bytecode[i..i+10.min(self.bytecode.len()-i)];
+                let end = (i + 10).min(self.bytecode.len());
+                if end <= i { continue; }
+                let following = &self.bytecode[i..end];
                 if following.contains(&0x55) { // SSTORE
                     vulnerabilities.push(WithdrawalVulnerability {
                         vulnerability_type: WithdrawalPatternType::WithdrawalReentrancy,
@@ -151,7 +155,9 @@ impl WithdrawalPatternAnalyzer {
         let mut i = 0;
         while i < self.bytecode.len().saturating_sub(30) {
             if self.bytecode[i] == 0x33 { // CALLER
-                let section = &self.bytecode[i..i+30.min(self.bytecode.len()-i)];
+                let end = (i + 30).min(self.bytecode.len());
+                if end <= i { continue; }
+                let section = &self.bytecode[i..end];
                 let has_full_balance = section.contains(&0x47); // SELFBALANCE
                 let has_call = section.contains(&0xf1); // CALL
 
@@ -213,7 +219,9 @@ impl WithdrawalPatternAnalyzer {
         while i < self.bytecode.len().saturating_sub(5) {
             if self.bytecode[i] == 0xf1 { // CALL
                 // Check next 5 bytes for return value handling
-                let following = &self.bytecode[i+1..i+5.min(self.bytecode.len())];
+                let end = (i + 5).min(self.bytecode.len());
+                if end <= i + 1 { continue; }
+                let following = &self.bytecode[i+1..end];
                 let checks_return = following.contains(&0x15) || // ISZERO
                                    following.contains(&0x14) || // EQ
                                    following.contains(&0x57);   // JUMPI

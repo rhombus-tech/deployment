@@ -180,6 +180,8 @@ pub enum SecurityWarningKind {
     InconsistentAccessControl,
     /// Hardcoded access control vulnerability
     HardcodedAccessControl,
+    /// Logic error vulnerability
+    LogicError,
     /// tx.origin usage vulnerability
     TxOriginUsage,
     /// User-controlled delegate call target vulnerability
@@ -270,6 +272,170 @@ pub enum SecurityWarningKind {
     CrossContractVulnerability,
     /// Gas-related vulnerability
     GasVulnerability,
+    /// Cross-contract yield/reward manipulation
+    CrossContractYieldManipulation,
+    /// Cross-contract parameter injection
+    CrossContractParameterInjection,
+    /// Cross-contract arbitrary call chain
+    CrossContractArbitraryCallChain,
+    /// Cross-contract slashing cascade
+    CrossContractSlashingCascade,
+    /// Cross-contract accounting mismatch
+    CrossContractAccountingMismatch,
+    /// Cross-contract sequencer manipulation
+    CrossContractSequencerManipulation,
+    /// Cross-contract debt manipulation
+    CrossContractDebtManipulation,
+    /// Cross-contract withdrawal cascade
+    CrossContractWithdrawalCascade,
+    /// Cross-contract insurance pool drain
+    CrossContractInsurancePoolDrain,
+    /// Cross-contract oracle staleness cascade
+    CrossContractOracleStalenessCascade,
+    /// Cross-contract timestamp exploitation
+    CrossContractTimestampExploitation,
+    /// Cross-contract admin coordination failure
+    CrossContractAdminCoordination,
+    /// Cross-contract metadata manipulation
+    CrossContractMetadataManipulation,
+    /// Cross-contract fee extraction loop
+    CrossContractFeeExtractionLoop,
+    /// Cross-contract points coordination
+    CrossContractPointsCoordination,
+    /// Cross-contract price impact amplification
+    CrossContractPriceImpactAmplification,
+    /// Cross-contract collateral double counting
+    CrossContractCollateralDoubleCounting,
+    /// Cross-contract emergency desynchronization
+    CrossContractEmergencyDesync,
+    /// Cross-contract nonce/sequence desynchronization
+    CrossContractNonceSequenceDesync,
+    /// Cross-contract position fragmentation
+    CrossContractPositionFragmentation,
+    /// Cross-contract MEV coordination
+    CrossContractMEVCoordination,
+    /// Cross-contract finality assumption mismatch
+    CrossContractFinalityMismatch,
+    /// Cross-contract paymaster exploitation (ERC-4337)
+    CrossContractPaymasterExploitation,
+    /// Cross-contract storage proof manipulation
+    CrossContractStorageProofManipulation,
+    /// Cross-contract shared sequencer exploitation
+    CrossContractSharedSequencer,
+    /// Cross-contract gas market manipulation (EIP-1559)
+    CrossContractGasMarketManipulation,
+    /// Cross-contract ownership verification failure
+    CrossContractOwnershipVerification,
+    /// Cross-contract preconfirmation coordination
+    CrossContractPreconfirmationCoordination,
+    /// Cross-contract intent solver manipulation
+    CrossContractIntentSolverManipulation,
+    /// Cross-contract liquid staking derivative rate manipulation
+    CrossContractLSDRateManipulation,
+    /// Cross-contract validator set desynchronization (DVT)
+    CrossContractValidatorSetDesynchronization,
+    /// Cross-contract RWA collateral verification failure
+    CrossContractRWACollateralVerification,
+    /// Cross-contract solver collusion
+    CrossContractSolverCollusion,
+    /// Cross-contract message replay
+    CrossContractMessageReplay,
+    /// Cross-rollup atomic composability failure
+    CrossRollupAtomicComposability,
+    /// Cross-protocol CDP liquidation cascade
+    CrossProtocolCDPLiquidationCascade,
+    /// Cross-contract ERC-4626 vault share manipulation
+    CrossContractERC4626VaultManipulation,
+    /// Cross-contract Permit2 exploitation
+    CrossContractPermit2Exploitation,
+    /// Cross-protocol upgrade coordination failure
+    CrossProtocolUpgradeCoordination,
+    /// Cross-contract AMM v4 hooks interference
+    CrossContractAMMV4HooksInterference,
+    /// Cross-contract rebasing token coordination
+    CrossContractRebasingTokenCoordination,
+    /// Cross-rollup sequencer centralization risk
+    CrossRollupSequencerCentralization,
+    /// Cross-protocol flash accounting window
+    CrossProtocolFlashAccountingWindow,
+    /// Cross-contract Account Abstraction bundler manipulation
+    CrossContractAABundlerManipulation,
+    /// Cross-chain identity and reputation exploitation
+    CrossChainIdentityExploitation,
+    /// Cross-protocol rate limiting bypass
+    CrossProtocolRateLimitingBypass,
+    /// Cross-contract privacy pool correlation
+    CrossContractPrivacyPoolCorrelation,
+    /// Cross-protocol MEV supply chain exploitation
+    CrossProtocolMEVSupplyChain,
+    /// Cross-protocol liquidity routing manipulation
+    CrossProtocolLiquidityRoutingManipulation,
+    /// Cross-protocol perpetual funding rate manipulation
+    CrossProtocolPerpetualFundingRate,
+    /// Cross-chain NFT metadata poisoning
+    CrossChainNFTMetadataPoisoning,
+    /// Cross-protocol state merkleization inconsistency
+    CrossProtocolStateMerkleization,
+    /// Cross-contract event log ordering exploitation
+    CrossContractEventLogOrdering,
+    /// Cross-protocol vesting schedule manipulation
+    CrossProtocolVestingScheduleManipulation,
+    /// Cross-protocol credit delegation exploitation
+    CrossProtocolCreditDelegationExploitation,
+    /// Cross-protocol synthetic asset desynchronization
+    CrossProtocolSyntheticAssetDesync,
+    /// Cross-protocol governance proposal coordination
+    CrossProtocolGovernanceProposalCoordination,
+    /// Cross-protocol treasury management failures
+    CrossProtocolTreasuryManagementFailures,
+    /// Cross-protocol ZK proof forgery
+    CrossProtocolZKProofForgery,
+    /// Cross-protocol decentralized identity exploitation
+    CrossProtocolDecentralizedIdentityExploitation,
+    /// Cross-protocol JIT liquidity manipulation
+    CrossProtocolJITLiquidityManipulation,
+    /// Cega exotic options payoff manipulation
+    CegaExoticOptions,
+    /// Ribbon v2 auction participation gaming
+    RibbonV2Auction,
+    /// Friktion Volta structured vault
+    FriktiónVolta,
+    /// Katana Finance tranched vault waterfall
+    KatanaFinance,
+    /// Lens Protocol follower NFT manipulation
+    LensProtocol,
+    /// Farcaster frame execution exploit
+    FarcasterFrame,
+    /// Friend.tech subject share manipulation
+    FriendTech,
+    /// Cyberconnect profile ownership dispute
+    Cyberconnect,
+    /// Ritual AI model serving manipulation
+    RitualAI,
+    /// Giza zkML proof generation DoS
+    GizaZkML,
+    /// Modulus Labs remainder proof bypass
+    ModulusLabs,
+    /// EZKL model commitment manipulation
+    EZKL,
+    /// Orderly Network cross-chain liquidity
+    OrderlyNetwork,
+    /// dYdX v4 validator collusion
+    DydxV4,
+    /// Panoptic LP options manipulation
+    Panoptic,
+    /// Axiom historical block proof manipulation
+    Axiom,
+    /// Herodotus L1→L2 storage proof lag
+    Herodotus,
+    /// Brevis ZK coprocessor result caching
+    Brevis,
+    /// Backed Fi transfer restriction bypass
+    BackedFi,
+    /// Securitize investor accreditation spoofing
+    Securitize,
+    /// Polymath ST-20 forced transfer abuse
+    PolymathST20,
     /// Other security issue
     Other(String),
 }
@@ -305,6 +471,19 @@ impl std::fmt::Display for SecuritySeverity {
             SecuritySeverity::Critical => write!(f, "Critical"),
         }
     }
+}
+
+/// Security finding from detector
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityFinding {
+    /// Severity level of the finding
+    pub severity: SecuritySeverity,
+    /// Human-readable description
+    pub description: String,
+    /// Program counter location in bytecode
+    pub pc: usize,
+    /// Confidence level (0.0 to 1.0)
+    pub confidence: f64,
 }
 
 /// Security warning

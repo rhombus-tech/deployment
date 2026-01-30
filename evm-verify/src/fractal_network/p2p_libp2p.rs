@@ -4,7 +4,7 @@
 use libp2p::{
     core::upgrade,
     gossipsub, identify, kad, mdns, noise, ping,
-    swarm::{NetworkBehaviour, SwarmBuilder, SwarmEvent},
+    swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm, Transport,
 };
 use futures::stream::StreamExt;
@@ -106,6 +106,9 @@ pub struct FractalP2PNetwork {
     message_tx: mpsc::UnboundedSender<NetworkMessage>,
     message_rx: mpsc::UnboundedReceiver<NetworkMessage>,
     
+    // External message channel for forwarding incoming messages
+    external_tx: Option<mpsc::UnboundedSender<NetworkMessage>>,
+    
     // Peer tracking
     known_peers: HashMap<PeerId, PeerMetadata>,
     
@@ -124,6 +127,17 @@ struct PeerMetadata {
 }
 
 impl FractalP2PNetwork {
+    /// Create a new Fractal P2P Network with external message channel
+    pub async fn new_with_channel(
+        prover_id: ProverID,
+        config: NetworkConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<NetworkMessage>), Box<dyn Error>> {
+        let (external_tx, external_rx) = mpsc::unbounded_channel();
+        let mut network = Self::new(prover_id, config).await?;
+        network.external_tx = Some(external_tx);
+        Ok((network, external_rx))
+    }
+    
     /// Create a new Fractal P2P Network
     pub async fn new(prover_id: ProverID, config: NetworkConfig) -> Result<Self, Box<dyn Error>> {
         info!("🌐 Creating Fractal P2P Network for {:?}", prover_id);
@@ -197,9 +211,9 @@ impl FractalP2PNetwork {
             ping,
         };
         
-        // Build swarm
-        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id)
-            .build();
+        // Build swarm with proper config
+        let swarm_config = libp2p::swarm::Config::with_tokio_executor();
+        let mut swarm = Swarm::new(transport, behaviour, local_peer_id, swarm_config);
         
         // Listen on all interfaces
         let listen_addr: Multiaddr = config.listen_addr.parse()?;
@@ -216,6 +230,7 @@ impl FractalP2PNetwork {
             prover_id,
             message_tx,
             message_rx,
+            external_tx: None,
             known_peers: HashMap::new(),
             task_topic,
             proof_topic,
@@ -224,7 +239,7 @@ impl FractalP2PNetwork {
     }
     
     /// Start the network event loop
-    pub async fn run(mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         info!("🚀 Starting Fractal P2P Network event loop");
         
         // Bootstrap Kademlia
@@ -324,30 +339,30 @@ impl FractalP2PNetwork {
         // Deserialize message
         let network_msg: NetworkMessage = bincode::deserialize(&message.data)?;
         
+        // Forward to external handler if connected
+        if let Some(ref tx) = self.external_tx {
+            let _ = tx.send(network_msg.clone());
+        }
+        
         match network_msg {
             NetworkMessage::TaskAnnouncement { task_id, proof_type, reward, complexity } => {
                 info!("📢 Task announced: {} (type: {}, reward: {})", task_id, proof_type, reward);
-                // Forward to task pool for processing
             }
             
             NetworkMessage::TaskClaim { task_id, prover_id, .. } => {
                 info!("✋ Task claimed: {} by {}", task_id, prover_id);
-                // Update task state
             }
             
             NetworkMessage::ProofSegment { task_id, segment_id, .. } => {
                 info!("📦 Proof segment received: {}/{}", task_id, segment_id);
-                // Forward to aggregator
             }
             
             NetworkMessage::ProofCompleted { task_id, .. } => {
                 info!("✅ Proof completed: {}", task_id);
-                // Process completed proof
             }
             
             NetworkMessage::PeerInfo { peer_id, fractal_level, stake, .. } => {
                 info!("👤 Peer info: {} (level: {}, stake: {})", peer_id, fractal_level, stake);
-                // Update peer metadata
             }
             
             NetworkMessage::Heartbeat { peer_id, active_tasks, completed_proofs } => {
@@ -403,6 +418,58 @@ impl FractalP2PNetwork {
     /// Get connected peer count
     pub fn peer_count(&self) -> usize {
         self.swarm.connected_peers().count()
+    }
+    
+    /// Broadcast that a proof has been completed
+    pub async fn broadcast_proof_completed(
+        &self,
+        task_id: String,
+        aggregated_proof: Vec<u8>,
+        contributors: Vec<String>,
+    ) -> Result<(), Box<dyn Error>> {
+        let msg = NetworkMessage::ProofCompleted {
+            task_id,
+            aggregated_proof,
+            contributors,
+        };
+        
+        self.message_tx.send(msg)?;
+        Ok(())
+    }
+    
+    /// Announce a task claim to the network
+    pub async fn announce_task_claim(
+        &self,
+        task_id: String,
+        prover_id: String,
+    ) -> Result<(), Box<dyn Error>> {
+        let msg = NetworkMessage::TaskClaim {
+            task_id,
+            prover_id,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        };
+        
+        self.message_tx.send(msg)?;
+        Ok(())
+    }
+    
+    /// Send periodic heartbeat to the network
+    pub async fn send_heartbeat(
+        &self,
+        active_tasks: u32,
+        completed_proofs: u64,
+    ) -> Result<(), Box<dyn Error>> {
+        let msg = NetworkMessage::Heartbeat {
+            peer_id: self.prover_id.0.clone(),
+            active_tasks,
+            completed_proofs,
+        };
+        
+        self.message_tx.send(msg)?;
+        Ok(())
     }
 }
 

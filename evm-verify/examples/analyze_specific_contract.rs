@@ -61,10 +61,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("\n{}. Reentrancy at PC: {}", i+1, vuln.pc);
             println!("   Severity: {:?}", vuln.severity);
             println!("   Confidence: {:.0}%", vuln.confidence * 100.0);
+            println!("   Has Access Control: {}", if vuln.has_access_control { "YES" } else { "NO" });
+            if let Some(ref ac_type) = vuln.access_control_type {
+                println!("   Access Control Type: {}", ac_type);
+            }
+            println!("   Has Reentrancy Guard: {}", vuln.has_reentrancy_guard);
             println!("   Description: {}", vuln.description);
             
             if matches!(vuln.severity, SecuritySeverity::Critical) {
                 println!("   ⚠️  CRITICAL: This is a high-severity reentrancy vulnerability!");
+            }
+            
+            if !vuln.has_access_control && vuln.confidence >= 0.80 {
+                println!("   ✅ EXPLOITABLE: No access control, high confidence!");
             }
         }
     }
@@ -130,8 +139,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎯 FINAL VERDICT");
     println!("{}", "=".repeat(100));
     
-    let has_critical_reentrancy = result.reentrancy_vulnerabilities.iter()
-        .any(|v| matches!(v.severity, SecuritySeverity::Critical));
+    // Check for reentrancy: ANY detection is Critical
+    // Reentrancy is too dangerous - if detected at all, flag it
+    let has_critical_reentrancy = !result.reentrancy_vulnerabilities.is_empty();
     
     let high_conf_integers: Vec<_> = result.integer_vulnerabilities.iter()
         .filter(|v| (matches!(v.severity, SecuritySeverity::Critical) && v.confidence > 0.80) || 

@@ -4,6 +4,9 @@
 use serde::{Serialize, Deserialize};
 use ethers::types::{U256, Address};
 use std::collections::HashMap;
+use crate::analysis::symbolic_execution_engine::{
+    SymbolicExecutionEngine, SymbolicValue, ExecutionPath, StorageRelation
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvariantViolation {
@@ -164,30 +167,8 @@ impl InvariantChecker {
         // Use symbolic execution to find if there's a path where:
         // totalSupply != sum(balances[user1] + balances[user2] + ...)
         
-        let violation_path = self.symbolic_engine.find_path_where(|state| {
-            let total_supply = state.read_storage(total_supply_slot);
-            let balance_sum = state.sum_all_balances(balances_slot);
-            total_supply != balance_sum
-        })?;
-
-        Some(InvariantViolation {
-            invariant_name: invariant.name.clone(),
-            invariant_rule: "totalSupply == sum(balances)".to_string(),
-            violation_details: "Function allows totalSupply to diverge from sum of balances".to_string(),
-            violation_path: self.convert_symbolic_path(violation_path),
-            severity: InvariantSeverity::Critical,
-            confidence: 0.95,
-            example_exploit: ExploitScenario {
-                description: "Attacker can mint tokens without updating totalSupply or vice versa".to_string(),
-                attack_steps: vec![
-                    "1. Call vulnerable function with specific parameters".to_string(),
-                    "2. Balance increases without totalSupply increase".to_string(),
-                    "3. Infinite token minting possible".to_string(),
-                ],
-                profit_estimate: u128::MAX, // Unlimited
-            },
-            remediation: "Ensure all balance updates are paired with totalSupply updates. Use SafeMath.".to_string(),
-        })
+        // TODO: Full API integration - symbolic engine returns SymbolicValue, needs adapter
+        None
     }
 
     /// Check: debt <= collateral * min_ratio
@@ -196,31 +177,8 @@ impl InvariantChecker {
         let debt_slot = self.find_debt_slot()?;
         let collateral_slot = self.find_collateral_slot()?;
 
-        let violation_path = self.symbolic_engine.find_path_where(|state| {
-            let debt = state.read_storage(debt_slot).as_u128() as f64;
-            let collateral = state.read_storage(collateral_slot).as_u128() as f64;
-            debt > collateral * min_ratio
-        })?;
-
-        Some(InvariantViolation {
-            invariant_name: invariant.name.clone(),
-            invariant_rule: format!("debt <= collateral * {}", min_ratio),
-            violation_details: "Function allows under-collateralized borrowing".to_string(),
-            violation_path: self.convert_symbolic_path(violation_path),
-            severity: InvariantSeverity::Critical,
-            confidence: 0.90,
-            example_exploit: ExploitScenario {
-                description: "Attacker can borrow more than collateral allows".to_string(),
-                attack_steps: vec![
-                    "1. Deposit minimal collateral".to_string(),
-                    "2. Call borrow() with manipulated parameters".to_string(),
-                    "3. Withdraw borrowed funds without sufficient collateral".to_string(),
-                    "4. Protocol becomes insolvent".to_string(),
-                ],
-                profit_estimate: 1_000_000_000_000_000_000_000u128, // $1M
-            },
-            remediation: format!("Add explicit check: require(debt <= collateral * {})", min_ratio),
-        })
+        // TODO: Integrate symbolic execution API
+        None
     }
 
     /// Check: user balance <= totalSupply
@@ -228,86 +186,24 @@ impl InvariantChecker {
         let total_supply_slot = self.find_total_supply_slot()?;
         let balances_slot = self.find_balances_mapping_slot()?;
 
-        let violation_path = self.symbolic_engine.find_path_where(|state| {
-            let total_supply = state.read_storage(total_supply_slot);
-            let user_balance = state.read_mapping(balances_slot, state.symbolic_address());
-            user_balance > total_supply
-        })?;
-
-        Some(InvariantViolation {
-            invariant_name: invariant.name.clone(),
-            invariant_rule: "balanceOf(user) <= totalSupply".to_string(),
-            violation_details: "User can have more tokens than total supply".to_string(),
-            violation_path: self.convert_symbolic_path(violation_path),
-            severity: InvariantSeverity::Critical,
-            confidence: 0.92,
-            example_exploit: ExploitScenario {
-                description: "Integer overflow or unchecked transfer allows balance > supply".to_string(),
-                attack_steps: vec![
-                    "1. Call transfer with crafted amount".to_string(),
-                    "2. Receiver balance overflows past totalSupply".to_string(),
-                    "3. Attacker has more tokens than should exist".to_string(),
-                ],
-                profit_estimate: u128::MAX,
-            },
-            remediation: "Use SafeMath and check balance <= totalSupply after transfers".to_string(),
-        })
+        // TODO: Integrate symbolic execution API
+        None
     }
 
     /// Check reserve requirement
     fn check_reserve_requirement(&mut self, invariant: &Invariant, min_reserve: U256) -> Option<InvariantViolation> {
         let reserve_slot = self.find_reserve_slot()?;
 
-        let violation_path = self.symbolic_engine.find_path_where(|state| {
-            let current_reserve = state.read_storage(reserve_slot);
-            current_reserve < min_reserve
-        })?;
-
-        Some(InvariantViolation {
-            invariant_name: invariant.name.clone(),
-            invariant_rule: format!("reserve >= {}", min_reserve),
-            violation_details: "Reserve can drop below minimum requirement".to_string(),
-            violation_path: self.convert_symbolic_path(violation_path),
-            severity: InvariantSeverity::High,
-            confidence: 0.85,
-            example_exploit: ExploitScenario {
-                description: "Protocol becomes insolvent".to_string(),
-                attack_steps: vec![
-                    "1. Exploit allows reserve depletion".to_string(),
-                    "2. Protocol cannot honor withdrawals".to_string(),
-                ],
-                profit_estimate: min_reserve.as_u128(),
-            },
-            remediation: format!("require(reserve >= {})", min_reserve),
-        })
+        // TODO: Integrate symbolic execution API
+        None
     }
 
     /// Check price bounds
     fn check_price_bound(&mut self, invariant: &Invariant, min_price: U256, max_price: U256) -> Option<InvariantViolation> {
         let price_slot = self.find_price_slot()?;
 
-        let violation_path = self.symbolic_engine.find_path_where(|state| {
-            let price = state.read_storage(price_slot);
-            price < min_price || price > max_price
-        })?;
-
-        Some(InvariantViolation {
-            invariant_name: invariant.name.clone(),
-            invariant_rule: format!("{} <= price <= {}", min_price, max_price),
-            violation_details: "Price can be manipulated outside acceptable bounds".to_string(),
-            violation_path: self.convert_symbolic_path(violation_path),
-            severity: InvariantSeverity::High,
-            confidence: 0.80,
-            example_exploit: ExploitScenario {
-                description: "Price manipulation attack".to_string(),
-                attack_steps: vec![
-                    "1. Manipulate oracle or internal price".to_string(),
-                    "2. Extract value at manipulated price".to_string(),
-                ],
-                profit_estimate: 100_000_000_000_000_000_000u128, // $100k
-            },
-            remediation: format!("Add price bounds check: require(price >= {} && price <= {})", min_price, max_price),
-        })
+        // TODO: Integrate symbolic execution API
+        None
     }
 
     /// Check custom invariant
@@ -361,57 +257,8 @@ impl InvariantChecker {
         Some(U256::from(8))
     }
 
-    fn convert_symbolic_path(&self, _path: SymbolicPath) -> Vec<ExecutionStep> {
+    fn convert_symbolic_path(&self, _path: ExecutionPath) -> Vec<ExecutionStep> {
         // Convert symbolic execution path to human-readable steps
-        vec![] // Placeholder
+        vec![] // Placeholder - would convert SymbolicStep to ExecutionStep
     }
-}
-
-// === SYMBOLIC EXECUTION ENGINE (Simplified) ===
-
-struct SymbolicExecutionEngine {
-    bytecode: Vec<u8>,
-}
-
-impl SymbolicExecutionEngine {
-    fn new(bytecode: Vec<u8>) -> Self {
-        Self { bytecode }
-    }
-
-    fn find_path_where<F>(&mut self, _condition: F) -> Option<SymbolicPath>
-    where
-        F: Fn(&SymbolicState) -> bool,
-    {
-        // This is where the magic happens
-        // In production, would use Z3 or similar SMT solver
-        // For now, return None (not yet implemented)
-        None
-    }
-}
-
-#[derive(Clone)]
-struct SymbolicState {
-    storage: HashMap<U256, U256>,
-}
-
-impl SymbolicState {
-    fn read_storage(&self, slot: U256) -> U256 {
-        *self.storage.get(&slot).unwrap_or(&U256::zero())
-    }
-
-    fn read_mapping(&self, _base_slot: U256, _key: Address) -> U256 {
-        U256::zero()
-    }
-
-    fn sum_all_balances(&self, _balances_slot: U256) -> U256 {
-        U256::zero()
-    }
-
-    fn symbolic_address(&self) -> Address {
-        Address::zero()
-    }
-}
-
-struct SymbolicPath {
-    // Path through execution tree
 }

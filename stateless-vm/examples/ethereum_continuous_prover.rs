@@ -229,10 +229,10 @@ async fn main() -> Result<()> {
 
     // Try multiple RPC endpoints for reliability
     let rpc_endpoints = vec![
-        "https://eth.llamarpc.com",
-        "https://rpc.ankr.com/eth",
         "https://ethereum.publicnode.com",
+        "https://eth.llamarpc.com",
         "https://1rpc.io/eth",
+        "https://cloudflare-eth.com",
     ];
 
     println!("🔍 Testing RPC endpoints...");

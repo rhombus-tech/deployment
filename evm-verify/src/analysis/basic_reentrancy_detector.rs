@@ -14,6 +14,8 @@ pub struct ReentrancyVulnerability {
     pub description: String,
     pub affected_storage_slots: Vec<u8>,
     pub has_reentrancy_guard: bool,
+    pub has_access_control: bool,
+    pub access_control_type: Option<String>,
     pub confidence: f32,
 }
 
@@ -40,6 +42,9 @@ impl BasicReentrancyDetector {
                 // Check if there's a reentrancy guard
                 let has_guard = self.has_reentrancy_guard_pattern();
                 
+                // NEW: Check if there's access control before this call
+                let (has_access_control, access_control_type) = self.has_access_control_before(call_info.pc);
+                
                 let severity = if call_info.is_delegatecall {
                     SecuritySeverity::Critical
                 } else if state_changes.len() > 2 {
@@ -48,7 +53,10 @@ impl BasicReentrancyDetector {
                     SecuritySeverity::Medium
                 };
                 
-                let confidence = if !has_guard && call_info.transfers_value {
+                // Adjust confidence based on protections
+                let confidence = if has_access_control {
+                    0.20  // Low confidence - has access control, likely not exploitable
+                } else if !has_guard && call_info.transfers_value {
                     0.95  // Very confident - external call with value, no guard, state changes after
                 } else if !has_guard {
                     0.85  // Confident - external call, no guard, state changes after
@@ -64,15 +72,21 @@ impl BasicReentrancyDetector {
                     description: format!(
                         "Potential reentrancy: {} at PC {} followed by {} state changes. \
                         External call occurs BEFORE state updates, allowing reentrancy attacks. \
-                        {}",
+                        {} {}",
                         Self::opcode_name(call_info.opcode),
                         call_info.pc,
                         state_changes.len(),
+                        if has_access_control { 
+                            format!("Access control detected ({}). Likely requires authorization.", 
+                                    access_control_type.as_ref().unwrap_or(&"unknown".to_string())) 
+                        } else { "No access control detected - publicly callable!".to_string() },
                         if has_guard { "Reentrancy guard detected but verify its correctness." } 
                         else { "No reentrancy guard detected!" }
                     ),
                     affected_storage_slots: vec![],
                     has_reentrancy_guard: has_guard,
+                    has_access_control,
+                    access_control_type,
                     confidence,
                 });
             }
@@ -208,6 +222,90 @@ impl BasicReentrancyDetector {
         }
         
         has_guard_check && has_guard_set
+    }
+    
+    fn has_access_control_before(&self, call_pc: usize) -> (bool, Option<String>) {
+        // Look for access control patterns BEFORE the vulnerable call
+        // Common patterns:
+        // 1. CALLER + SLOAD + EQ + JUMPI (msg.sender == owner check)
+        // 2. CALLER + EQ + JUMPI (direct address check)
+        // 3. ORIGIN + check (tx.origin check)
+        
+        let start_pc = if call_pc > 200 { call_pc - 200 } else { 0 };
+        let mut pc = start_pc;
+        
+        let mut has_caller_check = false;
+        let mut has_origin_check = false;
+        let mut has_sload_comparison = false;
+        
+        while pc < call_pc {
+            if pc >= self.bytecode.len() {
+                break;
+            }
+            let opcode = self.bytecode[pc];
+            
+            // Check for CALLER opcode (0x33)
+            if opcode == 0x33 {
+                // Look ahead for comparison pattern
+                if pc + 20 < self.bytecode.len() {
+                    let next_opcodes = &self.bytecode[pc+1..std::cmp::min(pc+20, self.bytecode.len())];
+                    // Look for EQ (0x14) followed by JUMPI (0x57) or ISZERO (0x15)
+                    for i in 0..next_opcodes.len().saturating_sub(2) {
+                        if (next_opcodes[i] == 0x14 || next_opcodes[i] == 0x15) && 
+                           next_opcodes[i+1] == 0x57 {
+                            has_caller_check = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Check for ORIGIN opcode (0x32)
+            if opcode == 0x32 {
+                if pc + 20 < self.bytecode.len() {
+                    let next_opcodes = &self.bytecode[pc+1..std::cmp::min(pc+20, self.bytecode.len())];
+                    for i in 0..next_opcodes.len().saturating_sub(2) {
+                        if (next_opcodes[i] == 0x14 || next_opcodes[i] == 0x15) && 
+                           next_opcodes[i+1] == 0x57 {
+                            has_origin_check = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Check for SLOAD + comparison pattern (storage-based access control)
+            if opcode == 0x54 {  // SLOAD
+                if pc + 15 < self.bytecode.len() {
+                    let next_opcodes = &self.bytecode[pc+1..std::cmp::min(pc+15, self.bytecode.len())];
+                    // Look for comparison with CALLER
+                    if next_opcodes.contains(&0x33) {  // CALLER present
+                        for i in 0..next_opcodes.len().saturating_sub(2) {
+                            if next_opcodes[i] == 0x14 && next_opcodes[i+1] == 0x57 {
+                                has_sload_comparison = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            pc += 1;
+            
+            // Skip PUSH data
+            if opcode >= 0x60 && opcode <= 0x7F {
+                let push_bytes = (opcode - 0x5F) as usize;
+                pc += push_bytes;
+            }
+        }
+        
+        if has_caller_check || has_sload_comparison {
+            (true, Some("msg.sender check".to_string()))
+        } else if has_origin_check {
+            (true, Some("tx.origin check".to_string()))
+        } else {
+            (false, None)
+        }
     }
     
     fn opcode_name(opcode: u8) -> &'static str {

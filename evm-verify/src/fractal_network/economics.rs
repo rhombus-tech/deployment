@@ -138,9 +138,26 @@ impl ProvingEconomics {
     
     /// Speed bonus for fast completion
     fn calculate_speed_bonus(&self, proof: &CompletedProof) -> u64 {
-        // TODO: Compare completion_time vs expected time
-        // Faster = higher bonus
-        (self.base_reward as f64 * PHI_INVERSE) as u64
+        // Calculate expected time based on phi_efficiency
+        // Expected time ~30ms for standard proof (11ms ZODA + accumulation)
+        let expected_time_ms = 30.0 / proof.phi_efficiency.max(0.1);
+        
+        // Calculate actual completion time
+        let now = std::time::SystemTime::now();
+        let actual_time_ms = now.duration_since(proof.completion_time)
+            .map(|d| d.as_millis() as f64)
+            .unwrap_or(expected_time_ms);
+        
+        // Speed ratio: < 1.0 = faster than expected (bonus)
+        let speed_ratio = actual_time_ms / expected_time_ms;
+        
+        // Exponential bonus for speed: faster = exponentially higher reward
+        // If 2x faster (ratio = 0.5), bonus = phi^2 ≈ 2.618
+        // If same speed (ratio = 1.0), bonus = phi^0 = 1.0
+        // If 2x slower (ratio = 2.0), bonus = phi^(-2) ≈ 0.382
+        let speed_multiplier = PHI.powf(-speed_ratio.log(2.0));
+        
+        (self.base_reward as f64 * speed_multiplier * PHI_INVERSE) as u64
     }
     
     /// φ-factor prevents monopolization

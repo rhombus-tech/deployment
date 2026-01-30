@@ -1,0 +1,29 @@
+use serde::{Serialize, Deserialize};
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PlonkCircuitBugDetectorVulnerability {
+    CircuitBug { description: String, location: usize },
+}
+pub struct PlonkCircuitBugDetector { bytecode: Vec<u8> }
+impl PlonkCircuitBugDetector {
+    pub fn new(bytecode: Vec<u8>) -> Self { Self { bytecode } }
+    pub fn detect_vulnerabilities(&self) -> Vec<PlonkCircuitBugDetectorVulnerability> {
+        let mut vulnerabilities = Vec::new();
+        for i in 0..self.bytecode.len().saturating_sub(30) {
+            if self.bytecode[i] == 0xf1 || self.bytecode[i] == 0xfa {
+                let calls_pairing = i > 10 && self.bytecode[i-10..i].windows(2)
+                    .any(|w| w[0] == 0x60 && w[1] == 0x08);
+                if calls_pairing {
+                    let validates = self.bytecode[i..std::cmp::min(i+20, self.bytecode.len())]
+                        .iter().any(|&b| b == 0x15);
+                    if !validates {
+                        vulnerabilities.push(PlonkCircuitBugDetectorVulnerability::CircuitBug {
+                            description: "PLONK verification without result check".to_string(), location: i,
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+        vulnerabilities
+    }
+}

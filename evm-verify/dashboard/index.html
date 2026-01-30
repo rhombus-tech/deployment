@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVM Verify - Security Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 5px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Monaco', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        
+        .options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .metric {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .vulnerability {
+            background: #fff;
+            border-left: 4px solid;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .vulnerability.critical {
+            border-left-color: #dc3545;
+        }
+        
+        .vulnerability.high {
+            border-left-color: #fd7e14;
+        }
+        
+        .vulnerability.medium {
+            border-left-color: #ffc107;
+        }
+        
+        .vulnerability.low {
+            border-left-color: #0dcaf0;
+        }
+        
+        .vulnerability.info {
+            border-left-color: #6c757d;
+        }
+        
+        .vuln-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .vuln-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .severity-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .severity-badge.critical { background: #dc3545; }
+        .severity-badge.high { background: #fd7e14; }
+        .severity-badge.medium { background: #ffc107; color: #333; }
+        .severity-badge.low { background: #0dcaf0; }
+        .severity-badge.info { background: #6c757d; }
+        
+        .proof-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: #28a745;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .technical-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .ai-explanation {
+            background: linear-gradient(135deg, #667eea11 0%, #764ba222 100%);
+            border: 2px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .ai-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .ai-section {
+            margin-bottom: 15px;
+        }
+        
+        .ai-section h4 {
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+        
+        .exploits {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .exploit {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #dc3545;
+        }
+        
+        .exploit-name {
+            font-weight: 600;
+        }
+        
+        .exploit-details {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        
+        .status-pending {
+            background: #ffc107;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 EVM Verify</h1>
+            <p class="tagline">Cryptographically Proven Security Analysis</p>
+            <div>
+                <span class="badge">✓ 111 Cross-Contract Detectors</span>
+                <span class="badge">✓ Mathematical Proofs (PCD/PCC)</span>
+                <span class="badge">✓ AI-Enhanced Explanations</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Analyze Your Contract</h2>
+            <div class="input-group">
+                <label for="bytecode">Contract Bytecode (hex)</label>
+                <textarea 
+                    id="bytecode" 
+                    rows="8" 
+                    placeholder="0x6080604052348015600f57600080fd5b50..."
+                ></textarea>
+            </div>
+            
+            <div class="options">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="enableAI" checked>
+                    <label for="enableAI">Enable AI Explanations</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="asyncAI" checked>
+                    <label for="asyncAI">Async AI (faster response)</label>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="analyzeContract()">
+                🔍 Analyze Contract
+            </button>
+        </div>
+        
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Analyzing bytecode with 111 detectors...</p>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                ⚡ Deterministic analysis: ~11ms<br>
+                🔐 Proof generation: ~50ms<br>
+                <span id="aiLoadingText">🤖 AI explanations: Processing...</span>
+            </p>
+        </div>
+        
+        <div class="results" id="results"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3000'; // Change to your API URL
+        
+        let currentAnalysisId = null;
+        
+        async function analyzeContract() {
+            const bytecode = document.getElementById('bytecode').value.trim();
+            const enableAI = document.getElementById('enableAI').checked;
+            const asyncAI = document.getElementById('asyncAI').checked;
+            
+            if (!bytecode) {
+                alert('Please enter contract bytecode');
+                return;
+            }
+            
+            // Show loading
+            document.querySelector('.loading').classList.add('show');
+            document.getElementById('results').classList.remove('show');
+            
+            if (asyncAI) {
+                document.getElementById('aiLoadingText').textContent = 
+                    '🤖 AI explanations: Will load in background';
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bytecode, enable_ai: enableAI, async_ai: asyncAI })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Analysis failed');
+                }
+                
+                const result = await response.json();
+                currentAnalysisId = result.analysis_id;
+                
+                displayResults(result);
+                
+                // If AI is async, poll for updates
+                if (asyncAI && enableAI && result.status === 'PROVEN_READY_AI_PENDING') {
+                    pollForAIExplanations(result.analysis_id);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                document.querySelector('.loading').classList.remove('show');
+            }
+        }
+        
+        async function pollForAIExplanations(analysisId) {
+            const maxAttempts = 10;
+            let attempts = 0;
+            
+            const poll = setInterval(async () => {
+                attempts++;
+                
+                try {
+                    const response = await fetch(`${API_BASE}/analysis/${analysisId}`);
+                    const result = await response.json();
+                    
+                    if (result.status === 'COMPLETE' && result.ai_explanations) {
+                        clearInterval(poll);
+                        displayResults(result);
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        clearInterval(poll);
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+        
+        function displayResults(result) {
+            document.querySelector('.loading').classList.remove('show');
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.classList.add('show');
+            
+            const perf = result.performance;
+            const vulns = result.proven_vulnerabilities.findings;
+            const aiExplanations = result.ai_explanations?.explanations || {};
+            
+            let html = '<div class="card">';
+            
+            // Status
+            if (result.status === 'PROVEN_READY_AI_PENDING') {
+                html += '<div class="status-pending">⏳ Proven vulnerabilities ready. AI explanations loading...</div>';
+            }
+            
+            // Metrics
+            html += '<div class="metrics">';
+            html += `<div class="metric">
+                <div class="metric-value">${vulns.length}</div>
+                <div class="metric-label">Vulnerabilities Found</div>
+            </div>`;
+            html += `<div class="metric">
+                <div class="metric-value">${perf.detection_time_ms}ms</div>
+                <div class="metric-label">Detection Time</div>
+            </div>`;
+            html += `<div class="metric">
+                <div class="metric-value">${perf.proof_generation_time_ms}ms</div>
+                <div class="metric-label">Proof Generation</div>
+            </div>`;
+            if (perf.ai_explanation_time_ms) {
+                html += `<div class="metric">
+                    <div class="metric-value">${perf.ai_explanation_time_ms}ms</div>
+                    <div class="metric-label">AI Explanation</div>
+                </div>`;
+            }
+            html += '</div>';
+            
+            // Disclaimer
+            html += `<div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <strong>&#10003; Cryptographically Proven</strong><br>
+                ${result.proven_vulnerabilities.disclaimer}
+            </div>`;
+            
+            // Vulnerabilities
+            if (vulns.length === 0) {
+                html += '<div style="text-align: center; padding: 40px; color: #28a745;">' +
+                    '<h2>No Vulnerabilities Found</h2>' +
+                    '<p>This contract passed all 111 security checks.</p>' +
+                    '</div>';
+            } else {
+                vulns.forEach((vuln, index) => {
+                    const v = vuln.vulnerability;
+                    const severityClass = v.severity.toLowerCase();
+                    const ai = aiExplanations[index];
+                    
+                    html += `<div class="vulnerability ${severityClass}">
+                        <div class="vuln-header">
+                            <div class="vuln-title">${formatVulnKind(v.kind)}</div>
+                            <div>
+                                <span class="proof-badge">✓ PROVEN</span>
+                                <span class="severity-badge ${severityClass}">${v.severity}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="technical-details">
+                            <strong>Technical Description:</strong><br>
+                            ${v.description}
+                            <br><br>
+                            <strong>Remediation:</strong><br>
+                            ${v.remediation}
+                        </div>`;
+                    
+                    // AI Explanation
+                    if (ai) {
+                        html += `<div class="ai-explanation">
+                            <div class="ai-badge">🤖 AI-GENERATED EXPLANATION</div>
+                            
+                            <div class="ai-section">
+                                <h4>📖 Plain English Explanation</h4>
+                                <p>${ai.plain_english}</p>
+                            </div>
+                            
+                            <div class="ai-section">
+                                <h4>💰 Business Impact</h4>
+                                <p>${ai.business_impact}</p>
+                            </div>
+                            
+                            <div class="ai-section">
+                                <h4>🔧 Fix Suggestion</h4>
+                                <pre>${ai.fix_suggestion}</pre>
+                            </div>`;
+                        
+                        if (ai.similar_exploits && ai.similar_exploits.length > 0) {
+                            html += '<div class="ai-section"><h4>⚠️ Similar Historical Exploits</h4><div class="exploits">';
+                            ai.similar_exploits.forEach(exploit => {
+                                html += `<div class="exploit">
+                                    <div class="exploit-name">${exploit.name}</div>
+                                    <div class="exploit-details">
+                                        ${exploit.date} • ${exploit.loss_amount} • ${exploit.similarity}
+                                    </div>
+                                </div>`;
+                            });
+                            html += '</div></div>';
+                        }
+                        
+                        html += '</div>';
+                    } else if (result.ai_explanations && result.ai_explanations.status === 'Processing') {
+                        html += '<div style="padding: 15px; background: #fff3cd; border-radius: 8px; margin-top: 15px;">
+                            ⏳ AI explanation loading...
+                        </div>';
+                    }
+                    
+                    html += '</div>';
+                });
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+        
+        function formatVulnKind(kind) {
+            return kind.replace(/([A-Z])/g, ' $1').trim();
+        }
+    </script>
+</body>
+</html>

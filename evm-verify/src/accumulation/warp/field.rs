@@ -237,6 +237,14 @@ impl LinearCodeFieldElement for WarpField {
         WarpField(self.0 * other.0)
     }
     
+    fn sub(&self, other: &Self) -> Self {
+        WarpField(self.0 - other.0)
+    }
+    
+    fn neg(&self) -> Self {
+        WarpField(-self.0)
+    }
+    
     fn zero() -> Self {
         WarpField(<BlsScalar as Zero>::zero())
     }
@@ -246,7 +254,8 @@ impl LinearCodeFieldElement for WarpField {
     }
     
     fn random() -> Self {
-        WarpField(BlsScalar::rand(&mut thread_rng()))
+        use rand::Rng;
+        WarpField(BlsScalar::rand(&mut rand::thread_rng()))
     }
 }
 

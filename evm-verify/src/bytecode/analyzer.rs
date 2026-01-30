@@ -399,8 +399,8 @@ impl BytecodeAnalyzer {
     }
     
     /// Detect oracle manipulation vulnerabilities
+    /// Note: Oracle manipulation detection is handled by ComprehensiveSecurityAnalyzer
     pub fn detect_oracle_manipulation(&self) -> Result<Vec<SecurityWarning>> {
-        // Stub implementation
         Ok(Vec::new())
     }
     

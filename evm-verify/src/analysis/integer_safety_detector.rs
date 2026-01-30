@@ -2,6 +2,7 @@
 // Detects BeautyChain-style vulnerabilities and unchecked arithmetic
 
 use crate::bytecode::security::SecuritySeverity;
+use crate::analysis::contract_metadata_parser::{MetadataParser, ContractMetadata};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,6 +14,7 @@ pub struct IntegerVulnerability {
     pub has_safe_math: bool,
     pub confidence: f32,
     pub affected_operation: String,
+    pub solidity_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,6 +38,20 @@ impl IntegerSafetyDetector {
 
     pub fn detect_vulnerabilities(&self) -> Vec<IntegerVulnerability> {
         let mut vulnerabilities = Vec::new();
+        
+        // CRITICAL: Parse contract metadata to detect Solidity version
+        let metadata = MetadataParser::parse(&self.bytecode);
+        
+        // Debug: Print metadata detection results
+        eprintln!("[METADATA] has_metadata={}, has_solc_0_8_plus={}, version={:?}", 
+                  metadata.has_metadata, metadata.has_solc_0_8_plus, metadata.solidity_version);
+        
+        // If Solidity 0.8+, arithmetic is automatically checked - very low confidence
+        if metadata.has_solc_0_8_plus {
+            eprintln!("[METADATA] Contract has Solidity 0.8+ - skipping integer vulnerability detection");
+            // Contract has built-in overflow protection - no vulnerabilities
+            return vulnerabilities;
+        }
         
         // Find all arithmetic operations
         let arithmetic_ops = self.find_arithmetic_operations();
@@ -108,11 +124,23 @@ impl IntegerSafetyDetector {
                 confidence = confidence.min(0.95);
                 confidence = (confidence * 100.0).round() / 100.0;  // Round to 2 decimal places
                 
-                vulnerabilities.push(IntegerVulnerability {
-                    pc: op_info.pc,
-                    severity,
-                    operation: op_info.operation.clone(),
-                    description: format!(
+                let description = if metadata.has_metadata {
+                    format!(
+                        "Unchecked {:?} at PC {}. Contract compiled with Solidity {} \
+                        (pre-0.8). No SafeMath library detected and no manual validation. \
+                        This operation can {} and cause unexpected behavior.",
+                        op_info.operation,
+                        op_info.pc,
+                        metadata.solidity_version.as_ref().unwrap_or(&"unknown".to_string()),
+                        match op_info.operation {
+                            ArithmeticOp::Addition | ArithmeticOp::Multiplication | 
+                            ArithmeticOp::Exponentiation => "overflow",
+                            ArithmeticOp::Subtraction => "underflow",
+                            _ => "produce invalid results",
+                        }
+                    )
+                } else {
+                    format!(
                         "Unchecked {:?} at PC {}. No SafeMath library detected, \
                         no Solidity 0.8+ overflow checks, and no manual validation. \
                         This operation can {} and cause unexpected behavior.",
@@ -124,10 +152,18 @@ impl IntegerSafetyDetector {
                             ArithmeticOp::Subtraction => "underflow",
                             _ => "produce invalid results",
                         }
-                    ),
+                    )
+                };
+                
+                vulnerabilities.push(IntegerVulnerability {
+                    pc: op_info.pc,
+                    severity,
+                    operation: op_info.operation.clone(),
+                    description,
                     has_safe_math: false,
                     confidence,
                     affected_operation: format!("{:?}", op_info.operation),
+                    solidity_version: metadata.solidity_version.clone(),
                 });
             }
         }
@@ -290,9 +326,15 @@ impl IntegerSafetyDetector {
         let mut pc = start_pc + 1;
         let end_pc = (start_pc + window).min(self.bytecode.len());
         let mut found_comparison = false;
+        let mut found_dup = false;
         
         while pc < end_pc {
             let opcode = self.bytecode[pc];
+            
+            // Look for DUP operations FIRST (Solidity 0.8+ pattern)
+            if matches!(opcode, 0x80..=0x8F) {  // DUP1-DUP16
+                found_dup = true;
+            }
             
             // Look for comparison operations (indicates overflow check)
             if matches!(opcode, 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15) {
@@ -305,15 +347,18 @@ impl IntegerSafetyDetector {
                 return true;
             }
             
-            // Look for JUMPI (conditional jump, often used for error handling)
-            if opcode == 0x57 && found_comparison {  // JUMPI after comparison
-                // This is likely a SafeMath pattern: compare result, jump if ok
-                return true;
+            // Solidity 0.8+ pattern: op → DUP → comparison → JUMPI
+            if opcode == 0x57 {  // JUMPI
+                if found_dup && found_comparison {
+                    return true;  // Strong signal of overflow check
+                }
+                if found_comparison {
+                    return true;  // SafeMath pattern without DUP
+                }
             }
             
-            // Look for DUP operations (SafeMath duplicates for checking)
-            // Pattern: op, DUP, comparison, JUMPI/REVERT
-            if matches!(opcode, 0x80..=0x8F) && found_comparison {  // DUP1-DUP16
+            // SWAP operations often used in overflow checks
+            if matches!(opcode, 0x90..=0x9F) && found_comparison {
                 return true;
             }
             

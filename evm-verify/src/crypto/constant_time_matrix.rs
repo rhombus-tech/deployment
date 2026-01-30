@@ -359,10 +359,77 @@ impl ConstantTimeTensor {
             result_dims.push(1); // Scalar result
         }
         
-        let result = Self::new(result_dims, self.modulus);
+        let mut result = Self::new(result_dims.clone(), self.modulus);
         
-        // TODO: Implement full tensor contraction algorithm
-        // This is a placeholder for the complex tensor contraction logic
+        // Full tensor contraction implementation:
+        // For each element in the result tensor, sum over contracted indices
+        
+        // Compute result size
+        let result_size: usize = result_dims.iter().product();
+        
+        // Iterate over all result indices
+        for result_idx in 0..result_size {
+            // Convert linear index to multi-dimensional indices for result
+            let mut result_indices = Vec::new();
+            let mut temp_idx = result_idx;
+            for &dim in result_dims.iter().rev() {
+                result_indices.push(temp_idx % dim);
+                temp_idx /= dim;
+            }
+            result_indices.reverse();
+            
+            // Accumulator for the contraction sum (constant-time)
+            let mut sum = ConstantTimeFieldElement::new(0, self.modulus);
+            
+            // Determine range for contracted indices
+            let contract_size: usize = contraction_indices.iter()
+                .map(|(i, _)| self.dimensions[*i])
+                .product();
+            
+            // Iterate over all combinations of contracted indices
+            for contract_idx in 0..contract_size {
+                // Build full index arrays for self and other
+                let mut self_indices = vec![0; self.dimensions.len()];
+                let mut other_indices = vec![0; other.dimensions.len()];
+                
+                // Fill in non-contracted indices from result
+                let mut result_pos = 0;
+                for (dim_idx, &_dim) in self.dimensions.iter().enumerate() {
+                    if !contraction_indices.iter().any(|(ci, _)| *ci == dim_idx) {
+                        self_indices[dim_idx] = result_indices[result_pos];
+                        result_pos += 1;
+                    }
+                }
+                
+                for (dim_idx, &_dim) in other.dimensions.iter().enumerate() {
+                    if !contraction_indices.iter().any(|(_, cj)| *cj == dim_idx) {
+                        other_indices[dim_idx] = result_indices[result_pos];
+                        result_pos += 1;
+                    }
+                }
+                
+                // Fill in contracted indices
+                let mut temp_contract = contract_idx;
+                for &(self_idx, other_idx) in contraction_indices.iter().rev() {
+                    let dim_size = self.dimensions[self_idx];
+                    let idx_val = temp_contract % dim_size;
+                    self_indices[self_idx] = idx_val;
+                    other_indices[other_idx] = idx_val;
+                    temp_contract /= dim_size;
+                }
+                
+                // Get elements and multiply (constant-time)
+                let self_elem = self.get_element(&self_indices);
+                let other_elem = other.get_element(&other_indices);
+                let product = self_elem.multiply(&other_elem);
+                
+                // Add to sum (constant-time accumulation)
+                sum = sum.add(&product);
+            }
+            
+            // Store result (constant-time)
+            result.set_element(&result_indices, sum);
+        }
         
         Ok(result)
     }

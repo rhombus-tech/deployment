@@ -14,12 +14,11 @@ pub mod task_pool;        // P2P task discovery, no coordinator
 pub mod economics;        // Economic incentives for all participants
 pub mod onchain;          // Blockchain integration for payments & proofs
 pub mod identity;         // Key management & identity - WORKS
-pub mod simple_multinode;  // Simple HTTP-based multi-node - WORKS
+pub mod simple_multinode;  // Simple HTTP-based multi-node - WORKS (DEPRECATED: use p2p_libp2p)
 pub mod task_coordinator;  // Basic task coordination - WORKS
 pub mod production_coordinator;  // PRODUCTION: Failover, persistence, auth - WORKS
-// pub mod distributed_coordinator_v2;  // TODO: Fix Arc/RwLock deadlock
-// Future: Add libp2p for production P2P
-// Future: Add blockchain_client for on-chain integration
+// pub mod distributed_coordinator_v2;  // DISABLED: Has Arc/RwLock deadlock - use production_coordinator instead
+pub mod p2p_libp2p;       // 🚀 PRODUCTION P2P: Kademlia DHT + GossipSub + mDNS - FULLY IMPLEMENTED
 pub mod monitoring;       // Metrics and monitoring for production
 pub mod frac_rewards;     // FRAC token rewards - mint tokens for provers
 pub mod frac_payment;     // FRAC token payment system - actual blockchain transactions
@@ -42,7 +41,7 @@ pub use self::permissionless::{PermissionlessBootstrap, NodeIdentity, PeerInfo};
 pub use self::task_pool::{DecentralizedTaskPool, TaskAnnouncement, TaskSelectionStrategy};
 pub use self::economics::{ProvingEconomics, RewardBreakdown, ProfitabilityEstimate};
 pub use self::onchain::{ProofSubmitter, OnChainTaskRegistry, TransactionFeePayment, ProtocolRewardPayment, HybridPayment};
-// pub use self::p2p::{P2PNetwork, NetworkConfig, P2PMessage}; // Commented out with p2p module
+pub use self::p2p_libp2p::{FractalP2PNetwork, NetworkConfig, NetworkMessage}; // 🚀 PRODUCTION P2P ENABLED
 pub use self::monitoring::{FractalMetrics, start_metrics_server};
 pub use self::frac_rewards::{FracRewardSystem, ProverStats};
 pub use self::stateless_vm_adapter::StatelessVMAdapter;

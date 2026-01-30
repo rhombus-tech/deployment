@@ -28,6 +28,10 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use bytes;
 
+// Note: Millennium Privacy integration available in evm-verify crate
+// See evm-verify/examples/zkevm_with_optional_privacy.rs for privacy integration
+// To avoid circular dependencies, privacy is integrated at the evm-verify level
+
 /// Simple in-memory state provider for example
 pub struct SimpleStateProvider {
     states: HashMap<H256, Vec<u8>>,
@@ -174,7 +178,7 @@ impl EthereumMainnetClient {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 === Real Ethereum Mainnet Block Proving ===");
     
-    // Check for --skip-vulnerabilities flag
+    // Check for flags
     let args: Vec<String> = std::env::args().collect();
     let skip_vulnerability_analysis = args.contains(&"--skip-vulnerabilities".to_string());
     
@@ -284,6 +288,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         realtime_config,
     );
     
+    // Privacy integration available in evm-verify crate to avoid circular dependencies
+    
     println!("✅ zkEVM initialized for Ethereum mainnet proving");
     println!("⚡ Fetching recent Ethereum blocks...");
 
@@ -341,6 +347,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 
                 // Convert Ethereum transactions to our format
                 let mut converted_transactions = Vec::new();
+                
                 for eth_tx in transactions.iter() {
                     match ethereum_client.convert_ethereum_transaction(eth_tx, block_number) {
                         Ok(tx) => converted_transactions.push(tx),
@@ -439,6 +446,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   • Without cache, proving would have taken ~{:.2}s longer", 
                      cache_stats.time_saved_ms as f64 / 1000.0);
         }
+        
     } else {
         println!("❌ No blocks were successfully proved");
     }

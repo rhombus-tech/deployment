@@ -35,6 +35,18 @@ dashmap = "5.5"
 futures = "0.3"
 parking_lot = "0.12"
 
+# Precompile dependencies for EVM execution
+secp256k1 = { version = "0.28", features = ["recovery", "global-context"] }
+blake2 = "0.10"
+ripemd = "0.1"
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+keccak-hash = "0.10"
+ark-ff = "0.3"
+ark-ec = "0.3"
+ark-bn254 = "0.3"
+ark-bls12-381 = "0.3"
+ark-relations = "0.3"
+
 # PCD integration
 pcd = { path = "../evm-verify/pcd" }
 
