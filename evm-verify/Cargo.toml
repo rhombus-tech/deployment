@@ -2,6 +2,9 @@
 name = "evm-verify"
 version = "0.1.0"
 edition = "2021"
+license = "BUSL-1.1"
+description = "zkEVM proving system with cryptographic precompiles and security analysis"
+repository = "https://github.com/rhombus-tech/deployment"
 
 
 [features]

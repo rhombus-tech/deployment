@@ -6,15 +6,16 @@ License text copyright (c) 2017 MariaDB Corporation Ab, All Rights Reserved.
 Parameters
 
 Licensor:             Rhombus Tech
-Licensed Work:        EVM Safety Verification System
-                     The Licensed Work is (c) 2025 Rhombus Tech
+Licensed Work:        zkEVM Proving System with Precompile Integration
+                     The Licensed Work is (c) 2025-2026 Rhombus Tech
 
-Additional Use Grant: Any uses listed and approved at
-                     https://rhombus.tech/license-grants
+Additional Use Grant: None. Production use requires explicit written 
+                     commercial license from Rhombus Tech.
+                     Contact: licensing@rhombus.tech
 
-Change Date:          2027-02-14
+Change Date:          2029-12-31
 
-Change License:       GNU General Public License v2.0 or later
+Change License:       Apache License 2.0
 
 Notice
 
@@ -27,9 +28,19 @@ under an Open Source License, as stated in this License.
 Terms
 
 The Licensor hereby grants you the right to copy, modify, create derivative
-works, redistribute, and make non-production use of the Licensed Work. The
-Licensor may make an Additional Use Grant, above, permitting limited
-production use.
+works, redistribute, and make non-production use of the Licensed Work for
+evaluation, research, and development purposes only. 
+
+COMMERCIAL USE, PRODUCTION USE, OR USE IN ANY REVENUE-GENERATING SERVICE
+IS STRICTLY PROHIBITED without an explicit written commercial license from
+Rhombus Tech. This includes but is not limited to:
+- Offering the Licensed Work as a service
+- Using the Licensed Work in any production environment
+- Integrating the Licensed Work into commercial products
+- Using the Licensed Work to generate revenue directly or indirectly
+
+The Licensor may make an Additional Use Grant, above, permitting limited
+production use on a case-by-case basis.
 
 Effective on the Change Date, or the fourth anniversary of the first publicly
 available distribution of a specific version of the Licensed Work under this

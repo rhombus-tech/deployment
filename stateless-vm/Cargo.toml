@@ -3,7 +3,8 @@ name = "zkevm-stateless-vm"
 version = "0.1.0"
 edition = "2021"
 description = "A stateless virtual machine for zkEVM with regional execution and cross-regional atomicity"
-license = "MIT"
+license = "BUSL-1.1"
+repository = "https://github.com/rhombus-tech/deployment"
 
 [dependencies]
 # Core dependencies
