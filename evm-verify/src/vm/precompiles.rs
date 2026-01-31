@@ -6,6 +6,9 @@ use ethers::types::{U256, H256, Address};
 use sha2::{Sha256, Digest};
 use ripemd::{Ripemd160};
 
+// BLS12-381 utilities for EIP-4844
+use crate::bls12_381_parsing::parse_bls12_381_g1;
+
 /// Check if an address is a precompile
 pub fn is_precompile(address: &Address) -> bool {
     let addr_bytes = address.as_bytes();
@@ -301,7 +304,7 @@ const BN256_ADD_GAS: u64 = 150;
 
 pub fn bn256_add(input: &[u8], gas_limit: u64) -> Result<(Vec<u8>, u64)> {
     use ark_bn254::{G1Affine, Fq};
-    use ark_ff::{PrimeField, BigInteger256, Zero};
+    use ark_ff::{PrimeField, BigInteger256, BigInteger, Zero};
     use ark_ec::{AffineCurve, ProjectiveCurve};
     
     if gas_limit < BN256_ADD_GAS {
@@ -363,7 +366,7 @@ const BN256_MUL_GAS: u64 = 6000;
 
 pub fn bn256_mul(input: &[u8], gas_limit: u64) -> Result<(Vec<u8>, u64)> {
     use ark_bn254::{G1Affine, Fq, Fr};
-    use ark_ff::{PrimeField, BigInteger256, Zero};
+    use ark_ff::{PrimeField, BigInteger256, BigInteger, Zero};
     use ark_ec::{AffineCurve, ProjectiveCurve};
     
     if gas_limit < BN256_MUL_GAS {
@@ -621,15 +624,15 @@ fn blake2b_compress(h: &[u64; 8], m: &[u64; 16], t: [u64; 2], f: bool, rounds: u
 const POINT_EVALUATION_GAS: u64 = 50000;
 
 pub fn point_evaluation(input: &[u8], gas_limit: u64) -> Result<(Vec<u8>, u64)> {
-    use ark_bls12_381::{Bls12_381, G1Affine, Fr};
-    use ark_ec::PairingEngine;
-    use ark_ff::PrimeField;
+    use ark_bls12_381::{Bls12_381, G1Affine, G2Affine, Fr, Fq, G1Projective};
+    use ark_ec::{PairingEngine, AffineCurve, ProjectiveCurve};
+    use ark_ff::{PrimeField, Field, Zero, One};
     
     if gas_limit < POINT_EVALUATION_GAS {
         return Err(anyhow!("Out of gas for point evaluation"));
     }
     
-    // EIP-4844 point evaluation for blob transactions
+    // EIP-4844 KZG point evaluation for blob transactions
     // Input: versioned hash (32 bytes) + z (32 bytes) + y (32 bytes) + commitment (48 bytes) + proof (48 bytes)
     if input.len() != 192 {
         return Err(anyhow!("Invalid point evaluation input length"));
@@ -647,23 +650,34 @@ pub fn point_evaluation(input: &[u8], gas_limit: u64) -> Result<(Vec<u8>, u64)> 
         return Err(anyhow!("Invalid versioned hash - wrong version byte"));
     }
     
-    // Parse field elements (simplified - real implementation needs proper BLS12-381 field parsing)
+    // Parse field elements
     let z = Fr::from_be_bytes_mod_order(z_bytes);
     let y = Fr::from_be_bytes_mod_order(y_bytes);
     
-    // Validate commitment and proof are valid G1 points (simplified validation)
-    // Real implementation would:
-    // 1. Parse commitment and proof as G1 points
-    // 2. Verify KZG opening: e(commitment - y*G1, G2) == e(proof, z*G2 - G2)
-    // 3. Compute commitment from versioned_hash and verify it matches
+    // Parse G1 commitment (48 bytes compressed)
+    let commitment = parse_bls12_381_g1(commitment_bytes)?;
     
-    // For now, perform basic validation that fields are in range
-    if commitment_bytes.iter().all(|&b| b == 0) {
-        return Err(anyhow!("Invalid commitment - all zeros"));
-    }
+    // Parse G1 proof (48 bytes compressed)
+    let proof = parse_bls12_381_g1(proof_bytes)?;
     
-    if proof_bytes.iter().all(|&b| b == 0) {
-        return Err(anyhow!("Invalid proof - all zeros"));
+    // Get generator points for KZG verification
+    let g1_generator = G1Affine::prime_subgroup_generator();
+    let g2_generator = G2Affine::prime_subgroup_generator();
+    
+    // Compute commitment - y*G1
+    let y_times_g1 = g1_generator.mul(y).into_affine();
+    let commitment_minus_y = (commitment.into_projective() - y_times_g1.into_projective()).into_affine();
+    
+    // Compute z*G2 - G2
+    let z_times_g2 = g2_generator.mul(z).into_affine();
+    let z_g2_minus_g2 = (z_times_g2.into_projective() - g2_generator.into_projective()).into_affine();
+    
+    // KZG verification: e(commitment - y*G1, G2) == e(proof, z*G2 - G2)
+    let lhs = Bls12_381::pairing(commitment_minus_y, g2_generator);
+    let rhs = Bls12_381::pairing(proof, z_g2_minus_g2);
+    
+    if lhs != rhs {
+        return Err(anyhow!("KZG proof verification failed"));
     }
     
     // Return success with FIELD_ELEMENTS_PER_BLOB (4096) and BLS_MODULUS

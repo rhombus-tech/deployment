@@ -49,7 +49,7 @@ pub struct ContractProofCache {
 }
 
 /// Cached contract analysis result with proving keys
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedContractProof {
     /// Bytecode hash (cache key)
     pub bytecode_hash: H256,
@@ -62,17 +62,21 @@ pub struct CachedContractProof {
     
     /// Proving key (expensive to generate - ~100ms)
     #[cfg(feature = "evm-verify")]
+    #[serde(skip)]
     pub proving_key: Arc<ProvingKey<Bn254>>,
     
     /// Verifying key (for on-chain verification)
     #[cfg(feature = "evm-verify")]
+    #[serde(skip)]
     pub verifying_key: Arc<VerifyingKey<Bn254>>,
     
     /// Placeholder when evm-verify not enabled
     #[cfg(not(feature = "evm-verify"))]
+    #[serde(skip)]
     pub proving_key: Arc<Vec<u8>>,
     
     #[cfg(not(feature = "evm-verify"))]
+    #[serde(skip)]
     pub verifying_key: Arc<Vec<u8>>,
     
     /// Critical vulnerability types found (for quick rejection)
@@ -317,19 +321,64 @@ impl ContractProofCache {
         }
     }
     
-    /// Persist cache entry to disk (optional)
-    fn persist_to_disk(&self, _proof: &CachedContractProof) -> Result<()> {
-        // TODO: Implement disk persistence
-        // For now, just return Ok
-        // In production, serialize to disk for crash recovery
+    /// Persist cache entry to disk for crash recovery
+    /// Serializes proof metadata to ~/.cache/stateless-vm/proofs/{bytecode_hash}.json
+    fn persist_to_disk(&self, proof: &CachedContractProof) -> Result<()> {
+        use std::fs;
+        use std::path::PathBuf;
+        
+        // Create cache directory
+        let cache_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".cache")
+            .join("stateless-vm")
+            .join("proofs");
+        fs::create_dir_all(&cache_dir)?;
+        
+        // Serialize to JSON (keys are not persisted - managed by PCD gateway)
+        let cache_file = cache_dir.join(format!("{:?}.json", proof.bytecode_hash));
+        let json = serde_json::to_string_pretty(proof)
+            .map_err(|e| crate::errors::VMError::InvalidOperation { description: format!("Serialization error: {}", e) })?;
+        fs::write(cache_file, json)
+            .map_err(|e| crate::errors::VMError::InvalidOperation { description: format!("IO error: {}", e) })?;
+        
         Ok(())
     }
     
-    /// Load cache from disk (optional)
+    /// Load cache from disk on startup
+    /// Reads all *.json files from ~/.cache/stateless-vm/proofs/
     pub fn load_from_disk(&self) -> Result<usize> {
-        // TODO: Implement disk loading
-        // For now, return 0
-        Ok(0)
+        use std::fs;
+        use std::path::PathBuf;
+        
+        let cache_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".cache")
+            .join("stateless-vm")
+            .join("proofs");
+        
+        if !cache_dir.exists() {
+            return Ok(0);
+        }
+        
+        let mut loaded = 0;
+        for entry in fs::read_dir(cache_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                if let Ok(json) = fs::read_to_string(&path) {
+                    if let Ok(mut proof) = serde_json::from_str::<CachedContractProof>(&json) {
+                        proof.proving_key = Arc::new(Default::default());
+                        proof.verifying_key = Arc::new(Default::default());
+                        let hash = proof.bytecode_hash;
+                        self.cache.write().insert(hash, proof);
+                        loaded += 1;
+                    }
+                }
+            }
+        }
+        
+        Ok(loaded)
     }
     
     /// Print cache statistics summary

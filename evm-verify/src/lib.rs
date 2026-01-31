@@ -30,6 +30,7 @@ pub mod ethereum;
 pub mod privacy;  // Privacy-preserving transactions
 pub mod state_trie;
 pub mod vm;
+pub mod bls12_381_parsing;
 pub mod proving;
 pub mod execution;
 
