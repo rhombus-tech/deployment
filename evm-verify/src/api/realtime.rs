@@ -789,12 +789,18 @@ impl RealtimeProcessor {
     
     /// Fetch latest block number from Ethereum RPC
     async fn fetch_latest_block_number(rpc_url: &str) -> Result<u64> {
-        // Mock implementation for now - replace with actual RPC call
-        static mut MOCK_BLOCK: u64 = 18_500_000;
-        unsafe {
-            MOCK_BLOCK += 1;
-            Ok(MOCK_BLOCK)
-        }
+        use ethers::providers::{Provider, Http, Middleware};
+        use anyhow::Context;
+        
+        // Create provider from RPC URL
+        let provider = Provider::<Http>::try_from(rpc_url)
+            .context("Failed to create RPC provider")?;
+        
+        // Fetch latest block number
+        let latest_block = provider.get_block_number().await
+            .context("Failed to fetch block number from Ethereum RPC")?;
+        
+        Ok(latest_block.as_u64())
     }
     
     /// Prove a block using the live proving service logic
